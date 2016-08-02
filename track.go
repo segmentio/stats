@@ -13,8 +13,6 @@ type Tracker interface {
 
 	Decr(Metric, Value)
 
-	Set(Metric, Value)
-
 	Track(Metric, Value)
 }
 
@@ -23,8 +21,6 @@ type TrackerFunc func(Metric, Value)
 func (f TrackerFunc) Incr(m Metric, v Value) { f.Track(m, Incr(v)) }
 
 func (f TrackerFunc) Decr(m Metric, v Value) { f.Track(m, Decr(v)) }
-
-func (f TrackerFunc) Set(m Metric, v Value) { f.Track(m, Set(v)) }
 
 func (f TrackerFunc) Track(m Metric, v Value) { f(m, v) }
 

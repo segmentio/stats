@@ -12,10 +12,6 @@ func NewValue(sym string, val float64) Value {
 	return value{symbol: sym, value: val}
 }
 
-func Set(value Value) Value {
-	return value
-}
-
 func Incr(value Value) Value {
 	switch v := value.(type) {
 	case Increment:

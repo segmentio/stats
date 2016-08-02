@@ -49,15 +49,6 @@ func TestValues(t *testing.T) {
 	}
 }
 
-func TestSet(t *testing.T) {
-	v0 := NewValue("test", 1)
-	v1 := Set(v0)
-
-	if v0 != v1 {
-		t.Errorf("set: %#v != %#v", v0, v1)
-	}
-}
-
 func TestIncrValue(t *testing.T) {
 	v0 := NewValue("test", 1)
 	v1 := Incr(v0)
