@@ -55,7 +55,7 @@ func TestTrackerFunc(t *testing.T) {
 	}
 }
 
-func TestTracker(t *testing.T) {
+func TestTrackerTrack(t *testing.T) {
 	var m0 = NewMetric("test")
 	var v0 = Count(1)
 
@@ -77,6 +77,84 @@ func TestTracker(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(v0, v1) {
+		t.Errorf("invalid value seen by stats tracker: %#v != %#v", v0, v1)
+	}
+}
+
+func TestTrackerSet(t *testing.T) {
+	var m0 = NewMetric("test")
+	var v0 = Count(1)
+
+	var m1 Metric
+	var v1 Value
+
+	x := NewTracker("test", HandlerFunc(func(m Metric, v Value) error {
+		m1 = m
+		v1 = v
+		return nil
+	}), func(m Metric, v Value, e error) {
+		t.Errorf("%#v:%#v: %s", m, v, e)
+	})
+
+	x.Set(m0, v0)
+
+	if !reflect.DeepEqual(m0, m1) {
+		t.Errorf("invalid metric seen by stats tracker: %#v != %#v", m0, m1)
+	}
+
+	if !reflect.DeepEqual(Set(v0), v1) {
+		t.Errorf("invalid value seen by stats tracker: %#v != %#v", v0, v1)
+	}
+}
+
+func TestTrackerIncr(t *testing.T) {
+	var m0 = NewMetric("test")
+	var v0 = Count(1)
+
+	var m1 Metric
+	var v1 Value
+
+	x := NewTracker("test", HandlerFunc(func(m Metric, v Value) error {
+		m1 = m
+		v1 = v
+		return nil
+	}), func(m Metric, v Value, e error) {
+		t.Errorf("%#v:%#v: %s", m, v, e)
+	})
+
+	x.Incr(m0, v0)
+
+	if !reflect.DeepEqual(m0, m1) {
+		t.Errorf("invalid metric seen by stats tracker: %#v != %#v", m0, m1)
+	}
+
+	if !reflect.DeepEqual(Incr(v0), v1) {
+		t.Errorf("invalid value seen by stats tracker: %#v != %#v", v0, v1)
+	}
+}
+
+func TestTrackerDecr(t *testing.T) {
+	var m0 = NewMetric("test")
+	var v0 = Count(1)
+
+	var m1 Metric
+	var v1 Value
+
+	x := NewTracker("test", HandlerFunc(func(m Metric, v Value) error {
+		m1 = m
+		v1 = v
+		return nil
+	}), func(m Metric, v Value, e error) {
+		t.Errorf("%#v:%#v: %s", m, v, e)
+	})
+
+	x.Decr(m0, v0)
+
+	if !reflect.DeepEqual(m0, m1) {
+		t.Errorf("invalid metric seen by stats tracker: %#v != %#v", m0, m1)
+	}
+
+	if !reflect.DeepEqual(Decr(v0), v1) {
 		t.Errorf("invalid value seen by stats tracker: %#v != %#v", v0, v1)
 	}
 }
