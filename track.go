@@ -24,13 +24,13 @@ func (f TrackerFunc) Decr(m Metric, v Value) { f.Track(m, Decr(v)) }
 
 func (f TrackerFunc) Track(m Metric, v Value) { f(m, v) }
 
-func NewTracker(name string, handler Handler, errorHandler func(Metric, Value, error)) Tracker {
-	if errorHandler == nil {
+func NewTracker(handler Handler, onError func(Metric, Value, error)) Tracker {
+	if onError == nil {
 		panic("stats.NewTracker: error handler cannot be nil")
 	}
 	return TrackerFunc(func(metric Metric, value Value) {
 		if err := handler.Handle(metric, value); err != nil {
-			errorHandler(metric, value, err)
+			onError(metric, value, err)
 		}
 	})
 }

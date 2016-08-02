@@ -62,7 +62,7 @@ func TestTrackerTrack(t *testing.T) {
 	var m1 Metric
 	var v1 Value
 
-	x := NewTracker("test", HandlerFunc(func(m Metric, v Value) error {
+	x := NewTracker(HandlerFunc(func(m Metric, v Value) error {
 		m1 = m
 		v1 = v
 		return nil
@@ -88,7 +88,7 @@ func TestTrackerIncr(t *testing.T) {
 	var m1 Metric
 	var v1 Value
 
-	x := NewTracker("test", HandlerFunc(func(m Metric, v Value) error {
+	x := NewTracker(HandlerFunc(func(m Metric, v Value) error {
 		m1 = m
 		v1 = v
 		return nil
@@ -114,7 +114,7 @@ func TestTrackerDecr(t *testing.T) {
 	var m1 Metric
 	var v1 Value
 
-	x := NewTracker("test", HandlerFunc(func(m Metric, v Value) error {
+	x := NewTracker(HandlerFunc(func(m Metric, v Value) error {
 		m1 = m
 		v1 = v
 		return nil
@@ -139,7 +139,7 @@ func TestTrackerError(t *testing.T) {
 	var e0 = errors.New("Bad")
 	var e1 error
 
-	x := NewTracker("test", HandlerFunc(func(m Metric, v Value) error {
+	x := NewTracker(HandlerFunc(func(m Metric, v Value) error {
 		return e0
 	}), func(m Metric, v Value, e error) {
 		e1 = e
@@ -155,7 +155,7 @@ func TestTrackerError(t *testing.T) {
 func TestTrackerPanic(t *testing.T) {
 	defer func() { recover() }()
 
-	NewTracker("test", HandlerFunc(func(m Metric, v Value) error { return nil }), nil)
+	NewTracker(HandlerFunc(func(m Metric, v Value) error { return nil }), nil)
 	t.Error("the expected panic wasn't raised")
 }
 
