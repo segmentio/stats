@@ -28,10 +28,12 @@ func (c client) NewTracker(namespace string) Tracker {
 	return TrackerFunc(func(m Metric, v Value) {
 		json.NewEncoder(c.w).Encode(struct {
 			Name  string  `json:"name"`
+			Type  string  `json:"type"`
 			Value float64 `json:"value"`
 			Tags  Tags    `json:"tags,omitempty"`
 		}{
 			Name:  namespace + "." + m.Name() + "." + v.Measure(),
+			Type:  v.Type(),
 			Value: v.Value(),
 			Tags:  m.Tags(),
 		})

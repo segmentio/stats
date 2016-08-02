@@ -7,40 +7,50 @@ import (
 
 func TestValues(t *testing.T) {
 	tests := []struct {
-		object Value
-		symbol string
-		value  float64
+		object  Value
+		measure string
+		valtype string
+		value   float64
 	}{
 		{
-			object: NewValue("test", 1),
-			symbol: "test",
-			value:  1,
+			object:  NewValue("test", 1),
+			measure: "test",
+			valtype: "set",
+			value:   1,
 		},
 		{
-			object: Count(1),
-			symbol: "count",
-			value:  1,
+			object:  Count(1),
+			measure: "count",
+			valtype: "set",
+			value:   1,
 		},
 		{
-			object: Size(1),
-			symbol: "size",
-			value:  1,
+			object:  Size(1),
+			measure: "size",
+			valtype: "set",
+			value:   1,
 		},
 		{
-			object: Bytes(1),
-			symbol: "bytes",
-			value:  1,
+			object:  Bytes(1),
+			measure: "bytes",
+			valtype: "set",
+			value:   1,
 		},
 		{
-			object: Duration(time.Second),
-			symbol: "duration",
-			value:  1,
+			object:  Duration(time.Second),
+			measure: "duration",
+			valtype: "set",
+			value:   1,
 		},
 	}
 
 	for _, test := range tests {
-		if symbol := test.object.Measure(); symbol != test.symbol {
-			t.Errorf("%#v: invalid symbol: %#v != %#v", test.object, test.symbol, symbol)
+		if measure := test.object.Measure(); measure != test.measure {
+			t.Errorf("%#v: invalid measure: %#v != %#v", test.object, test.measure, measure)
+		}
+
+		if valtype := test.object.Type(); valtype != test.valtype {
+			t.Errorf("%#v: invalid type: %#v != %#v", test.object, test.valtype, valtype)
 		}
 
 		if value := test.object.Value(); value != test.value {
