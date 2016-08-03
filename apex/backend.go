@@ -17,23 +17,26 @@ type backend struct {
 
 func (b backend) Close() error { return nil }
 
-func (b backend) Set(m stats.Metric, v float64) error { return b.log(m, v) }
+func (b backend) Set(m stats.Metric, v float64) error { return b.log("gauge", m, v) }
 
-func (b backend) Add(m stats.Metric, v float64) error { return b.log(m, v) }
+func (b backend) Add(m stats.Metric, v float64) error { return b.log("counter", m, v) }
 
-func (b backend) Observe(m stats.Metric, v time.Duration) error { return b.log(m, v.Seconds()) }
-
-func (b backend) log(m stats.Metric, v float64) error {
-	return b.WithFields(fields(m, v)).Info(m.Name())
+func (b backend) Observe(m stats.Metric, v time.Duration) error {
+	return b.log("histogram", m, v.Seconds())
 }
 
-func fields(m stats.Metric, v float64) log.Fields {
+func (b backend) log(t string, m stats.Metric, v float64) error {
+	b.WithFields(fields(t, m, v)).Info(m.Name())
+	return nil
+}
+
+func fields(t string, m stats.Metric, v float64) log.Fields {
 	return log.Fields{
 		"metric": log.Fields{
 			"name":  m.Name(),
-			"type":  m.Type(),
 			"help":  m.Help(),
 			"tags":  tags(m.Tags()),
+			"type":  t,
 			"value": v,
 		},
 	}

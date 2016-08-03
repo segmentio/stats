@@ -85,7 +85,7 @@ func TestTagsString(t *testing.T) {
 
 	for _, test := range tests {
 		if s := test.tags.String(); s != test.json {
-			t.Errorf("%#v: invalid json: %s != %s", test.json, s)
+			t.Errorf("%#v: invalid json: %s != %s", test.tags, test.json, s)
 		}
 	}
 }
