@@ -2,6 +2,7 @@ package apex_stats
 
 import (
 	"testing"
+	"time"
 
 	"github.com/apex/log"
 	"github.com/apex/log/handlers/memory"
@@ -17,7 +18,7 @@ func TestBackend(t *testing.T) {
 
 	c.Gauge(stats.Opts{Name: "events", Unit: "level"}).Set(1)
 	c.Counter(stats.Opts{Name: "events", Unit: "count"}).Add(1)
-	c.Histogram(stats.Opts{Name: "events", Unit: "duration"}).Observe(1)
+	c.Histogram(stats.Opts{Name: "events", Unit: "duration"}).Observe(time.Second)
 	c.Close()
 
 	if n := len(h.Entries); n != 3 {

@@ -3,6 +3,7 @@ package stats
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"reflect"
 	"sort"
 
@@ -171,4 +172,15 @@ func (t Tags) MarshalJSON() ([]byte, error) {
 
 	b.WriteByte('}')
 	return b.Bytes(), nil
+}
+
+func (tags Tags) Format(f fmt.State, _ rune) {
+	for i, tag := range tags {
+		if i != 0 {
+			io.WriteString(f, " ")
+		}
+		io.WriteString(f, tag.Name)
+		io.WriteString(f, "=")
+		io.WriteString(f, tag.Value)
+	}
 }
