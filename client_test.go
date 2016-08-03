@@ -9,21 +9,35 @@ func TestClient(t *testing.T) {
 	b := &bytes.Buffer{}
 	b.Grow(4096)
 
-	c := NewClient(b)
+	c := NewClientWith(Config{
+		Output: b,
+		Scope:  "test",
+		Tags:   Tags{{"hello", "world"}},
+	})
 
-	t0 := c.NewTracker("A")
-	t1 := c.NewTracker("B")
+	m1 := c.Gauge(Opts{
+		Name: "events",
+		Unit: "quantity",
+	})
 
-	t0.Incr(NewMetric("test", Tag{"S", "hello"}), Count(1))
-	t0.Decr(NewMetric("test", Tag{"S", "world"}), Count(1))
-	t1.Track(NewMetric("test", Tag{"S", "!"}), Size(10))
+	m2 := c.Counter(Opts{
+		Name: "events",
+		Unit: "count",
+		Tags: Tags{{"extra", "tag"}},
+	})
+
+	m1.Set(1)
+	m1.Set(42)
+	m2.Add(-10)
+	m1.Set(0)
 
 	c.Close()
 	s := b.String()
 
-	if s != `{"name":"A.test.count","type":"add","value":1,"tags":{"S":"hello"}}
-{"name":"A.test.count","type":"sub","value":1,"tags":{"S":"world"}}
-{"name":"B.test.size","type":"set","value":10,"tags":{"S":"!"}}
+	if s != `{"type":"gauge","name":"test.events.quantity","value":1,"tags":{"hello":"world"}}
+{"type":"gauge","name":"test.events.quantity","value":42,"tags":{"hello":"world"}}
+{"type":"counter","name":"test.events.count","value":-10,"tags":{"extra":"tag","hello":"world"}}
+{"type":"gauge","name":"test.events.quantity","value":0,"tags":{"hello":"world"}}
 ` {
 		t.Errorf("invalid string: %s", s)
 	}
