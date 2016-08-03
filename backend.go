@@ -11,11 +11,11 @@ import (
 type Backend interface {
 	io.Closer
 
-	Set(Metric, float64) error
+	Set(Metric, float64)
 
-	Add(Metric, float64) error
+	Add(Metric, float64)
 
-	Observe(Metric, time.Duration) error
+	Observe(Metric, time.Duration)
 }
 
 func NewBackend(w io.Writer) Backend {
@@ -36,22 +36,16 @@ func (b *backend) Close() error {
 	return b.out.Flush()
 }
 
-func (b *backend) Set(m Metric, v float64) error {
-	return b.send("gauge", m, v)
-}
+func (b *backend) Set(m Metric, v float64) { b.send("gauge", m, v) }
 
-func (b *backend) Add(m Metric, v float64) error {
-	return b.send("counter", m, v)
-}
+func (b *backend) Add(m Metric, v float64) { b.send("counter", m, v) }
 
-func (b *backend) Observe(m Metric, v time.Duration) error {
-	return b.send("histogram", m, v.Seconds())
-}
+func (b *backend) Observe(m Metric, v time.Duration) { b.send("histogram", m, v.Seconds()) }
 
-func (b *backend) send(t string, m Metric, v float64) error {
+func (b *backend) send(t string, m Metric, v float64) {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
-	return b.enc.Encode(struct {
+	b.enc.Encode(struct {
 		Type  string  `json:"type"`
 		Name  string  `json:"name"`
 		Help  string  `json:"help,omitempty"`
@@ -79,23 +73,20 @@ func (b multiBackend) Close() (err error) {
 	return
 }
 
-func (b multiBackend) Set(m Metric, v float64) (err error) {
+func (b multiBackend) Set(m Metric, v float64) {
 	for _, x := range b {
-		err = appendError(err, x.Set(m, v))
+		x.Set(m, v)
 	}
-	return
 }
 
-func (b multiBackend) Add(m Metric, v float64) (err error) {
+func (b multiBackend) Add(m Metric, v float64) {
 	for _, x := range b {
-		err = appendError(err, x.Add(m, v))
+		x.Add(m, v)
 	}
-	return
 }
 
-func (b multiBackend) Observe(m Metric, v time.Duration) (err error) {
+func (b multiBackend) Observe(m Metric, v time.Duration) {
 	for _, x := range b {
-		err = appendError(err, x.Observe(m, v))
+		x.Observe(m, v)
 	}
-	return
 }

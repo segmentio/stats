@@ -1,15 +1,20 @@
 package stats
 
-import "io"
+import (
+	"io"
+	"time"
+)
 
 type Client interface {
 	io.Closer
 
-	Gauge(Opts) Gauge
+	Gauge(opts Opts) Gauge
 
-	Counter(Opts) Counter
+	Counter(opts Opts) Counter
 
-	Histogram(Opts) Histogram
+	Histogram(opts Opts) Histogram
+
+	Timer(now time.Time, opts Opts) Timer
 }
 
 type Config struct {
@@ -54,6 +59,10 @@ func (c client) Counter(opts Opts) Counter {
 
 func (c client) Histogram(opts Opts) Histogram {
 	return NewHistogram(c.opts(opts), c.backend.Observe)
+}
+
+func (c client) Timer(now time.Time, opts Opts) Timer {
+	return NewTimer(now, c.opts(opts), c.backend.Observe)
 }
 
 func (c client) opts(opts Opts) Opts {

@@ -2,6 +2,7 @@ package stats
 
 import (
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -16,19 +17,27 @@ type Metric interface {
 type Gauge interface {
 	Metric
 
-	Set(float64) error
+	Set(float64)
 }
 
 type Counter interface {
 	Metric
 
-	Add(float64) error
+	Add(float64)
 }
 
 type Histogram interface {
 	Metric
 
-	Observe(time.Duration) error
+	Observe(time.Duration)
+}
+
+type Timer interface {
+	Metric
+
+	Lap(now time.Time, name string)
+
+	Stop(now time.Time)
 }
 
 type Opts struct {
@@ -39,6 +48,14 @@ type Opts struct {
 	Tags  Tags
 }
 
+func MakeOpts(name string, help string, tags ...Tag) Opts {
+	return Opts{
+		Name: name,
+		Help: help,
+		Tags: Tags(tags),
+	}
+}
+
 type metric struct {
 	name string
 	help string
@@ -47,7 +64,7 @@ type metric struct {
 
 func makeMetric(opts Opts) metric {
 	return metric{
-		name: JoinMetricName(".", opts.Scope, opts.Name, opts.Unit),
+		name: JoinMetricName(opts.Scope, opts.Name, opts.Unit),
 		help: opts.Help,
 		tags: opts.Tags,
 	}
@@ -59,38 +76,80 @@ func (m metric) Tags() Tags   { return m.tags }
 
 type gauge struct {
 	metric
-	set func(Metric, float64) error
+	set func(Metric, float64)
 }
 
-func NewGauge(opts Opts, set func(Metric, float64) error) gauge {
+func NewGauge(opts Opts, set func(Metric, float64)) Gauge {
 	return gauge{metric: makeMetric(opts), set: set}
 }
 
-func (g gauge) Set(x float64) error { return g.set(g, x) }
+func (g gauge) Set(x float64) { g.set(g, x) }
 
 type counter struct {
 	metric
-	add func(Metric, float64) error
+	add func(Metric, float64)
 }
 
-func NewCounter(opts Opts, add func(Metric, float64) error) counter {
+func NewCounter(opts Opts, add func(Metric, float64)) Counter {
 	return counter{metric: makeMetric(opts), add: add}
 }
 
-func (c counter) Add(x float64) error { return c.add(c, x) }
+func (c counter) Add(x float64) { c.add(c, x) }
 
 type histogram struct {
 	metric
-	obs func(Metric, time.Duration) error
+	obs func(Metric, time.Duration)
 }
 
-func NewHistogram(opts Opts, obs func(Metric, time.Duration) error) histogram {
+func NewHistogram(opts Opts, obs func(Metric, time.Duration)) Histogram {
 	return histogram{metric: makeMetric(opts), obs: obs}
 }
 
-func (h histogram) Observe(x time.Duration) error { return h.obs(h, x) }
+func (h histogram) Observe(x time.Duration) { h.obs(h, x) }
 
-func JoinMetricName(sep string, elems ...string) string {
+type timer struct {
+	metric
+	start time.Time
+	last  time.Time
+	mtx   sync.Mutex
+	obs   func(Metric, time.Duration)
+}
+
+func NewTimer(start time.Time, opts Opts, obs func(Metric, time.Duration)) Timer {
+	return &timer{metric: makeMetric(opts), start: start, last: start, obs: obs}
+}
+
+func (t *timer) Lap(now time.Time, name string) {
+	t.mtx.Lock()
+	d := now.Sub(t.last)
+	t.last = now
+	t.mtx.Unlock()
+
+	t.obs(t.histogram(name), d)
+}
+
+func (t *timer) Stop(now time.Time) {
+	t.obs(t.histogram(""), now.Sub(t.start))
+}
+
+func (t *timer) histogram(name string) histogram {
+	h := histogram{metric: t.metric, obs: t.obs}
+
+	if len(name) != 0 {
+		count := len(h.tags)
+		tags := make(Tags, count+1)
+		copy(tags, h.tags)
+		tags[count] = Tag{
+			Name:  "lap",
+			Value: name,
+		}
+		h.tags = tags
+	}
+
+	return h
+}
+
+func JoinMetricName(elems ...string) string {
 	parts := make([]string, 0, len(elems))
 
 	for _, elem := range elems {
@@ -99,5 +158,5 @@ func JoinMetricName(sep string, elems ...string) string {
 		}
 	}
 
-	return strings.Join(parts, sep)
+	return strings.Join(parts, ".")
 }
