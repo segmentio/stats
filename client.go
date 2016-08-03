@@ -1,11 +1,6 @@
 package stats
 
-import (
-	"bufio"
-	"encoding/json"
-	"io"
-	"time"
-)
+import "io"
 
 type Client interface {
 	io.Closer
@@ -18,45 +13,47 @@ type Client interface {
 }
 
 type Config struct {
-	Output io.Writer
-	Scope  string
-	Tags   Tags
+	Backend Backend
+	Scope   string
+	Tags    Tags
 }
 
-func NewClient(out io.Writer) Client {
+func NewClient(scope string, backend Backend, tags ...Tag) Client {
 	return NewClientWith(Config{
-		Output: out,
+		Backend: backend,
+		Scope:   scope,
+		Tags:    tags,
 	})
 }
 
 func NewClientWith(config Config) Client {
 	return client{
-		output: bufio.NewWriter(config.Output),
-		scope:  config.Scope,
-		tags:   config.Tags,
+		backend: config.Backend,
+		scope:   config.Scope,
+		tags:    config.Tags,
 	}
 }
 
 type client struct {
-	output *bufio.Writer
-	scope  string
-	tags   Tags
+	backend Backend
+	scope   string
+	tags    Tags
 }
 
 func (c client) Close() error {
-	return c.output.Flush()
+	return c.backend.Close()
 }
 
 func (c client) Gauge(opts Opts) Gauge {
-	return NewGauge(c.opts(opts), c.set)
+	return NewGauge(c.opts(opts), c.backend.Set)
 }
 
 func (c client) Counter(opts Opts) Counter {
-	return NewCounter(c.opts(opts), c.add)
+	return NewCounter(c.opts(opts), c.backend.Add)
 }
 
 func (c client) Histogram(opts Opts) Histogram {
-	return NewHistogram(c.opts(opts), c.observe)
+	return NewHistogram(c.opts(opts), c.backend.Observe)
 }
 
 func (c client) opts(opts Opts) Opts {
@@ -65,26 +62,4 @@ func (c client) opts(opts Opts) Opts {
 	}
 	opts.Tags = append(opts.Tags, c.tags...)
 	return opts
-}
-
-func (c client) set(m Metric, x float64) { c.send("gauge", m, x) }
-
-func (c client) add(m Metric, x float64) { c.send("counter", m, x) }
-
-func (c client) observe(m Metric, x time.Duration) { c.send("histogram", m, x.Seconds()) }
-
-func (c client) send(t string, m Metric, v float64) {
-	json.NewEncoder(c.output).Encode(struct {
-		Type  string      `json:"type"`
-		Name  string      `json:"name"`
-		Help  string      `json:"help,omitempty"`
-		Value interface{} `json:"value"`
-		Tags  Tags        `json:"tags,omitempty"`
-	}{
-		Type:  t,
-		Name:  m.Name(),
-		Help:  m.Help(),
-		Value: v,
-		Tags:  m.Tags(),
-	})
 }

@@ -9,11 +9,7 @@ func TestClient(t *testing.T) {
 	b := &bytes.Buffer{}
 	b.Grow(4096)
 
-	c := NewClientWith(Config{
-		Output: b,
-		Scope:  "test",
-		Tags:   Tags{{"hello", "world"}},
-	})
+	c := NewClient("test", NewBackend(b), Tag{"hello", "world"})
 
 	m1 := c.Gauge(Opts{
 		Name: "events",

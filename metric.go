@@ -16,19 +16,19 @@ type Metric interface {
 type Gauge interface {
 	Metric
 
-	Set(float64)
+	Set(float64) error
 }
 
 type Counter interface {
 	Metric
 
-	Add(float64)
+	Add(float64) error
 }
 
 type Histogram interface {
 	Metric
 
-	Observe(time.Duration)
+	Observe(time.Duration) error
 }
 
 type Opts struct {
@@ -59,36 +59,36 @@ func (m metric) Tags() Tags   { return m.tags }
 
 type gauge struct {
 	metric
-	set func(Metric, float64)
+	set func(Metric, float64) error
 }
 
-func NewGauge(opts Opts, set func(Metric, float64)) gauge {
+func NewGauge(opts Opts, set func(Metric, float64) error) gauge {
 	return gauge{metric: makeMetric(opts), set: set}
 }
 
-func (g gauge) Set(x float64) { g.set(g, x) }
+func (g gauge) Set(x float64) error { return g.set(g, x) }
 
 type counter struct {
 	metric
-	add func(Metric, float64)
+	add func(Metric, float64) error
 }
 
-func NewCounter(opts Opts, add func(Metric, float64)) counter {
+func NewCounter(opts Opts, add func(Metric, float64) error) counter {
 	return counter{metric: makeMetric(opts), add: add}
 }
 
-func (c counter) Add(x float64) { c.add(c, x) }
+func (c counter) Add(x float64) error { return c.add(c, x) }
 
 type histogram struct {
 	metric
-	obs func(Metric, time.Duration)
+	obs func(Metric, time.Duration) error
 }
 
-func NewHistogram(opts Opts, obs func(Metric, time.Duration)) histogram {
+func NewHistogram(opts Opts, obs func(Metric, time.Duration) error) histogram {
 	return histogram{metric: makeMetric(opts), obs: obs}
 }
 
-func (h histogram) Observe(x time.Duration) { h.obs(h, x) }
+func (h histogram) Observe(x time.Duration) error { return h.obs(h, x) }
 
 func JoinMetricName(sep string, elems ...string) string {
 	parts := make([]string, 0, len(elems))
