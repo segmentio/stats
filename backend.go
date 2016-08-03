@@ -32,16 +32,16 @@ func (b backend) Close() error {
 	return b.out.Flush()
 }
 
-func (b backend) Set(m Metric, x float64) error {
-	return b.send("gauge", m, x)
+func (b backend) Set(m Metric, v float64) error {
+	return b.send("gauge", m, v)
 }
 
-func (b backend) Add(m Metric, x float64) error {
-	return b.send("counter", m, x)
+func (b backend) Add(m Metric, v float64) error {
+	return b.send("counter", m, v)
 }
 
-func (b backend) Observe(m Metric, x time.Duration) error {
-	return b.send("histogram", m, x.Seconds())
+func (b backend) Observe(m Metric, v time.Duration) error {
+	return b.send("histogram", m, v.Seconds())
 }
 
 func (b backend) send(t string, m Metric, v float64) error {
@@ -58,4 +58,38 @@ func (b backend) send(t string, m Metric, v float64) error {
 		Value: v,
 		Tags:  m.Tags(),
 	})
+}
+
+func MultiBackend(backends ...Backend) Backend {
+	return multiBackend(backends)
+}
+
+type multiBackend []Backend
+
+func (b multiBackend) Close() (err error) {
+	for _, x := range b {
+		err = appendError(err, x.Close())
+	}
+	return
+}
+
+func (b multiBackend) Set(m Metric, v float64) (err error) {
+	for _, x := range b {
+		err = appendError(err, x.Set(v))
+	}
+	return
+}
+
+func (b multiBackend) Add(m Metric, v float64) (err error) {
+	for _, x := range b {
+		err = appendError(err, x.Add(v))
+	}
+	return
+}
+
+func (b multiBackend) Observe(m Metric, v time.Duration) (err error) {
+	for _, x := range b {
+		err = appendError(err, x.Observe(v))
+	}
+	return
 }
