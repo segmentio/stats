@@ -6,11 +6,19 @@ import (
 	"time"
 )
 
-func TestClient(t *testing.T) {
-	b := &bytes.Buffer{}
-	b.Grow(4096)
+func TestMultiBackend(t *testing.T) {
+	b1 := &bytes.Buffer{}
+	b2 := &bytes.Buffer{}
 
-	c := NewClient("test", NewBackend(b), Tag{"hello", "world"})
+	b1.Grow(4096)
+	b2.Grow(4096)
+
+	b := MultiBackend(
+		NewBackend(b1),
+		NewBackend(b2),
+	)
+
+	c := NewClient("test", b, Tag{"hello", "world"})
 
 	m1 := c.Gauge(Opts{
 		Name: "events",
@@ -35,14 +43,19 @@ func TestClient(t *testing.T) {
 	m3.Observe(time.Second)
 
 	c.Close()
-	s := b.String()
 
-	if s != `{"type":"gauge","name":"test.events.quantity","value":1,"tags":{"hello":"world"}}
+	const ref = `{"type":"gauge","name":"test.events.quantity","value":1,"tags":{"hello":"world"}}
 {"type":"gauge","name":"test.events.quantity","value":42,"tags":{"hello":"world"}}
 {"type":"counter","name":"test.events.count","value":-10,"tags":{"hello":"world","extra":"tag"}}
 {"type":"gauge","name":"test.events.quantity","value":0,"tags":{"hello":"world"}}
 {"type":"histogram","name":"test.events.duration","value":1,"tags":{"hello":"world"}}
-` {
-		t.Errorf("invalid string: %s", s)
+`
+
+	if s := b1.String(); s != ref {
+		t.Errorf("invalid string in first backend: %s", s)
+	}
+
+	if s := b2.String(); s != ref {
+		t.Errorf("invalid string in second backend: %s", s)
 	}
 }

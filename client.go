@@ -60,6 +60,14 @@ func (c client) opts(opts Opts) Opts {
 	if len(opts.Scope) == 0 {
 		opts.Scope = c.scope
 	}
-	opts.Tags = append(opts.Tags, c.tags...)
+
+	n1 := len(c.tags)
+	n2 := len(opts.Tags)
+
+	tags := make(Tags, n1+n2)
+	copy(tags, c.tags)
+	copy(tags[n1:], opts.Tags)
+	opts.Tags = tags
+
 	return opts
 }
