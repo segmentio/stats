@@ -30,7 +30,7 @@ func NewClientWith(config Config) Client {
 	return client{
 		backend: config.Backend,
 		scope:   config.Scope,
-		tags:    config.Tags,
+		tags:    config.Tags.Copy(),
 	}
 }
 
@@ -60,6 +60,13 @@ func (c client) opts(opts Opts) Opts {
 	if len(opts.Scope) == 0 {
 		opts.Scope = c.scope
 	}
-	opts.Tags = append(opts.Tags, c.tags...)
+
+	if len(c.tags) != 0 {
+		tags := make(Tags, len(opts.Tags)+len(c.tags))
+		copy(tags, opts.Tags)
+		copy(tags[len(opts.Tags):], c.tags)
+		opts.Tags = tags
+	}
+
 	return opts
 }

@@ -144,6 +144,12 @@ func makeString(v reflect.Value) string {
 	}
 }
 
+func (t Tags) Copy() Tags {
+	c := make(Tags, len(t))
+	copy(c, t)
+	return c
+}
+
 func (t Tags) String() string {
 	b, _ := t.MarshalJSON()
 	return string(b)

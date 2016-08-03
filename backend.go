@@ -46,11 +46,11 @@ func (b backend) Observe(m Metric, x time.Duration) error {
 
 func (b backend) send(t string, m Metric, v float64) error {
 	return b.enc.Encode(struct {
-		Type  string      `json:"type"`
-		Name  string      `json:"name"`
-		Help  string      `json:"help,omitempty"`
-		Value interface{} `json:"value"`
-		Tags  Tags        `json:"tags,omitempty"`
+		Type  string  `json:"type"`
+		Name  string  `json:"name"`
+		Help  string  `json:"help,omitempty"`
+		Value float64 `json:"value"`
+		Tags  Tags    `json:"tags,omitempty"`
 	}{
 		Type:  t,
 		Name:  m.Name(),
