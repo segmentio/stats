@@ -1,6 +1,7 @@
 package stats
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -86,6 +87,36 @@ func TestTagsString(t *testing.T) {
 	for _, test := range tests {
 		if s := test.tags.String(); s != test.json {
 			t.Errorf("%#v: invalid json: %s != %s", test.tags, test.json, s)
+		}
+	}
+}
+
+func TestTagsFormat(t *testing.T) {
+	tests := []struct {
+		tags   Tags
+		format string
+	}{
+		{
+			tags:   nil,
+			format: "",
+		},
+		{
+			tags:   Tags{},
+			format: "",
+		},
+		{
+			tags:   Tags{{"hello", "world"}},
+			format: "hello=world",
+		},
+		{
+			tags:   Tags{{"answer", "42"}, {"hello", "world"}},
+			format: "answer=42 hello=world",
+		},
+	}
+
+	for _, test := range tests {
+		if s := fmt.Sprint(test.tags); s != test.format {
+			t.Errorf("%#v: invalid format: %s != %s", test.tags, test.format, s)
 		}
 	}
 }
