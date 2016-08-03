@@ -60,7 +60,7 @@ func TestTagsPanic(t *testing.T) {
 	t.Error("the expected panic wasn't raised")
 }
 
-func TestTagsMarshalJSON(t *testing.T) {
+func TestTagsString(t *testing.T) {
 	tests := []struct {
 		tags Tags
 		json string
@@ -84,9 +84,7 @@ func TestTagsMarshalJSON(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		if b, err := test.tags.MarshalJSON(); err != nil {
-			t.Errorf("%#v: %s", test.tags, err)
-		} else if s := string(b); s != test.json {
+		if s := test.tags.String(); s != test.json {
 			t.Errorf("%#v: invalid json: %s != %s", test.json, s)
 		}
 	}

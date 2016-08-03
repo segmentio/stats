@@ -3,6 +3,7 @@ package stats
 import (
 	"bytes"
 	"testing"
+	"time"
 )
 
 func TestClient(t *testing.T) {
@@ -22,10 +23,16 @@ func TestClient(t *testing.T) {
 		Tags: Tags{{"extra", "tag"}},
 	})
 
+	m3 := c.Histogram(Opts{
+		Name: "events",
+		Unit: "duration",
+	})
+
 	m1.Set(1)
 	m1.Set(42)
 	m2.Add(-10)
 	m1.Set(0)
+	m3.Observe(time.Second)
 
 	c.Close()
 	s := b.String()
@@ -34,6 +41,7 @@ func TestClient(t *testing.T) {
 {"type":"gauge","name":"test.events.quantity","value":42,"tags":{"hello":"world"}}
 {"type":"counter","name":"test.events.count","value":-10,"tags":{"extra":"tag","hello":"world"}}
 {"type":"gauge","name":"test.events.quantity","value":0,"tags":{"hello":"world"}}
+{"type":"histogram","name":"test.events.duration","value":1,"tags":{"hello":"world"}}
 ` {
 		t.Errorf("invalid string: %s", s)
 	}
