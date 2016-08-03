@@ -75,21 +75,21 @@ func (b multiBackend) Close() (err error) {
 
 func (b multiBackend) Set(m Metric, v float64) (err error) {
 	for _, x := range b {
-		err = appendError(err, x.Set(v))
+		err = appendError(err, x.Set(m, v))
 	}
 	return
 }
 
 func (b multiBackend) Add(m Metric, v float64) (err error) {
 	for _, x := range b {
-		err = appendError(err, x.Add(v))
+		err = appendError(err, x.Add(m, v))
 	}
 	return
 }
 
 func (b multiBackend) Observe(m Metric, v time.Duration) (err error) {
 	for _, x := range b {
-		err = appendError(err, x.Observe(v))
+		err = appendError(err, x.Observe(m, v))
 	}
 	return
 }
