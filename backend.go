@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"io"
+	"sync"
 	"time"
 )
 
@@ -20,31 +21,36 @@ type Backend interface {
 func NewBackend(w io.Writer) Backend {
 	out := bufio.NewWriter(w)
 	enc := json.NewEncoder(out)
-	return backend{out: out, enc: enc}
+	return &backend{out: out, enc: enc}
 }
 
 type backend struct {
+	mtx sync.Mutex
 	out *bufio.Writer
 	enc *json.Encoder
 }
 
-func (b backend) Close() error {
+func (b *backend) Close() error {
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
 	return b.out.Flush()
 }
 
-func (b backend) Set(m Metric, v float64) error {
+func (b *backend) Set(m Metric, v float64) error {
 	return b.send("gauge", m, v)
 }
 
-func (b backend) Add(m Metric, v float64) error {
+func (b *backend) Add(m Metric, v float64) error {
 	return b.send("counter", m, v)
 }
 
-func (b backend) Observe(m Metric, v time.Duration) error {
+func (b *backend) Observe(m Metric, v time.Duration) error {
 	return b.send("histogram", m, v.Seconds())
 }
 
-func (b backend) send(t string, m Metric, v float64) error {
+func (b *backend) send(t string, m Metric, v float64) error {
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
 	return b.enc.Encode(struct {
 		Type  string  `json:"type"`
 		Name  string  `json:"name"`
