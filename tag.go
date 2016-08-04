@@ -1,13 +1,11 @@
 package stats
 
 import (
-	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"reflect"
 	"sort"
-
-	"github.com/segmentio/jutil"
 )
 
 type Tag struct {
@@ -42,32 +40,12 @@ func NewTags(v interface{}) Tags {
 
 func newTags(v reflect.Value) Tags {
 	switch v.Kind() {
-	case reflect.Struct:
-		return newTagsFromStruct(v)
-
 	case reflect.Map:
 		if v.Type().Key().Kind() == reflect.String {
 			return newTagsFromMap(v)
 		}
 	}
-
-	panic("stats.NewTags: tags can only be constructed from structs or map[string]")
-}
-
-func newTagsFromStruct(v reflect.Value) Tags {
-	s := jutil.LookupStruct(v.Type())
-	t := make(Tags, 0, len(s))
-
-	for _, f := range s {
-		if fv := v.FieldByIndex(f.Index); !f.Omitempty || !jutil.IsEmptyValue(fv) {
-			t = append(t, Tag{
-				Name:  f.Name,
-				Value: makeString(fv),
-			})
-		}
-	}
-
-	return t
+	panic("stats.NewTags: tags can only be constructed from other tags or map[string]")
 }
 
 func newTagsFromMap(v reflect.Value) Tags {
@@ -157,21 +135,13 @@ func (t Tags) String() string {
 }
 
 func (t Tags) MarshalJSON() ([]byte, error) {
-	b := &bytes.Buffer{}
-	b.Grow(20 * len(t))
-	b.WriteByte('{')
+	m := make(map[string]string, len(t))
 
-	for i, x := range t {
-		if i != 0 {
-			b.WriteByte(',')
-		}
-		jutil.WriteQuoted(b, []byte(x.Name))
-		b.WriteByte(':')
-		jutil.WriteQuoted(b, []byte(x.Value))
+	for _, x := range t {
+		m[x.Name] = x.Value
 	}
 
-	b.WriteByte('}')
-	return b.Bytes(), nil
+	return json.Marshal(m)
 }
 
 func (tags Tags) Format(f fmt.State, _ rune) {

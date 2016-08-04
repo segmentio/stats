@@ -35,16 +35,6 @@ func TestTags(t *testing.T) {
 			value: map[string]int{"answer": 42},
 			tags:  Tags{{"answer", "42"}},
 		},
-		{
-			value: struct {
-				Answer int    `json:"answer"`
-				Hello  string `json:"hello"`
-			}{
-				Answer: 42,
-				Hello:  "world",
-			},
-			tags: Tags{{"answer", "42"}, {"hello", "world"}},
-		},
 	}
 
 	for _, test := range tests {
