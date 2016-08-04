@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/segmentio/stats"
@@ -79,7 +80,7 @@ func (p protocol) WriteObserve(w io.Writer, m stats.Metric, v time.Duration) err
 }
 
 func (p protocol) write(s string, w io.Writer, m stats.Metric, v int64) (err error) {
-	_, err = fmt.Fprintf(w, "%s:%d|%s%v\n", m.Name(), v, s, sample(m.Sample()))
+	_, err = fmt.Fprintf(w, "%s:%d|%s%v\n", sanitize(m.Name()), v, s, sample(m.Sample()))
 	return
 }
 
@@ -89,4 +90,20 @@ func (s sample) Format(f fmt.State, _ rune) {
 	if s != 1 {
 		fmt.Fprintf(f, "|@%g", float64(s))
 	}
+}
+
+func sanitize(s string) string {
+	s = replace(s, ",")
+	s = replace(s, ":")
+	s = replace(s, "|")
+	s = replace(s, "@")
+	s = replace(s, "#")
+	return s
+}
+
+func replace(s string, b string) string {
+	if strings.IndexByte(s, b[0]) >= 0 {
+		s = strings.Replace(s, b, "_", -1)
+	}
+	return s
 }

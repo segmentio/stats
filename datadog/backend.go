@@ -80,7 +80,7 @@ func (p protocol) WriteObserve(w io.Writer, m stats.Metric, v time.Duration) err
 }
 
 func (p protocol) write(s string, w io.Writer, m stats.Metric, v int64) (err error) {
-	_, err = fmt.Fprintf(w, "%s:%d|%s%v%v\n", m.Name(), v, s, sample(m.Sample()), tags(m.Tags()))
+	_, err = fmt.Fprintf(w, "%s:%d|%s%v%v\n", sanitize(m.Name()), v, s, sample(m.Sample()), tags(m.Tags()))
 	return
 }
 
@@ -102,16 +102,19 @@ func (tags tags) Format(f fmt.State, _ rune) {
 			if i != 0 {
 				io.WriteString(f, ",")
 			}
-			io.WriteString(f, normalizeTagString(t.Name))
+			io.WriteString(f, sanitize(t.Name))
 			io.WriteString(f, ":")
-			io.WriteString(f, normalizeTagString(t.Value))
+			io.WriteString(f, sanitize(t.Value))
 		}
 	}
 }
 
-func normalizeTagString(s string) string {
+func sanitize(s string) string {
 	s = replace(s, ",")
 	s = replace(s, ":")
+	s = replace(s, "|")
+	s = replace(s, "@")
+	s = replace(s, "#")
 	return s
 }
 
