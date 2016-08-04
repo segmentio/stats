@@ -23,9 +23,9 @@ type Protocol interface {
 }
 
 type Config struct {
+	Protocol      Protocol
 	Network       string
 	Address       string
-	Protocol      Protocol
 	BufferSize    int
 	QueueSize     int
 	RetryAfterMin time.Duration
