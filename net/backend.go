@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -33,6 +34,14 @@ type Config struct {
 	WriteTimeout  time.Duration
 	Dial          func(string, string) (net.Conn, error)
 	Fail          func(error)
+}
+
+func SplitNetworkAddress(addr string) (network string, address string) {
+	if index := strings.Index(addr, "://"); index >= 0 {
+		network, addr = addr[:index], addr[index+3:]
+	}
+	address = addr
+	return
 }
 
 func NewBackendWith(config Config) stats.Backend {

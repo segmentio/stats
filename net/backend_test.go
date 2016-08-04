@@ -15,6 +15,47 @@ import (
 	"github.com/segmentio/stats"
 )
 
+func TestSplitNetworkAddress(t *testing.T) {
+	tests := []struct {
+		input   string
+		network string
+		address string
+	}{
+		{
+			input:   "",
+			network: "",
+			address: "",
+		},
+		{
+			input:   "tcp://",
+			network: "tcp",
+			address: "",
+		},
+		{
+			input:   "localhost",
+			network: "",
+			address: "localhost",
+		},
+		{
+			input:   "tcp://localhost",
+			network: "tcp",
+			address: "localhost",
+		},
+	}
+
+	for _, test := range tests {
+		network, address := SplitNetworkAddress(test.input)
+
+		if network != test.network {
+			t.Errorf("%s: invalid network returned: %#v != %#v", test.input, test.network, network)
+		}
+
+		if address != test.address {
+			t.Errorf("%s: invalid address returned: %#v != %#v", test.input, test.address, address)
+		}
+	}
+}
+
 func TestMakeFailFunc(t *testing.T) {
 	b := &bytes.Buffer{}
 	f := makeFailFunc(b)
