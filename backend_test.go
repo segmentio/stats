@@ -35,22 +35,25 @@ func TestBackendFunc(t *testing.T) {
 
 	if !reflect.DeepEqual(e, []Event{
 		Event{
-			Type:  "gauge",
-			Name:  "test.events.quantity",
-			Value: float64(1),
-			Tags:  Tags{{"hello", "world"}},
+			Type:   "gauge",
+			Name:   "test.events.quantity",
+			Value:  float64(1),
+			Sample: float64(1),
+			Tags:   Tags{{"hello", "world"}},
 		},
 		Event{
-			Type:  "counter",
-			Name:  "test.events.count",
-			Value: float64(1),
-			Tags:  Tags{{"hello", "world"}, {"extra", "tag"}},
+			Type:   "counter",
+			Name:   "test.events.count",
+			Value:  float64(1),
+			Sample: float64(1),
+			Tags:   Tags{{"hello", "world"}, {"extra", "tag"}},
 		},
 		Event{
-			Type:  "histogram",
-			Name:  "test.events.duration",
-			Value: time.Second,
-			Tags:  Tags{{"hello", "world"}},
+			Type:   "histogram",
+			Name:   "test.events.duration",
+			Value:  time.Second,
+			Sample: float64(1),
+			Tags:   Tags{{"hello", "world"}},
 		},
 	}) {
 		t.Errorf("invalid events: %#v", e)
@@ -86,22 +89,25 @@ func TestMultiBackend(t *testing.T) {
 	for _, e := range b {
 		if !reflect.DeepEqual(e.Events, []Event{
 			Event{
-				Type:  "gauge",
-				Name:  "test.events.quantity",
-				Value: float64(1),
-				Tags:  Tags{{"hello", "world"}},
+				Type:   "gauge",
+				Name:   "test.events.quantity",
+				Value:  float64(1),
+				Sample: float64(1),
+				Tags:   Tags{{"hello", "world"}},
 			},
 			Event{
-				Type:  "counter",
-				Name:  "test.events.count",
-				Value: float64(1),
-				Tags:  Tags{{"hello", "world"}, {"extra", "tag"}},
+				Type:   "counter",
+				Name:   "test.events.count",
+				Value:  float64(1),
+				Sample: float64(1),
+				Tags:   Tags{{"hello", "world"}, {"extra", "tag"}},
 			},
 			Event{
-				Type:  "histogram",
-				Name:  "test.events.duration",
-				Value: time.Second,
-				Tags:  Tags{{"hello", "world"}},
+				Type:   "histogram",
+				Name:   "test.events.duration",
+				Value:  time.Second,
+				Sample: float64(1),
+				Tags:   Tags{{"hello", "world"}},
 			},
 		}) {
 			t.Errorf("invalid events: %#v", e.Events)

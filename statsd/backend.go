@@ -79,6 +79,14 @@ func (p protocol) WriteObserve(w io.Writer, m stats.Metric, v time.Duration) err
 }
 
 func (p protocol) write(s string, w io.Writer, m stats.Metric, v int64) (err error) {
-	_, err = fmt.Fprintf(w, "%s:%d|%s\n", m.Name(), v, s)
+	_, err = fmt.Fprintf(w, "%s:%d|%s%v\n", m.Name(), v, s, sample(m.Sample()))
 	return
+}
+
+type sample float64
+
+func (s sample) Format(f fmt.State, _ rune) {
+	if s != 1 {
+		fmt.Fprintf(f, "|@%g", float64(s))
+	}
 }

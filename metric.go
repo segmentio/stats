@@ -14,6 +14,8 @@ type Metric interface {
 	Type() string
 
 	Tags() Tags
+
+	Sample() float64
 }
 
 type Gauge interface {
@@ -43,11 +45,13 @@ type Timer interface {
 }
 
 type Opts struct {
-	Scope string
-	Name  string
-	Unit  string
-	Help  string
-	Tags  Tags
+	Scope  string
+	Name   string
+	Unit   string
+	Help   string
+	Tags   Tags
+	Sample float64
+	Rand   func() float64
 }
 
 func MakeOpts(name string, help string, tags ...Tag) Opts {
@@ -59,22 +63,43 @@ func MakeOpts(name string, help string, tags ...Tag) Opts {
 }
 
 type metric struct {
-	name string
-	help string
-	tags Tags
+	name   string
+	help   string
+	tags   Tags
+	sample float64
+	rand   func() float64
 }
 
 func makeMetric(opts Opts) metric {
 	return metric{
-		name: JoinMetricName(opts.Scope, opts.Name, opts.Unit),
-		help: opts.Help,
-		tags: opts.Tags,
+		name:   JoinMetricName(opts.Scope, opts.Name, opts.Unit),
+		help:   opts.Help,
+		tags:   opts.Tags,
+		sample: normalizeSampleRate(opts.Sample),
+		rand:   opts.Rand,
 	}
 }
 
 func (m metric) Name() string { return m.name }
+
 func (m metric) Help() string { return m.help }
-func (m metric) Tags() Tags   { return m.tags }
+
+func (m metric) Tags() Tags { return m.tags }
+
+func (m metric) Sample() float64 { return m.sample }
+
+func (m metric) passSampleRate() bool { return passSampleRate(m.sample, m.rand) }
+
+func normalizeSampleRate(rate float64) float64 {
+	if rate <= 0 || rate >= 1 {
+		return 1
+	}
+	return rate
+}
+
+func passSampleRate(rate float64, rand func() float64) bool {
+	return rate == 1 || rate > rand()
+}
 
 type gauge struct {
 	metric
@@ -87,7 +112,11 @@ func NewGauge(opts Opts, set func(Metric, float64)) Gauge {
 
 func (g gauge) Type() string { return "gauge" }
 
-func (g gauge) Set(x float64) { g.set(g, x) }
+func (g gauge) Set(x float64) {
+	if g.passSampleRate() {
+		g.set(g, x)
+	}
+}
 
 type counter struct {
 	metric
@@ -100,7 +129,11 @@ func NewCounter(opts Opts, add func(Metric, float64)) Counter {
 
 func (c counter) Type() string { return "counter" }
 
-func (c counter) Add(x float64) { c.add(c, x) }
+func (c counter) Add(x float64) {
+	if c.passSampleRate() {
+		c.add(c, x)
+	}
+}
 
 type histogram struct {
 	metric
@@ -113,7 +146,11 @@ func NewHistogram(opts Opts, obs func(Metric, time.Duration)) Histogram {
 
 func (h histogram) Type() string { return "histogram" }
 
-func (h histogram) Observe(x time.Duration) { h.obs(h, x) }
+func (h histogram) Observe(x time.Duration) {
+	if h.passSampleRate() {
+		h.obs(h, x)
+	}
+}
 
 type timer struct {
 	metric
@@ -130,16 +167,20 @@ func NewTimer(start time.Time, opts Opts, obs func(Metric, time.Duration)) Timer
 func (t *timer) Type() string { return "timer" }
 
 func (t *timer) Lap(now time.Time, name string) {
-	t.mtx.Lock()
-	d := now.Sub(t.last)
-	t.last = now
-	t.mtx.Unlock()
+	if t.passSampleRate() {
+		t.mtx.Lock()
+		d := now.Sub(t.last)
+		t.last = now
+		t.mtx.Unlock()
 
-	t.obs(t.histogram(name), d)
+		t.obs(t.histogram(name), d)
+	}
 }
 
 func (t *timer) Stop(now time.Time) {
-	t.obs(t.histogram(""), now.Sub(t.start))
+	if t.passSampleRate() {
+		t.obs(t.histogram(""), now.Sub(t.start))
+	}
 }
 
 func (t *timer) histogram(name string) histogram {
@@ -149,10 +190,7 @@ func (t *timer) histogram(name string) histogram {
 		count := len(h.tags)
 		tags := make(Tags, count+1)
 		copy(tags, h.tags)
-		tags[count] = Tag{
-			Name:  "lap",
-			Value: name,
-		}
+		tags[count] = Tag{Name: "lap", Value: name}
 		h.tags = tags
 	}
 

@@ -14,11 +14,12 @@ func NewBackend(logger *log.Logger) stats.Backend {
 func fields(e stats.Event) log.Fields {
 	return log.Fields{
 		"metric": log.Fields{
-			"name":  e.Name,
-			"help":  e.Help,
-			"type":  e.Type,
-			"value": e.Value,
-			"tags":  tags(e.Tags),
+			"name":   e.Name,
+			"help":   e.Help,
+			"type":   e.Type,
+			"value":  e.Value,
+			"sample": e.Sample,
+			"tags":   tags(e.Tags),
 		},
 	}
 }

@@ -23,11 +23,11 @@ func TestSetConfigDefaults(t *testing.T) {
 
 func TestBackend(t *testing.T) {
 	packets := []string{}
+	rand := func() float64 { return 0.05 }
 
-	server, _ := net.ListenUDP("udp4", &net.UDPAddr{
-		IP: net.IPv4(127, 0, 0, 1),
-	})
+	server, _ := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
 	defer server.Close()
+
 	addr := server.LocalAddr()
 	join := make(chan struct{})
 
@@ -45,7 +45,7 @@ func TestBackend(t *testing.T) {
 	a := addr.Network() + "://" + addr.String()
 	c := stats.NewClient("statsd", NewBackend(a))
 	c.Gauge(stats.Opts{Name: "events", Unit: "level"}).Set(1)
-	c.Counter(stats.Opts{Name: "events", Unit: "count"}).Add(1)
+	c.Counter(stats.Opts{Name: "events", Unit: "count", Sample: 0.1, Rand: rand}).Add(1)
 	c.Histogram(stats.Opts{Name: "events", Unit: "duration"}).Observe(time.Second)
 	c.Close()
 
@@ -57,7 +57,7 @@ func TestBackend(t *testing.T) {
 
 	if !reflect.DeepEqual(packets, []string{
 		`statsd.events.level:1|g
-statsd.events.count:1|c
+statsd.events.count:1|c|@0.1
 statsd.events.duration:1000|h
 `,
 	}) {
