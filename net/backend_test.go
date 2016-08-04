@@ -82,7 +82,7 @@ func TestFlushSuccess(t *testing.T) {
 	b := bufio.NewWriter(c)
 	b.WriteString("Hello World!")
 
-	if flush(c, b, nil) != c {
+	if flush(c, b, &Config{}) != c {
 		t.Error("flush should return the connection on success")
 	}
 

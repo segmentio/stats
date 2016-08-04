@@ -31,6 +31,7 @@ type Config struct {
 	RetryAfterMin time.Duration
 	RetryAfterMax time.Duration
 	FlushTimeout  time.Duration
+	WriteTimeout  time.Duration
 	Dial          func(string, string) (net.Conn, error)
 	Fail          func(error)
 }
@@ -77,6 +78,10 @@ func setConfigDefaults(config Config) Config {
 
 	if config.FlushTimeout == 0 {
 		config.FlushTimeout = 5 * time.Second
+	}
+
+	if config.WriteTimeout == 0 {
+		config.WriteTimeout = 1 * time.Second
 	}
 
 	return config
@@ -222,14 +227,16 @@ func write(conn net.Conn, cbuf *bufio.Writer, mbuf *bytes.Buffer, job job, confi
 		return conn
 	}
 
-	if (mbuf.Len() + cbuf.Buffered()) > config.BufferSize {
-		conn = flush(conn, cbuf, config)
-	}
+	if err = conn.SetWriteDeadline(time.Now().Add(config.WriteTimeout)); err == nil {
+		if (mbuf.Len() + cbuf.Buffered()) > config.BufferSize {
+			conn = flush(conn, cbuf, config)
+		}
 
-	if mbuf.Len() >= config.BufferSize {
-		_, err = conn.Write(mbuf.Bytes())
-	} else {
-		_, err = cbuf.Write(mbuf.Bytes())
+		if mbuf.Len() >= config.BufferSize {
+			_, err = conn.Write(mbuf.Bytes())
+		} else {
+			_, err = cbuf.Write(mbuf.Bytes())
+		}
 	}
 
 	if err != nil {
@@ -242,11 +249,18 @@ func write(conn net.Conn, cbuf *bufio.Writer, mbuf *bytes.Buffer, job job, confi
 
 func flush(conn net.Conn, cbuf *bufio.Writer, config *Config) net.Conn {
 	if conn != nil {
-		if err := cbuf.Flush(); err != nil {
+		var err error
+
+		if err = conn.SetWriteDeadline(time.Now().Add(config.WriteTimeout)); err == nil {
+			err = cbuf.Flush()
+		}
+
+		if err != nil {
 			conn = reset(conn, cbuf)
 			handleError(err, config)
 		}
 	}
+
 	return conn
 }
 
