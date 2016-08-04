@@ -1,10 +1,7 @@
 package stats
 
 import (
-	"bufio"
-	"encoding/json"
 	"io"
-	"sync"
 	"time"
 )
 
@@ -18,47 +15,17 @@ type Backend interface {
 	Observe(Metric, time.Duration)
 }
 
-func NewBackend(w io.Writer) Backend {
-	out := bufio.NewWriter(w)
-	enc := json.NewEncoder(out)
-	return &backend{out: out, enc: enc}
-}
+type BackendFunc func(Event)
 
-type backend struct {
-	mtx sync.Mutex
-	out *bufio.Writer
-	enc *json.Encoder
-}
+func (b BackendFunc) Close() error { return nil }
 
-func (b *backend) Close() error {
-	b.mtx.Lock()
-	defer b.mtx.Unlock()
-	return b.out.Flush()
-}
+func (b BackendFunc) Set(m Metric, v float64) { b.call(m, v) }
 
-func (b *backend) Set(m Metric, v float64) { b.send("gauge", m, v) }
+func (b BackendFunc) Add(m Metric, v float64) { b.call(m, v) }
 
-func (b *backend) Add(m Metric, v float64) { b.send("counter", m, v) }
+func (b BackendFunc) Observe(m Metric, v time.Duration) { b.call(m, v) }
 
-func (b *backend) Observe(m Metric, v time.Duration) { b.send("histogram", m, v.Seconds()) }
-
-func (b *backend) send(t string, m Metric, v float64) {
-	b.mtx.Lock()
-	defer b.mtx.Unlock()
-	b.enc.Encode(struct {
-		Type  string  `json:"type"`
-		Name  string  `json:"name"`
-		Help  string  `json:"help,omitempty"`
-		Value float64 `json:"value"`
-		Tags  Tags    `json:"tags,omitempty"`
-	}{
-		Type:  t,
-		Name:  m.Name(),
-		Help:  m.Help(),
-		Value: v,
-		Tags:  m.Tags(),
-	})
-}
+func (b BackendFunc) call(m Metric, v interface{}) { b(MakeEvent(m, v)) }
 
 func MultiBackend(backends ...Backend) Backend {
 	return multiBackend(backends)

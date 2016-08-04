@@ -11,6 +11,8 @@ type Metric interface {
 
 	Help() string
 
+	Type() string
+
 	Tags() Tags
 }
 
@@ -83,6 +85,8 @@ func NewGauge(opts Opts, set func(Metric, float64)) Gauge {
 	return gauge{metric: makeMetric(opts), set: set}
 }
 
+func (g gauge) Type() string { return "gauge" }
+
 func (g gauge) Set(x float64) { g.set(g, x) }
 
 type counter struct {
@@ -94,6 +98,8 @@ func NewCounter(opts Opts, add func(Metric, float64)) Counter {
 	return counter{metric: makeMetric(opts), add: add}
 }
 
+func (c counter) Type() string { return "counter" }
+
 func (c counter) Add(x float64) { c.add(c, x) }
 
 type histogram struct {
@@ -104,6 +110,8 @@ type histogram struct {
 func NewHistogram(opts Opts, obs func(Metric, time.Duration)) Histogram {
 	return histogram{metric: makeMetric(opts), obs: obs}
 }
+
+func (h histogram) Type() string { return "histogram" }
 
 func (h histogram) Observe(x time.Duration) { h.obs(h, x) }
 
@@ -118,6 +126,8 @@ type timer struct {
 func NewTimer(start time.Time, opts Opts, obs func(Metric, time.Duration)) Timer {
 	return &timer{metric: makeMetric(opts), start: start, last: start, obs: obs}
 }
+
+func (t *timer) Type() string { return "timer" }
 
 func (t *timer) Lap(now time.Time, name string) {
 	t.mtx.Lock()

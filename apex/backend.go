@@ -1,40 +1,24 @@
 package apex_stats
 
 import (
-	"time"
-
 	"github.com/apex/log"
 	"github.com/segmentio/stats"
 )
 
 func NewBackend(logger *log.Logger) stats.Backend {
-	return backend{logger}
+	return stats.BackendFunc(func(e stats.Event) {
+		logger.WithFields(fields(e)).Info(e.Name)
+	})
 }
 
-type backend struct {
-	*log.Logger
-}
-
-func (b backend) Close() error { return nil }
-
-func (b backend) Set(m stats.Metric, v float64) { b.log("gauge", m, v) }
-
-func (b backend) Add(m stats.Metric, v float64) { b.log("counter", m, v) }
-
-func (b backend) Observe(m stats.Metric, v time.Duration) { b.log("histogram", m, v.Seconds()) }
-
-func (b backend) log(t string, m stats.Metric, v float64) {
-	b.WithFields(fields(t, m, v)).Info(m.Name())
-}
-
-func fields(t string, m stats.Metric, v float64) log.Fields {
+func fields(e stats.Event) log.Fields {
 	return log.Fields{
 		"metric": log.Fields{
-			"name":  m.Name(),
-			"help":  m.Help(),
-			"tags":  tags(m.Tags()),
-			"type":  t,
-			"value": v,
+			"name":  e.Name,
+			"help":  e.Help,
+			"type":  e.Type,
+			"value": e.Value,
+			"tags":  tags(e.Tags),
 		},
 	}
 }

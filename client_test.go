@@ -1,7 +1,7 @@
 package stats
 
 import (
-	"bytes"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -9,10 +9,8 @@ import (
 func TestClient(t *testing.T) {
 	now := time.Now()
 
-	b := &bytes.Buffer{}
-	b.Grow(4096)
-
-	c := NewClient("test", NewBackend(b), Tag{"hello", "world"})
+	b := &EventBackend{}
+	c := NewClient("test", b, Tag{"hello", "world"})
 
 	m1 := c.Gauge(Opts{
 		Name: "events",
@@ -37,7 +35,7 @@ func TestClient(t *testing.T) {
 
 	m1.Set(1)
 	m1.Set(42)
-	m2.Add(-10)
+	m2.Add(10)
 	m1.Set(0)
 	m3.Observe(time.Second)
 
@@ -47,18 +45,63 @@ func TestClient(t *testing.T) {
 	m4.Stop(now.Add(4 * time.Second))
 
 	c.Close()
-	s := b.String()
 
-	if s != `{"type":"gauge","name":"test.events.quantity","value":1,"tags":{"hello":"world"}}
-{"type":"gauge","name":"test.events.quantity","value":42,"tags":{"hello":"world"}}
-{"type":"counter","name":"test.events.count","value":-10,"tags":{"hello":"world","extra":"tag"}}
-{"type":"gauge","name":"test.events.quantity","value":0,"tags":{"hello":"world"}}
-{"type":"histogram","name":"test.events.duration","value":1,"tags":{"hello":"world"}}
-{"type":"histogram","name":"test.events.duration","value":1,"tags":{"hello":"world","lap":"a"}}
-{"type":"histogram","name":"test.events.duration","value":1,"tags":{"hello":"world","lap":"b"}}
-{"type":"histogram","name":"test.events.duration","value":1,"tags":{"hello":"world","lap":"c"}}
-{"type":"histogram","name":"test.events.duration","value":4,"tags":{"hello":"world"}}
-` {
-		t.Errorf("invalid string: %s", s)
+	if !reflect.DeepEqual(b.Events, []Event{
+		Event{
+			Type:  "gauge",
+			Name:  "test.events.quantity",
+			Value: float64(1),
+			Tags:  Tags{{"hello", "world"}},
+		},
+		Event{
+			Type:  "gauge",
+			Name:  "test.events.quantity",
+			Value: float64(42),
+			Tags:  Tags{{"hello", "world"}},
+		},
+		Event{
+			Type:  "counter",
+			Name:  "test.events.count",
+			Value: float64(10),
+			Tags:  Tags{{"hello", "world"}, {"extra", "tag"}},
+		},
+		Event{
+			Type:  "gauge",
+			Name:  "test.events.quantity",
+			Value: float64(0),
+			Tags:  Tags{{"hello", "world"}},
+		},
+		Event{
+			Type:  "histogram",
+			Name:  "test.events.duration",
+			Value: time.Second,
+			Tags:  Tags{{"hello", "world"}},
+		},
+		Event{
+			Type:  "histogram",
+			Name:  "test.events.duration",
+			Value: time.Second,
+			Tags:  Tags{{"hello", "world"}, {"lap", "a"}},
+		},
+		Event{
+			Type:  "histogram",
+			Name:  "test.events.duration",
+			Value: time.Second,
+			Tags:  Tags{{"hello", "world"}, {"lap", "b"}},
+		},
+		Event{
+			Type:  "histogram",
+			Name:  "test.events.duration",
+			Value: time.Second,
+			Tags:  Tags{{"hello", "world"}, {"lap", "c"}},
+		},
+		Event{
+			Type:  "histogram",
+			Name:  "test.events.duration",
+			Value: 4 * time.Second,
+			Tags:  Tags{{"hello", "world"}},
+		},
+	}) {
+		t.Errorf("invalid events: %#v", b.Events)
 	}
 }
