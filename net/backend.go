@@ -241,12 +241,10 @@ func flushN(conn net.Conn, buf *bytes.Buffer, config *Config, n int) net.Conn {
 		var err error
 
 		if err = conn.SetWriteDeadline(time.Now().Add(config.WriteTimeout)); err == nil {
-			_, err = conn.Write(buf.Bytes()[:n])
-			buf.Next(n)
+			_, err = conn.Write(buf.Next(n))
 		}
 
 		if err != nil {
-			buf.Reset()
 			conn.Close()
 			conn = nil
 			handleError(err, config)
