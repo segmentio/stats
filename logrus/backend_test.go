@@ -1,6 +1,7 @@
 package logrus_stats
 
 import (
+	"bytes"
 	"testing"
 	"time"
 
@@ -16,17 +17,21 @@ func (h *hook) Levels() []logrus.Level {
 	return []logrus.Level{logrus.InfoLevel}
 }
 
-func (h *hook) Fire(e *logrus.Entry) {
+func (h *hook) Fire(e *logrus.Entry) error {
 	h.entries = append(h.entries, e)
+	return nil
 }
 
 func TestBackend(t *testing.T) {
 	h := &hook{}
+	b := &bytes.Buffer{}
 	c := stats.NewClient(
 		"logrus",
 		NewBackend(&logrus.Logger{
-			Out:   w,
-			Hooks: logrus.LevelHooks{logrus.InfoLevel: h},
+			Out:       b,
+			Hooks:     logrus.LevelHooks{logrus.InfoLevel: []logrus.Hook{h}},
+			Formatter: &logrus.JSONFormatter{},
+			Level:     logrus.DebugLevel,
 		}),
 		stats.Tag{
 			Name:  "hello",
@@ -39,13 +44,13 @@ func TestBackend(t *testing.T) {
 	c.Histogram(stats.Opts{Name: "events", Unit: "duration"}).Observe(time.Second)
 	c.Close()
 
-	if n := len(h.Entries); n != 3 {
-		t.Errorf("invalid number of log entries:", n)
+	if n := len(h.entries); n != 3 {
+		t.Errorf("invalid number of log entries: %d", n)
 	}
 
-	for _, e := range h.Entries {
+	for _, e := range h.entries {
 		if _, ok := e.Data["metric"]; !ok {
-			t.Errorf("missing 'metric' in log entry")
+			t.Error("missing 'metric' in log entry")
 		}
 	}
 }

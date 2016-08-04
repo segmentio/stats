@@ -22,12 +22,12 @@ func TestBackend(t *testing.T) {
 	c.Close()
 
 	if n := len(h.Entries); n != 3 {
-		t.Errorf("invalid number of log entries:", n)
+		t.Errorf("invalid number of log entries: %d", n)
 	}
 
 	for _, e := range h.Entries {
 		if _, ok := e.Fields["metric"]; !ok {
-			t.Errorf("missing 'metric' in log entry")
+			t.Error("missing 'metric' in log entry")
 		}
 	}
 }
