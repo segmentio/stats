@@ -1,7 +1,6 @@
 package net_stats
 
 import (
-	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
@@ -68,18 +67,9 @@ func TestHandleError(t *testing.T) {
 	}
 }
 
-func TestReset(t *testing.T) {
-	c := &testConn{}
-	b := bufio.NewWriter(c)
-
-	if reset(c, b) != nil {
-		t.Error("reset should always return nil")
-	}
-}
-
 func TestFlushSuccess(t *testing.T) {
 	c := &testConn{}
-	b := bufio.NewWriter(c)
+	b := &bytes.Buffer{}
 	b.WriteString("Hello World!")
 
 	if flush(c, b, &Config{}) != c {
@@ -93,8 +83,8 @@ func TestFlushSuccess(t *testing.T) {
 
 func TestFlushFailure(t *testing.T) {
 	e := error(nil)
-	c := &testConn{err: io.EOF}
-	b := bufio.NewWriter(c)
+	c := &testConn{err: testError}
+	b := &bytes.Buffer{}
 	b.WriteString("Hello World!")
 
 	if flush(c, b, &Config{
@@ -109,20 +99,17 @@ func TestFlushFailure(t *testing.T) {
 }
 
 func TestWriteSuccessNoFlush(t *testing.T) {
-	const N = 512
-
 	c := &testConn{}
-	b := bufio.NewWriterSize(c, N)
-	m := &bytes.Buffer{}
+	b := &bytes.Buffer{}
 	j := job{
 		metric: stats.NewGauge(stats.MakeOpts("test", ""), nil),
 		value:  1.0,
 		write:  set,
 	}
 
-	if write(c, b, m, j, &Config{
+	if write(c, b, j, &Config{
 		Protocol:   testProto{},
-		BufferSize: N,
+		BufferSize: 512,
 	}) != c {
 		t.Error("write should return the connection on success")
 	}
@@ -131,21 +118,14 @@ func TestWriteSuccessNoFlush(t *testing.T) {
 		t.Errorf("write shouldn't have flushed when there was enough room in the buffer: %#v", s)
 	}
 
-	if s := m.String(); s != "set:test:1\n" {
-		t.Error("write should have written to the message buffer")
-	}
-
-	if n := b.Buffered(); n != 11 {
-		t.Errorf("the connection buffer contains a wrong number of bytes: %d", n)
+	if s := b.String(); s != "set:test:1\n" {
+		t.Errorf("the connection buffer contains invalid data: %s", s)
 	}
 }
 
 func TestWriteSuccessFlush(t *testing.T) {
-	const N = 20
-
 	c := &testConn{}
-	b := bufio.NewWriterSize(c, N)
-	m := &bytes.Buffer{}
+	b := &bytes.Buffer{}
 	j := job{
 		metric: stats.NewGauge(stats.MakeOpts("test", ""), nil),
 		value:  10.0,
@@ -154,9 +134,9 @@ func TestWriteSuccessFlush(t *testing.T) {
 
 	b.WriteString("set:test:0\n")
 
-	if write(c, b, m, j, &Config{
+	if write(c, b, j, &Config{
 		Protocol:   testProto{},
-		BufferSize: N,
+		BufferSize: 20,
 	}) != c {
 		t.Error("write should return the connection on success")
 	}
@@ -165,30 +145,23 @@ func TestWriteSuccessFlush(t *testing.T) {
 		t.Error("write should have flushed the initial buffer to the connection")
 	}
 
-	if s := m.String(); s != "set:test:10\n" {
-		t.Error("write should have written to the message buffer")
-	}
-
-	if n := b.Buffered(); n != 12 {
-		t.Errorf("the connection buffer contains a wrong number of bytes: %d", n)
+	if s := b.String(); s != "set:test:10\n" {
+		t.Errorf("the connection buffer contains invalid data: %s", s)
 	}
 }
 
 func TestWriteSuccessNoBuffer(t *testing.T) {
-	const N = 10
-
 	c := &testConn{}
-	b := bufio.NewWriterSize(c, N)
-	m := &bytes.Buffer{}
+	b := &bytes.Buffer{}
 	j := job{
 		metric: stats.NewGauge(stats.MakeOpts("test", ""), nil),
 		value:  10.0,
 		write:  set,
 	}
 
-	if write(c, b, m, j, &Config{
+	if write(c, b, j, &Config{
 		Protocol:   testProto{},
-		BufferSize: N,
+		BufferSize: 10,
 	}) != c {
 		t.Error("write should return the connection on success")
 	}
@@ -197,63 +170,53 @@ func TestWriteSuccessNoBuffer(t *testing.T) {
 		t.Error("write should have flushed directly to the connection")
 	}
 
-	if s := m.String(); s != "set:test:10\n" {
-		t.Error("write should have written to the message buffer")
-	}
-
-	if n := b.Buffered(); n != 0 {
+	if s := b.String(); len(s) != 0 {
 		t.Error("the connection buffer should be empty")
 	}
 }
 
 func TestWriteFailureProtocol(t *testing.T) {
-	const N = 10
-
 	e := error(nil)
 	c := &testConn{}
-	b := bufio.NewWriterSize(c, N)
-	m := &bytes.Buffer{}
+	b := &bytes.Buffer{}
 	j := job{
 		metric: stats.NewGauge(stats.MakeOpts("test", ""), nil),
 		value:  10.0,
 		write:  set,
 	}
 
-	if write(c, b, m, j, &Config{
-		Protocol:   testProto{err: io.EOF},
-		BufferSize: N,
+	if write(c, b, j, &Config{
+		Protocol:   testProto{err: testError},
+		BufferSize: 10,
 		Fail:       func(err error) { e = err },
 	}) != c {
 		t.Error("write should return the connection on protocol failures")
 	}
 
-	if e != io.EOF {
+	if e != testError {
 		t.Errorf("the wrong error was reported to the error handler: %s", e)
 	}
 }
 
 func TestWriteFailureConn(t *testing.T) {
-	const N = 10
-
 	e := error(nil)
-	c := &testConn{err: io.EOF}
-	b := bufio.NewWriterSize(c, N)
-	m := &bytes.Buffer{}
+	c := &testConn{err: testError}
+	b := &bytes.Buffer{}
 	j := job{
 		metric: stats.NewGauge(stats.MakeOpts("test", ""), nil),
 		value:  10.0,
 		write:  set,
 	}
 
-	if write(c, b, m, j, &Config{
+	if write(c, b, j, &Config{
 		Protocol:   testProto{},
-		BufferSize: N,
+		BufferSize: 10,
 		Fail:       func(err error) { e = err },
 	}) != nil {
 		t.Error("write should return nil on connection failure")
 	}
 
-	if e != io.EOF {
+	if e != testError {
 		t.Errorf("the wrong error was reported to the error handler: %s", e)
 	}
 }
@@ -333,13 +296,13 @@ func TestDialFailure(t *testing.T) {
 	e := error(nil)
 
 	if c := dial(&Config{
-		Dial: func(_ string, _ string) (net.Conn, error) { return nil, io.EOF },
+		Dial: func(_ string, _ string) (net.Conn, error) { return nil, testError },
 		Fail: func(err error) { e = err },
 	}); c != nil {
 		t.Errorf("dial returned an invalid connection: %v", c)
 	}
 
-	if e != io.EOF {
+	if e != testError {
 		t.Errorf("the error handler was called with an invalid error: %s", e)
 	}
 }
@@ -348,7 +311,7 @@ func TestConnect(t *testing.T) {
 	conn := &testConn{}
 
 	dialSuccess := func(_ string, _ string) (net.Conn, error) { return conn, nil }
-	dialFailure := func(_ string, _ string) (net.Conn, error) { return nil, io.EOF }
+	dialFailure := func(_ string, _ string) (net.Conn, error) { return nil, testError }
 
 	config := &Config{
 		RetryAfterMin: time.Microsecond,
@@ -356,7 +319,7 @@ func TestConnect(t *testing.T) {
 		Dial:          dialFailure,
 	}
 	config.Fail = func(err error) {
-		if err != io.EOF {
+		if err != testError {
 			t.Errorf("the error handler was called with an invalid error: %s", err)
 		}
 		config.Dial = dialSuccess
@@ -544,3 +507,5 @@ type testAddr struct{}
 func (_ testAddr) Network() string { return "tcp" }
 
 func (_ testAddr) String() string { return "localhost" }
+
+var testError = errors.New("test")

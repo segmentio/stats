@@ -1,7 +1,6 @@
 package net_stats
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -157,9 +156,8 @@ func run(jobs <-chan job, join *sync.WaitGroup, config *Config) {
 		}
 	}()
 
-	cbuf := bufio.NewWriterSize(nil, config.BufferSize)
-	mbuf := &bytes.Buffer{}
-	mbuf.Grow(config.BufferSize)
+	buf := &bytes.Buffer{}
+	buf.Grow(config.BufferSize)
 
 	timer := time.NewTicker(config.FlushTimeout)
 	defer timer.Stop()
@@ -167,21 +165,18 @@ func run(jobs <-chan job, join *sync.WaitGroup, config *Config) {
 	for {
 		if conn == nil {
 			conn = connect(config)
-			cbuf.Reset(conn)
 		}
 
 		select {
 		case job, open := <-jobs:
 			if !open {
-				conn = flush(conn, cbuf, config)
+				conn = flush(conn, buf, config)
 				return
 			}
-
-			mbuf.Reset()
-			conn = write(conn, cbuf, mbuf, job, config)
+			conn = write(conn, buf, job, config)
 
 		case <-timer.C:
-			conn = flush(conn, cbuf, config)
+			conn = flush(conn, buf, config)
 		}
 	}
 }
@@ -219,57 +214,46 @@ func backoff(d time.Duration, max time.Duration) time.Duration {
 	return d
 }
 
-func write(conn net.Conn, cbuf *bufio.Writer, mbuf *bytes.Buffer, job job, config *Config) net.Conn {
-	var err error
+func write(conn net.Conn, buf *bytes.Buffer, job job, config *Config) net.Conn {
+	n1 := buf.Len()
 
-	if err = job.write(config.Protocol, mbuf, job.metric, job.value); err != nil {
+	if err := job.write(config.Protocol, buf, job.metric, job.value); err != nil {
 		handleError(err, config)
 		return conn
 	}
 
-	if err = conn.SetWriteDeadline(time.Now().Add(config.WriteTimeout)); err == nil {
-		if (mbuf.Len() + cbuf.Buffered()) > config.BufferSize {
-			conn = flush(conn, cbuf, config)
+	if n2 := buf.Len(); n2 >= config.BufferSize {
+		if n1 == 0 {
+			n1 = n2
 		}
-
-		if mbuf.Len() >= config.BufferSize {
-			_, err = conn.Write(mbuf.Bytes())
-		} else {
-			_, err = cbuf.Write(mbuf.Bytes())
-		}
-	}
-
-	if err != nil {
-		conn = reset(conn, cbuf)
-		handleError(err, config)
+		conn = flushN(conn, buf, config, n1)
 	}
 
 	return conn
 }
 
-func flush(conn net.Conn, cbuf *bufio.Writer, config *Config) net.Conn {
+func flush(conn net.Conn, buf *bytes.Buffer, config *Config) net.Conn {
+	return flushN(conn, buf, config, buf.Len())
+}
+
+func flushN(conn net.Conn, buf *bytes.Buffer, config *Config, n int) net.Conn {
 	if conn != nil {
 		var err error
 
 		if err = conn.SetWriteDeadline(time.Now().Add(config.WriteTimeout)); err == nil {
-			err = cbuf.Flush()
+			_, err = conn.Write(buf.Bytes()[:n])
+			buf.Next(n)
 		}
 
 		if err != nil {
-			conn = reset(conn, cbuf)
+			buf.Reset()
+			conn.Close()
+			conn = nil
 			handleError(err, config)
 		}
 	}
 
 	return conn
-}
-
-func reset(conn net.Conn, cbuf *bufio.Writer) net.Conn {
-	if conn != nil {
-		cbuf.Reset(nil)
-		conn.Close()
-	}
-	return nil
 }
 
 func handleError(err error, config *Config) {
