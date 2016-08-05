@@ -19,27 +19,27 @@ type Metric interface {
 type Gauge interface {
 	Metric
 
-	Set(float64)
+	Set(value float64, tags ...Tag)
 }
 
 type Counter interface {
 	Metric
 
-	Add(float64)
+	Add(value float64, tags ...Tag)
 }
 
 type Histogram interface {
 	Metric
 
-	Observe(time.Duration)
+	Observe(value time.Duration, tags ...Tag)
 }
 
 type Timer interface {
 	Metric
 
-	Lap(now time.Time, name string)
+	Lap(now time.Time, name string, tags ...Tag)
 
-	Stop(now time.Time)
+	Stop(now time.Time, tags ...Tag)
 }
 
 type Opts struct {
@@ -59,16 +59,18 @@ func MakeOpts(name string, help string, tags ...Tag) Opts {
 }
 
 type metric struct {
-	name string
-	help string
-	tags Tags
+	name    string
+	help    string
+	tags    Tags
+	backend Backend
 }
 
-func makeMetric(opts Opts) metric {
+func makeMetric(backend Backend, opts Opts) metric {
 	return metric{
-		name: JoinMetricName(opts.Scope, opts.Name, opts.Unit),
-		help: opts.Help,
-		tags: opts.Tags,
+		name:    JoinMetricName(opts.Scope, opts.Name, opts.Unit),
+		help:    opts.Help,
+		tags:    opts.Tags,
+		backend: backend,
 	}
 }
 
@@ -78,82 +80,87 @@ func (m metric) Help() string { return m.help }
 
 func (m metric) Tags() Tags { return m.tags }
 
-type gauge struct {
-	metric
-	set func(Metric, float64)
+func (m metric) clone(tags ...Tag) metric {
+	c := m
+	c.tags = concatTags(c.tags, Tags(tags))
+	return c
 }
 
-func NewGauge(opts Opts, set func(Metric, float64)) Gauge {
-	return gauge{metric: makeMetric(opts), set: set}
+type gauge struct{ metric }
+
+func NewGauge(backend Backend, opts Opts) Gauge {
+	return gauge{makeMetric(backend, opts)}
 }
 
-func (g gauge) Type() string { return "gauge" }
-
-func (g gauge) Set(x float64) { g.set(g, x) }
-
-type counter struct {
-	metric
-	add func(Metric, float64)
+func (g gauge) Type() string {
+	return "gauge"
 }
 
-func NewCounter(opts Opts, add func(Metric, float64)) Counter {
-	return counter{metric: makeMetric(opts), add: add}
+func (g gauge) Set(value float64, tags ...Tag) {
+	g.backend.Set(gauge{g.clone(tags...)}, value)
 }
 
-func (c counter) Type() string { return "counter" }
+type counter struct{ metric }
 
-func (c counter) Add(x float64) { c.add(c, x) }
-
-type histogram struct {
-	metric
-	obs func(Metric, time.Duration)
+func NewCounter(backend Backend, opts Opts) Counter {
+	return counter{makeMetric(backend, opts)}
 }
 
-func NewHistogram(opts Opts, obs func(Metric, time.Duration)) Histogram {
-	return histogram{metric: makeMetric(opts), obs: obs}
+func (c counter) Type() string {
+	return "counter"
 }
 
-func (h histogram) Type() string { return "histogram" }
+func (c counter) Add(value float64, tags ...Tag) {
+	c.backend.Add(counter{c.clone(tags...)}, value)
+}
 
-func (h histogram) Observe(x time.Duration) { h.obs(h, x) }
+type histogram struct{ metric }
+
+func NewHistogram(backend Backend, opts Opts) Histogram {
+	return histogram{makeMetric(backend, opts)}
+}
+
+func (h histogram) Type() string {
+	return "histogram"
+}
+
+func (h histogram) Observe(value time.Duration, tags ...Tag) {
+	h.backend.Observe(histogram{h.clone(tags...)}, value)
+}
 
 type timer struct {
 	metric
 	start time.Time
 	last  time.Time
 	mtx   sync.Mutex
-	obs   func(Metric, time.Duration)
 }
 
-func NewTimer(start time.Time, opts Opts, obs func(Metric, time.Duration)) Timer {
-	return &timer{metric: makeMetric(opts), start: start, last: start, obs: obs}
+func NewTimer(start time.Time, backend Backend, opts Opts) Timer {
+	return &timer{metric: makeMetric(backend, opts), start: start, last: start}
 }
 
-func (t *timer) Type() string { return "timer" }
+func (t *timer) Type() string {
+	return "timer"
+}
 
-func (t *timer) Lap(now time.Time, name string) {
+func (t *timer) Lap(now time.Time, name string, tags ...Tag) {
 	t.mtx.Lock()
 	d := now.Sub(t.last)
 	t.last = now
 	t.mtx.Unlock()
 
-	t.obs(t.histogram(name), d)
+	t.backend.Observe(t.histogram(name, tags...), d)
 }
 
-func (t *timer) Stop(now time.Time) { t.obs(t.histogram(""), now.Sub(t.start)) }
+func (t *timer) Stop(now time.Time, tags ...Tag) {
+	t.backend.Observe(t.histogram("", tags...), now.Sub(t.start))
+}
 
-func (t *timer) histogram(name string) histogram {
-	h := histogram{metric: t.metric, obs: t.obs}
-
+func (t *timer) histogram(name string, tags ...Tag) histogram {
 	if len(name) != 0 {
-		count := len(h.tags)
-		tags := make(Tags, count+1)
-		copy(tags, h.tags)
-		tags[count] = Tag{Name: "lap", Value: name}
-		h.tags = tags
+		tags = append(tags, Tag{"lap", name})
 	}
-
-	return h
+	return histogram{t.clone(tags...)}
 }
 
 func JoinMetricName(elems ...string) string {

@@ -12,26 +12,10 @@ func TestClient(t *testing.T) {
 	b := &EventBackend{}
 	c := NewClient("test", b, Tag{"hello", "world"})
 
-	m1 := c.Gauge(Opts{
-		Name: "events",
-		Unit: "quantity",
-	})
-
-	m2 := c.Counter(Opts{
-		Name: "events",
-		Unit: "count",
-		Tags: Tags{{"extra", "tag"}},
-	})
-
-	m3 := c.Histogram(Opts{
-		Name: "events",
-		Unit: "duration",
-	})
-
-	m4 := c.Timer(now, Opts{
-		Name: "events",
-		Unit: "duration",
-	})
+	m1 := c.Gauge("events.quantity")
+	m2 := c.Counter("events.count", Tag{"extra", "tag"})
+	m3 := c.Histogram("events.duration")
+	m4 := c.Timer(now, "events.duration")
 
 	m1.Set(1)
 	m1.Set(42)

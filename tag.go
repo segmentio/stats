@@ -114,6 +114,24 @@ func copyTags(t Tags) Tags {
 	return x
 }
 
+func concatTags(t1 Tags, t2 Tags) Tags {
+	n1 := len(t1)
+	n2 := len(t2)
+
+	if n1 == 0 {
+		return t2
+	}
+
+	if n2 == 0 {
+		return t1
+	}
+
+	t3 := make(Tags, n1+n2)
+	copy(t3, t1)
+	copy(t3[n1:], t2)
+	return t3
+}
+
 func makeString(v reflect.Value) string {
 	switch v.Kind() {
 	case reflect.String:
@@ -121,12 +139,6 @@ func makeString(v reflect.Value) string {
 	default:
 		return fmt.Sprint(v.Interface())
 	}
-}
-
-func (t Tags) Copy() Tags {
-	c := make(Tags, len(t))
-	copy(c, t)
-	return c
 }
 
 func (t Tags) String() string {

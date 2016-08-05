@@ -8,13 +8,13 @@ import (
 type Client interface {
 	io.Closer
 
-	Gauge(opts Opts) Gauge
+	Gauge(name string, tags ...Tag) Gauge
 
-	Counter(opts Opts) Counter
+	Counter(name string, tags ...Tag) Counter
 
-	Histogram(opts Opts) Histogram
+	Histogram(name string, tags ...Tag) Histogram
 
-	Timer(now time.Time, opts Opts) Timer
+	Timer(now time.Time, name string, tags ...Tag) Timer
 }
 
 type Config struct {
@@ -35,7 +35,7 @@ func NewClientWith(config Config) Client {
 	return client{
 		backend: config.Backend,
 		scope:   config.Scope,
-		tags:    config.Tags.Copy(),
+		tags:    config.Tags,
 	}
 }
 
@@ -45,38 +45,28 @@ type client struct {
 	tags    Tags
 }
 
-func (c client) Close() error {
-	return c.backend.Close()
+func (c client) Close() error { return c.backend.Close() }
+
+func (c client) Gauge(name string, tags ...Tag) Gauge {
+	return NewGauge(c.backend, c.opts(name, tags...))
 }
 
-func (c client) Gauge(opts Opts) Gauge {
-	return NewGauge(c.opts(opts), c.backend.Set)
+func (c client) Counter(name string, tags ...Tag) Counter {
+	return NewCounter(c.backend, c.opts(name, tags...))
 }
 
-func (c client) Counter(opts Opts) Counter {
-	return NewCounter(c.opts(opts), c.backend.Add)
+func (c client) Histogram(name string, tags ...Tag) Histogram {
+	return NewHistogram(c.backend, c.opts(name, tags...))
 }
 
-func (c client) Histogram(opts Opts) Histogram {
-	return NewHistogram(c.opts(opts), c.backend.Observe)
+func (c client) Timer(now time.Time, name string, tags ...Tag) Timer {
+	return NewTimer(now, c.backend, c.opts(name, tags...))
 }
 
-func (c client) Timer(now time.Time, opts Opts) Timer {
-	return NewTimer(now, c.opts(opts), c.backend.Observe)
-}
-
-func (c client) opts(opts Opts) Opts {
-	if len(opts.Scope) == 0 {
-		opts.Scope = c.scope
+func (c client) opts(name string, tags ...Tag) Opts {
+	return Opts{
+		Scope: c.scope,
+		Name:  name,
+		Tags:  concatTags(c.tags, Tags(tags)),
 	}
-
-	n1 := len(c.tags)
-	n2 := len(opts.Tags)
-
-	tags := make(Tags, n1+n2)
-	copy(tags, c.tags)
-	copy(tags[n1:], opts.Tags)
-	opts.Tags = tags
-
-	return opts
 }

@@ -6,6 +6,46 @@ import (
 	"testing"
 )
 
+func TestConcatTags(t *testing.T) {
+	tests := []struct {
+		t1 Tags
+		t2 Tags
+		t3 Tags
+	}{
+		{
+			t1: nil,
+			t2: nil,
+			t3: nil,
+		},
+		{
+			t1: Tags{{"hello", "world"}},
+			t2: nil,
+			t3: Tags{{"hello", "world"}},
+		},
+		{
+			t1: nil,
+			t2: Tags{{"hello", "world"}},
+			t3: Tags{{"hello", "world"}},
+		},
+		{
+			t1: Tags{{"hello", "world"}},
+			t2: Tags{{"hello", "world"}},
+			t3: Tags{{"hello", "world"}, {"hello", "world"}},
+		},
+		{
+			t1: Tags{{"answer", "42"}},
+			t2: Tags{{"hello", "world"}},
+			t3: Tags{{"answer", "42"}, {"hello", "world"}},
+		},
+	}
+
+	for _, test := range tests {
+		if tags := concatTags(test.t1, test.t2); !reflect.DeepEqual(tags, test.t3) {
+			t.Errorf("concatenating tags produced an invalid result: %#v != %#v", test.t3, tags)
+		}
+	}
+}
+
 func TestTags(t *testing.T) {
 	tests := []struct {
 		value interface{}
