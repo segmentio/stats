@@ -370,6 +370,9 @@ func TestBackend(t *testing.T) {
 	b.Add(stats.NewCounter(b, stats.MakeOpts("metric_2", "")), 2)
 	b.Observe(stats.NewHistogram(b, stats.MakeOpts("metric_3", "")), time.Second)
 
+	// give some time to the backend to start
+	time.Sleep(10 * time.Millisecond)
+
 	res, err := http.Get("http://" + a + "/metrics")
 	if err != nil {
 		t.Error(err)
