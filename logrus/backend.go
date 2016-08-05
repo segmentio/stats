@@ -15,7 +15,6 @@ func fields(e stats.Event) logrus.Fields {
 	return logrus.Fields{
 		"metric": logrus.Fields{
 			"name":  e.Name,
-			"help":  e.Help,
 			"type":  e.Type,
 			"value": e.Value,
 			"tags":  tags(e.Tags),

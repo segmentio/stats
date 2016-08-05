@@ -21,9 +21,9 @@ func TestBackend(t *testing.T) {
 	c.Histogram("events.duration").Observe(time.Second)
 	c.Close()
 
-	if s := b.String(); s != `gauge log.events.level [hello=world] 1 ()
-counter log.events.count [hello=world] 1 ()
-histogram log.events.duration [hello=world] 1s ()
+	if s := b.String(); s != `gauge log.events.level [hello=world] 1
+counter log.events.count [hello=world] 1
+histogram log.events.duration [hello=world] 1s
 ` {
 		t.Errorf("invalid logs: %s", s)
 	}

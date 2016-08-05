@@ -30,7 +30,6 @@ func makeMetric(m stats.Metric, v float64, t time.Time) Metric {
 	metric := Metric{
 		Name:   sanitize(m.Name()),
 		Type:   m.Type(),
-		Help:   m.Help(),
 		Value:  v,
 		Time:   t,
 		Labels: makeLabels(m.Tags()),

@@ -9,8 +9,6 @@ import (
 type Metric interface {
 	Name() string
 
-	Help() string
-
 	Type() string
 
 	Tags() Tags
@@ -46,21 +44,18 @@ type Opts struct {
 	Scope string
 	Name  string
 	Unit  string
-	Help  string
 	Tags  Tags
 }
 
-func MakeOpts(name string, help string, tags ...Tag) Opts {
+func MakeOpts(name string, tags ...Tag) Opts {
 	return Opts{
 		Name: name,
-		Help: help,
 		Tags: Tags(tags),
 	}
 }
 
 type metric struct {
 	name    string
-	help    string
 	tags    Tags
 	backend Backend
 }
@@ -68,15 +63,12 @@ type metric struct {
 func makeMetric(backend Backend, opts Opts) metric {
 	return metric{
 		name:    JoinMetricName(opts.Scope, opts.Name, opts.Unit),
-		help:    opts.Help,
 		tags:    opts.Tags,
 		backend: backend,
 	}
 }
 
 func (m metric) Name() string { return m.name }
-
-func (m metric) Help() string { return m.help }
 
 func (m metric) Tags() Tags { return m.tags }
 

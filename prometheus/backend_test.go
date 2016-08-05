@@ -121,7 +121,7 @@ func TestSleep(t *testing.T) {
 func TestEnqueueSuccess(t *testing.T) {
 	c := make(chan job, 1)
 	j := job{
-		metric: stats.NewGauge(nil, stats.MakeOpts("test", "")),
+		metric: stats.NewGauge(nil, stats.MakeOpts("test")),
 		value:  1.0,
 	}
 
@@ -136,7 +136,7 @@ func TestEnqueueFailureFull(t *testing.T) {
 	e := error(nil)
 	c := make(chan job, 0)
 	j := job{
-		metric: stats.NewGauge(nil, stats.MakeOpts("test", "")),
+		metric: stats.NewGauge(nil, stats.MakeOpts("test")),
 		value:  1.0,
 	}
 
@@ -151,7 +151,7 @@ func TestEnqueueFailureClosed(t *testing.T) {
 	e := error(nil)
 	c := make(chan job, 1)
 	j := job{
-		metric: stats.NewGauge(nil, stats.MakeOpts("test", "")),
+		metric: stats.NewGauge(nil, stats.MakeOpts("test")),
 		value:  1.0,
 	}
 
@@ -366,9 +366,9 @@ func TestBackend(t *testing.T) {
 	})
 	defer b.Close()
 
-	b.Set(stats.NewGauge(b, stats.MakeOpts("metric_1", "")), 1)
-	b.Add(stats.NewCounter(b, stats.MakeOpts("metric_2", "")), 2)
-	b.Observe(stats.NewHistogram(b, stats.MakeOpts("metric_3", "")), time.Second)
+	b.Set(stats.NewGauge(b, stats.MakeOpts("metric_1")), 1)
+	b.Add(stats.NewCounter(b, stats.MakeOpts("metric_2")), 2)
+	b.Observe(stats.NewHistogram(b, stats.MakeOpts("metric_3")), time.Second)
 
 	// give some time to the backend to start
 	time.Sleep(10 * time.Millisecond)

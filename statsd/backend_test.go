@@ -97,7 +97,7 @@ func TestBackend(t *testing.T) {
 	a := addr.Network() + "://" + addr.String()
 	c := stats.NewClient("statsd", NewBackend(a))
 
-	c.Gauge("events.level").Set(1)
+	c.Gauge("events,.level").Set(1)
 	c.Counter("events.count").Add(1)
 	c.Histogram("events.duration").Observe(time.Second)
 	c.Close()
@@ -109,7 +109,7 @@ func TestBackend(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(packets, []string{
-		`statsd.events.level:1|g
+		`statsd.events_.level:1|g
 statsd.events.count:1|c
 statsd.events.duration:1000|h
 `,
