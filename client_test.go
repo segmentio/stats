@@ -24,7 +24,7 @@ func TestClient(t *testing.T) {
 	m1 := c.Gauge("events.quantity")
 	m2 := c.Counter("events.count", Tag{"extra", "tag"})
 	m3 := c.Histogram("events.duration")
-	m4 := c.Timer("events.duration")
+	m4 := c.Timer("events.duration").Start()
 
 	m1.Set(1)
 	m1.Set(42)
@@ -32,9 +32,9 @@ func TestClient(t *testing.T) {
 	m1.Set(0)
 	m3.Observe(1)
 
-	m4.Step("a")
-	m4.Step("b")
-	m4.Step("c")
+	m4.Stamp("a")
+	m4.Stamp("b")
+	m4.Stamp("c")
 	m4.Stop()
 
 	c.Close()
@@ -74,19 +74,19 @@ func TestClient(t *testing.T) {
 			Type:  "histogram",
 			Name:  "test.events.duration",
 			Value: 1,
-			Tags:  Tags{{"hello", "world"}, {"step", "a"}},
+			Tags:  Tags{{"hello", "world"}, {"stamp", "a"}},
 		},
 		Event{
 			Type:  "histogram",
 			Name:  "test.events.duration",
 			Value: 1,
-			Tags:  Tags{{"hello", "world"}, {"step", "b"}},
+			Tags:  Tags{{"hello", "world"}, {"stamp", "b"}},
 		},
 		Event{
 			Type:  "histogram",
 			Name:  "test.events.duration",
 			Value: 1,
-			Tags:  Tags{{"hello", "world"}, {"step", "c"}},
+			Tags:  Tags{{"hello", "world"}, {"stamp", "c"}},
 		},
 		Event{
 			Type:  "histogram",

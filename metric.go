@@ -35,7 +35,11 @@ type Histogram interface {
 type Timer interface {
 	Metric
 
-	Step(name string, tags ...Tag)
+	Start(tags ...Tag) Clock
+}
+
+type Clock interface {
+	Stamp(name string, tags ...Tag)
 
 	Stop(tags ...Tag)
 }
@@ -85,9 +89,7 @@ func NewGauge(opts Opts) Gauge {
 	return gauge{makeMetric(opts)}
 }
 
-func (g gauge) Type() string {
-	return "gauge"
-}
+func (g gauge) Type() string { return "gauge" }
 
 func (g gauge) Set(value float64, tags ...Tag) {
 	g.backend.Set(gauge{g.clone(tags...)}, value)
@@ -99,9 +101,7 @@ func NewCounter(opts Opts) Counter {
 	return counter{makeMetric(opts)}
 }
 
-func (c counter) Type() string {
-	return "counter"
-}
+func (c counter) Type() string { return "counter" }
 
 func (c counter) Add(value float64, tags ...Tag) {
 	c.backend.Add(counter{c.clone(tags...)}, value)
@@ -113,9 +113,7 @@ func NewHistogram(opts Opts) Histogram {
 	return histogram{makeMetric(opts)}
 }
 
-func (h histogram) Type() string {
-	return "histogram"
-}
+func (h histogram) Type() string { return "histogram" }
 
 func (h histogram) Observe(value float64, tags ...Tag) {
 	h.backend.Observe(histogram{h.clone(tags...)}, value)
@@ -123,10 +121,7 @@ func (h histogram) Observe(value float64, tags ...Tag) {
 
 type timer struct {
 	metric
-	start time.Time
-	last  time.Time
-	mtx   sync.Mutex
-	now   func() time.Time
+	now func() time.Time
 }
 
 func NewTimer(opts Opts) Timer {
@@ -137,34 +132,44 @@ func NewTimerWith(now func() time.Time, opts Opts) Timer {
 	if now == nil {
 		now = time.Now
 	}
-	start := now()
-	return &timer{metric: makeMetric(opts), start: start, last: start, now: now}
+	return timer{metric: makeMetric(opts), now: now}
 }
 
-func (t *timer) Type() string {
-	return "timer"
-}
+func (t timer) Type() string { return "timer" }
 
-func (t *timer) Step(name string, tags ...Tag) {
+func (t timer) Start(tags ...Tag) Clock {
 	now := t.now()
-
-	t.mtx.Lock()
-	d := now.Sub(t.last)
-	t.last = now
-	t.mtx.Unlock()
-
-	t.backend.Observe(t.histogram(name, tags...), d.Seconds())
+	return &clock{metric: t.clone(tags...), start: now, last: now, now: t.now}
 }
 
-func (t *timer) Stop(tags ...Tag) {
-	t.backend.Observe(t.histogram("", tags...), t.now().Sub(t.start).Seconds())
+type clock struct {
+	metric
+	start time.Time
+	last  time.Time
+	mtx   sync.Mutex
+	now   func() time.Time
 }
 
-func (t *timer) histogram(name string, tags ...Tag) histogram {
+func (c *clock) Stamp(name string, tags ...Tag) {
+	now := c.now()
+
+	c.mtx.Lock()
+	d := now.Sub(c.last)
+	c.last = now
+	c.mtx.Unlock()
+
+	c.backend.Observe(c.histogram(name, tags...), d.Seconds())
+}
+
+func (c *clock) Stop(tags ...Tag) {
+	c.backend.Observe(c.histogram("", tags...), c.now().Sub(c.start).Seconds())
+}
+
+func (c *clock) histogram(name string, tags ...Tag) histogram {
 	if len(name) != 0 {
-		tags = append(tags, Tag{"step", name})
+		tags = append(tags, Tag{"stamp", name})
 	}
-	return histogram{t.clone(tags...)}
+	return histogram{c.clone(tags...)}
 }
 
 func JoinMetricName(elems ...string) string {
