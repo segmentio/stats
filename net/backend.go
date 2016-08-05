@@ -212,11 +212,11 @@ func connect(done <-chan struct{}, config *Config) (conn net.Conn) {
 			return
 		}
 
+		retryAfter = sleep(done, retryAfter, config.RetryAfterMax)
 		select {
+		default:
 		case <-done:
 			return
-		default:
-			retryAfter = sleep(done, retryAfter, config.RetryAfterMax)
 		}
 	}
 }
