@@ -104,7 +104,7 @@ func (b *backend) Set(m stats.Metric, v float64) { b.enqueue(m, v) }
 
 func (b *backend) Add(m stats.Metric, v float64) { b.enqueue(m, v) }
 
-func (b *backend) Observe(m stats.Metric, v time.Duration) { b.enqueue(m, v.Seconds()) }
+func (b *backend) Observe(m stats.Metric, v float64) { b.enqueue(m, v) }
 
 func (b *backend) enqueue(m stats.Metric, v float64) {
 	enqueue(job{

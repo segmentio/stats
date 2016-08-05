@@ -20,7 +20,7 @@ type Protocol interface {
 
 	WriteAdd(w io.Writer, m stats.Metric, v float64, r float64) error
 
-	WriteObserve(w io.Writer, m stats.Metric, v time.Duration, r float64) error
+	WriteObserve(w io.Writer, m stats.Metric, v float64, r float64) error
 }
 
 type Config struct {
@@ -104,11 +104,11 @@ func setConfigDefaults(config Config) Config {
 	return config
 }
 
-type writer func(Protocol, io.Writer, stats.Metric, interface{}, float64) error
+type writer func(Protocol, io.Writer, stats.Metric, float64, float64) error
 
 type job struct {
 	metric stats.Metric
-	value  interface{}
+	value  float64
 	write  writer
 }
 
@@ -131,9 +131,9 @@ func (b *backend) Set(m stats.Metric, v float64) { b.enqueue(m, v, set) }
 
 func (b *backend) Add(m stats.Metric, v float64) { b.enqueue(m, v, add) }
 
-func (b *backend) Observe(m stats.Metric, v time.Duration) { b.enqueue(m, v, observe) }
+func (b *backend) Observe(m stats.Metric, v float64) { b.enqueue(m, v, observe) }
 
-func (b *backend) enqueue(m stats.Metric, v interface{}, w writer) {
+func (b *backend) enqueue(m stats.Metric, v float64, w writer) {
 	enqueue(job{
 		metric: m,
 		value:  v,
@@ -154,16 +154,16 @@ func enqueue(job job, jobs chan<- job, fail func(error)) {
 	}
 }
 
-func set(p Protocol, w io.Writer, m stats.Metric, v interface{}, r float64) error {
-	return p.WriteSet(w, m, v.(float64), r)
+func set(p Protocol, w io.Writer, m stats.Metric, v float64, r float64) error {
+	return p.WriteSet(w, m, v, r)
 }
 
-func add(p Protocol, w io.Writer, m stats.Metric, v interface{}, r float64) error {
-	return p.WriteAdd(w, m, v.(float64), r)
+func add(p Protocol, w io.Writer, m stats.Metric, v float64, r float64) error {
+	return p.WriteAdd(w, m, v, r)
 }
 
-func observe(p Protocol, w io.Writer, m stats.Metric, v interface{}, r float64) error {
-	return p.WriteObserve(w, m, v.(time.Duration), r)
+func observe(p Protocol, w io.Writer, m stats.Metric, v float64, r float64) error {
+	return p.WriteObserve(w, m, v, r)
 }
 
 func run(done <-chan struct{}, jobs <-chan job, join *sync.WaitGroup, config *Config) {

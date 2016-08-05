@@ -70,19 +70,19 @@ func setConfigDefaults(config Config) Config {
 type protocol struct{}
 
 func (p protocol) WriteSet(w io.Writer, m stats.Metric, v float64, r float64) error {
-	return p.write("g", w, m, int64(v), r)
+	return p.write("g", w, m, v, r)
 }
 
 func (p protocol) WriteAdd(w io.Writer, m stats.Metric, v float64, r float64) error {
-	return p.write("c", w, m, int64(v), r)
+	return p.write("c", w, m, v, r)
 }
 
-func (p protocol) WriteObserve(w io.Writer, m stats.Metric, v time.Duration, r float64) error {
-	return p.write("h", w, m, int64(v/1000000), r)
+func (p protocol) WriteObserve(w io.Writer, m stats.Metric, v float64, r float64) error {
+	return p.write("h", w, m, v, r)
 }
 
-func (p protocol) write(s string, w io.Writer, m stats.Metric, v int64, r float64) (err error) {
-	_, err = fmt.Fprintf(w, "%s:%d|%s%v\n", sanitize(m.Name()), v, s, sample(r))
+func (p protocol) write(s string, w io.Writer, m stats.Metric, v float64, r float64) (err error) {
+	_, err = fmt.Fprintf(w, "%s:%d|%s%v\n", sanitize(m.Name()), int64(v), s, sample(r))
 	return
 }
 

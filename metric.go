@@ -29,7 +29,7 @@ type Counter interface {
 type Histogram interface {
 	Metric
 
-	Observe(value time.Duration, tags ...Tag)
+	Observe(value float64, tags ...Tag)
 }
 
 type Timer interface {
@@ -117,7 +117,7 @@ func (h histogram) Type() string {
 	return "histogram"
 }
 
-func (h histogram) Observe(value time.Duration, tags ...Tag) {
+func (h histogram) Observe(value float64, tags ...Tag) {
 	h.backend.Observe(histogram{h.clone(tags...)}, value)
 }
 
@@ -153,11 +153,11 @@ func (t *timer) Lap(name string, tags ...Tag) {
 	t.last = now
 	t.mtx.Unlock()
 
-	t.backend.Observe(t.histogram(name, tags...), d)
+	t.backend.Observe(t.histogram(name, tags...), d.Seconds())
 }
 
 func (t *timer) Stop(tags ...Tag) {
-	t.backend.Observe(t.histogram("", tags...), t.now().Sub(t.start))
+	t.backend.Observe(t.histogram("", tags...), t.now().Sub(t.start).Seconds())
 }
 
 func (t *timer) histogram(name string, tags ...Tag) histogram {

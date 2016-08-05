@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"io"
 	"sync"
-	"time"
 
 	"github.com/segmentio/stats"
 )
@@ -30,9 +29,9 @@ func (b *backend) Set(m stats.Metric, v float64) { b.call(m, v) }
 
 func (b *backend) Add(m stats.Metric, v float64) { b.call(m, v) }
 
-func (b *backend) Observe(m stats.Metric, v time.Duration) { b.call(m, v) }
+func (b *backend) Observe(m stats.Metric, v float64) { b.call(m, v) }
 
-func (b *backend) call(m stats.Metric, v interface{}) {
+func (b *backend) call(m stats.Metric, v float64) {
 	e := stats.MakeEvent(m, v)
 	b.mtx.Lock()
 	b.enc.Encode(e)

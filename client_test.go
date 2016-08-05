@@ -30,7 +30,7 @@ func TestClient(t *testing.T) {
 	m1.Set(42)
 	m2.Add(10)
 	m1.Set(0)
-	m3.Observe(time.Second)
+	m3.Observe(1)
 
 	m4.Lap("a")
 	m4.Lap("b")
@@ -43,55 +43,55 @@ func TestClient(t *testing.T) {
 		Event{
 			Type:  "gauge",
 			Name:  "test.events.quantity",
-			Value: float64(1),
+			Value: 1,
 			Tags:  Tags{{"hello", "world"}},
 		},
 		Event{
 			Type:  "gauge",
 			Name:  "test.events.quantity",
-			Value: float64(42),
+			Value: 42,
 			Tags:  Tags{{"hello", "world"}},
 		},
 		Event{
 			Type:  "counter",
 			Name:  "test.events.count",
-			Value: float64(10),
+			Value: 10,
 			Tags:  Tags{{"hello", "world"}, {"extra", "tag"}},
 		},
 		Event{
 			Type:  "gauge",
 			Name:  "test.events.quantity",
-			Value: float64(0),
+			Value: 0,
 			Tags:  Tags{{"hello", "world"}},
 		},
 		Event{
 			Type:  "histogram",
 			Name:  "test.events.duration",
-			Value: time.Second,
+			Value: 1,
 			Tags:  Tags{{"hello", "world"}},
 		},
 		Event{
 			Type:  "histogram",
 			Name:  "test.events.duration",
-			Value: time.Second,
+			Value: 1,
 			Tags:  Tags{{"hello", "world"}, {"lap", "a"}},
 		},
 		Event{
 			Type:  "histogram",
 			Name:  "test.events.duration",
-			Value: time.Second,
+			Value: 1,
 			Tags:  Tags{{"hello", "world"}, {"lap", "b"}},
 		},
 		Event{
 			Type:  "histogram",
 			Name:  "test.events.duration",
-			Value: time.Second,
+			Value: 1,
 			Tags:  Tags{{"hello", "world"}, {"lap", "c"}},
 		},
 		Event{
 			Type:  "histogram",
 			Name:  "test.events.duration",
-			Value: 4 * time.Second,
+			Value: 4,
 			Tags:  Tags{{"hello", "world"}},
 		},
 	}) {

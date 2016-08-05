@@ -77,8 +77,8 @@ func (p protocol) WriteAdd(w io.Writer, m stats.Metric, v float64, r float64) er
 	return p.write("c", w, m, v, r)
 }
 
-func (p protocol) WriteObserve(w io.Writer, m stats.Metric, v time.Duration, r float64) error {
-	return p.write("h", w, m, v.Seconds()*1000, r)
+func (p protocol) WriteObserve(w io.Writer, m stats.Metric, v float64, r float64) error {
+	return p.write("h", w, m, v, r)
 }
 
 func (p protocol) write(s string, w io.Writer, m stats.Metric, v float64, r float64) (err error) {

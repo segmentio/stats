@@ -26,39 +26,33 @@ func TestSetConfigDefaults(t *testing.T) {
 func TestProtocol(t *testing.T) {
 	tests := []struct {
 		metric stats.Metric
-		value  interface{}
+		value  float64
 		rate   float64
 		string string
-		method func(protocol, io.Writer, stats.Metric, interface{}, float64) error
+		method func(protocol, io.Writer, stats.Metric, float64, float64) error
 	}{
 		{
 			metric: stats.NewGauge(stats.Opts{Name: "hello"}),
-			value:  float64(1),
-			rate:   float64(1),
+			value:  1,
+			rate:   1,
 			string: "hello:1|g\n",
-			method: func(p protocol, w io.Writer, m stats.Metric, v interface{}, r float64) error {
-				return p.WriteSet(w, m, v.(float64), r)
-			},
+			method: protocol.WriteSet,
 		},
 
 		{
 			metric: stats.NewCounter(stats.Opts{Name: "hello"}),
-			value:  float64(1),
-			rate:   float64(0.1),
+			value:  1,
+			rate:   0.1,
 			string: "hello:1|c|@0.1\n",
-			method: func(p protocol, w io.Writer, m stats.Metric, v interface{}, r float64) error {
-				return p.WriteAdd(w, m, v.(float64), r)
-			},
+			method: protocol.WriteAdd,
 		},
 
 		{
 			metric: stats.NewHistogram(stats.Opts{Name: "hello"}),
-			value:  time.Second,
-			rate:   float64(1),
-			string: "hello:1000|h\n",
-			method: func(p protocol, w io.Writer, m stats.Metric, v interface{}, r float64) error {
-				return p.WriteObserve(w, m, v.(time.Duration), r)
-			},
+			value:  1,
+			rate:   1,
+			string: "hello:1|h\n",
+			method: protocol.WriteObserve,
 		},
 	}
 
@@ -102,7 +96,7 @@ func TestBackend(t *testing.T) {
 
 	c.Gauge("events.level").Set(1)
 	c.Counter("events.count").Add(1)
-	c.Histogram("events.duration").Observe(time.Second)
+	c.Histogram("events.duration").Observe(1)
 	c.Close()
 
 	select {
@@ -114,7 +108,7 @@ func TestBackend(t *testing.T) {
 	if !reflect.DeepEqual(packets, []string{
 		`datadog.events.level:1|g|#hello_:world_,answer:42
 datadog.events.count:1|c|#hello_:world_,answer:42
-datadog.events.duration:1000|h|#hello_:world_,answer:42
+datadog.events.duration:1|h|#hello_:world_,answer:42
 `,
 	}) {
 		t.Errorf("invalid packets transmitted by the datadog client: %#v", packets)

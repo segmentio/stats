@@ -3,7 +3,6 @@ package stats
 import (
 	"reflect"
 	"testing"
-	"time"
 )
 
 func TestBackendFunc(t *testing.T) {
@@ -17,7 +16,7 @@ func TestBackendFunc(t *testing.T) {
 
 	m1.Set(1)
 	m2.Add(1)
-	m3.Observe(time.Second)
+	m3.Observe(1)
 
 	c.Close()
 
@@ -25,19 +24,19 @@ func TestBackendFunc(t *testing.T) {
 		Event{
 			Type:  "gauge",
 			Name:  "test.events.quantity",
-			Value: float64(1),
+			Value: 1,
 			Tags:  Tags{{"hello", "world"}},
 		},
 		Event{
 			Type:  "counter",
 			Name:  "test.events.count",
-			Value: float64(1),
+			Value: 1,
 			Tags:  Tags{{"hello", "world"}, {"extra", "tag"}},
 		},
 		Event{
 			Type:  "histogram",
 			Name:  "test.events.duration",
-			Value: time.Second,
+			Value: 1,
 			Tags:  Tags{{"hello", "world"}},
 		},
 	}) {
@@ -55,7 +54,7 @@ func TestMultiBackend(t *testing.T) {
 
 	m1.Set(1)
 	m2.Add(1)
-	m3.Observe(time.Second)
+	m3.Observe(1)
 
 	c.Close()
 
@@ -64,19 +63,19 @@ func TestMultiBackend(t *testing.T) {
 			Event{
 				Type:  "gauge",
 				Name:  "test.events.quantity",
-				Value: float64(1),
+				Value: 1,
 				Tags:  Tags{{"hello", "world"}},
 			},
 			Event{
 				Type:  "counter",
 				Name:  "test.events.count",
-				Value: float64(1),
+				Value: 1,
 				Tags:  Tags{{"hello", "world"}, {"extra", "tag"}},
 			},
 			Event{
 				Type:  "histogram",
 				Name:  "test.events.duration",
-				Value: time.Second,
+				Value: 1,
 				Tags:  Tags{{"hello", "world"}},
 			},
 		}) {

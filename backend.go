@@ -1,9 +1,6 @@
 package stats
 
-import (
-	"io"
-	"time"
-)
+import "io"
 
 type Backend interface {
 	io.Closer
@@ -12,7 +9,7 @@ type Backend interface {
 
 	Add(Metric, float64)
 
-	Observe(Metric, time.Duration)
+	Observe(Metric, float64)
 }
 
 type BackendFunc func(Event)
@@ -23,9 +20,9 @@ func (b BackendFunc) Set(m Metric, v float64) { b.call(m, v) }
 
 func (b BackendFunc) Add(m Metric, v float64) { b.call(m, v) }
 
-func (b BackendFunc) Observe(m Metric, v time.Duration) { b.call(m, v) }
+func (b BackendFunc) Observe(m Metric, v float64) { b.call(m, v) }
 
-func (b BackendFunc) call(m Metric, v interface{}) { b(MakeEvent(m, v)) }
+func (b BackendFunc) call(m Metric, v float64) { b(MakeEvent(m, v)) }
 
 func MultiBackend(backends ...Backend) Backend {
 	return multiBackend(backends)
@@ -52,7 +49,7 @@ func (b multiBackend) Add(m Metric, v float64) {
 	}
 }
 
-func (b multiBackend) Observe(m Metric, v time.Duration) {
+func (b multiBackend) Observe(m Metric, v float64) {
 	for _, x := range b {
 		x.Observe(m, v)
 	}

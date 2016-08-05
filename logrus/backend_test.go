@@ -3,7 +3,6 @@ package logrus_stats
 import (
 	"bytes"
 	"testing"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/segmentio/stats"
@@ -41,7 +40,7 @@ func TestBackend(t *testing.T) {
 
 	c.Gauge("events.level").Set(1)
 	c.Counter("events.count").Add(1)
-	c.Histogram("events.duration").Observe(time.Second)
+	c.Histogram("events.duration").Observe(1)
 	c.Close()
 
 	if n := len(h.entries); n != 3 {

@@ -409,7 +409,7 @@ func TestRunComplete(t *testing.T) {
 	}
 	jobs <- job{
 		metric: stats.NewGauge(stats.MakeOpts("test")),
-		value:  time.Second,
+		value:  1.0,
 		write:  observe,
 	}
 
@@ -431,7 +431,7 @@ func TestRunComplete(t *testing.T) {
 	})
 	join.Wait()
 
-	if s := conn.String(); s != "set:test:1/1\nadd:test:2/1\nobserve:test:1s/1\n" {
+	if s := conn.String(); s != "set:test:1/1\nadd:test:2/1\nobserve:test:1/1\n" {
 		t.Errorf("run flushed invalid data to the connection: %s", s)
 	}
 }
@@ -526,13 +526,13 @@ func TestBackend(t *testing.T) {
 
 	b.Set(stats.NewGauge(stats.MakeOpts("test")), 1)
 	b.Add(stats.NewCounter(stats.MakeOpts("test")), 2)
-	b.Observe(stats.NewHistogram(stats.MakeOpts("test")), time.Second)
+	b.Observe(stats.NewHistogram(stats.MakeOpts("test")), 1)
 
 	time.Sleep(time.Millisecond)
 
 	b.Close()
 
-	if s := conn.String(); s != "set:test:1/1\nadd:test:2/1\nobserve:test:1s/1\n" {
+	if s := conn.String(); s != "set:test:1/1\nadd:test:2/1\nobserve:test:1/1\n" {
 		t.Errorf("run flushed invalid data to the connection: %s", s)
 	}
 }
@@ -549,15 +549,15 @@ func (p testProto) WriteAdd(w io.Writer, m stats.Metric, v float64, r float64) e
 	return p.write("add", w, m, v, r)
 }
 
-func (p testProto) WriteObserve(w io.Writer, m stats.Metric, v time.Duration, r float64) (err error) {
+func (p testProto) WriteObserve(w io.Writer, m stats.Metric, v float64, r float64) (err error) {
 	return p.write("observe", w, m, v, r)
 }
 
-func (p testProto) write(s string, w io.Writer, m stats.Metric, v interface{}, r float64) (err error) {
+func (p testProto) write(s string, w io.Writer, m stats.Metric, v float64, r float64) (err error) {
 	if p.err != nil {
 		return p.err
 	}
-	_, err = fmt.Fprintf(w, "%s:%s:%v/%g\n", s, m.Name(), v, r)
+	_, err = fmt.Fprintf(w, "%s:%s:%g/%g\n", s, m.Name(), v, r)
 	return
 }
 

@@ -368,7 +368,7 @@ func TestBackend(t *testing.T) {
 
 	b.Set(stats.NewGauge(stats.MakeOpts("metric_1")), 1)
 	b.Add(stats.NewCounter(stats.MakeOpts("metric_2")), 2)
-	b.Observe(stats.NewHistogram(stats.MakeOpts("metric_3")), time.Second)
+	b.Observe(stats.NewHistogram(stats.MakeOpts("metric_3")), 1)
 
 	// give some time to the backend to start
 	time.Sleep(10 * time.Millisecond)
