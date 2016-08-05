@@ -3,7 +3,6 @@ package stats
 import (
 	"reflect"
 	"testing"
-	"time"
 )
 
 func TestMakeOpts(t *testing.T) {
@@ -52,7 +51,7 @@ func TestMetricType(t *testing.T) {
 			s: "histogram",
 		},
 		{
-			m: NewTimer(time.Time{}, nil, Opts{}),
+			m: NewTimer(nil, Opts{}),
 			s: "timer",
 		},
 	}

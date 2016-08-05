@@ -35,9 +35,9 @@ type Histogram interface {
 type Timer interface {
 	Metric
 
-	Lap(now time.Time, name string, tags ...Tag)
+	Lap(name string, tags ...Tag)
 
-	Stop(now time.Time, tags ...Tag)
+	Stop(tags ...Tag)
 }
 
 type Opts struct {
@@ -125,17 +125,28 @@ type timer struct {
 	start time.Time
 	last  time.Time
 	mtx   sync.Mutex
+	now   func() time.Time
 }
 
-func NewTimer(start time.Time, backend Backend, opts Opts) Timer {
-	return &timer{metric: makeMetric(backend, opts), start: start, last: start}
+func NewTimer(backend Backend, opts Opts) Timer {
+	return NewTimerWith(nil, backend, opts)
+}
+
+func NewTimerWith(now func() time.Time, backend Backend, opts Opts) Timer {
+	if now == nil {
+		now = time.Now
+	}
+	start := now()
+	return &timer{metric: makeMetric(backend, opts), start: start, last: start, now: now}
 }
 
 func (t *timer) Type() string {
 	return "timer"
 }
 
-func (t *timer) Lap(now time.Time, name string, tags ...Tag) {
+func (t *timer) Lap(name string, tags ...Tag) {
+	now := t.now()
+
 	t.mtx.Lock()
 	d := now.Sub(t.last)
 	t.last = now
@@ -144,8 +155,8 @@ func (t *timer) Lap(now time.Time, name string, tags ...Tag) {
 	t.backend.Observe(t.histogram(name, tags...), d)
 }
 
-func (t *timer) Stop(now time.Time, tags ...Tag) {
-	t.backend.Observe(t.histogram("", tags...), now.Sub(t.start))
+func (t *timer) Stop(tags ...Tag) {
+	t.backend.Observe(t.histogram("", tags...), t.now().Sub(t.start))
 }
 
 func (t *timer) histogram(name string, tags ...Tag) histogram {

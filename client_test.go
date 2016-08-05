@@ -10,12 +10,21 @@ func TestClient(t *testing.T) {
 	now := time.Now()
 
 	b := &EventBackend{}
-	c := NewClient("test", b, Tag{"hello", "world"})
+	c := NewClientWith(Config{
+		Backend: b,
+		Scope:   "test",
+		Tags:    Tags{{"hello", "world"}},
+		Now: func() time.Time {
+			t := now
+			now = now.Add(time.Second)
+			return t
+		},
+	})
 
 	m1 := c.Gauge("events.quantity")
 	m2 := c.Counter("events.count", Tag{"extra", "tag"})
 	m3 := c.Histogram("events.duration")
-	m4 := c.Timer(now, "events.duration")
+	m4 := c.Timer("events.duration")
 
 	m1.Set(1)
 	m1.Set(42)
@@ -23,10 +32,10 @@ func TestClient(t *testing.T) {
 	m1.Set(0)
 	m3.Observe(time.Second)
 
-	m4.Lap(now.Add(1*time.Second), "a")
-	m4.Lap(now.Add(2*time.Second), "b")
-	m4.Lap(now.Add(3*time.Second), "c")
-	m4.Stop(now.Add(4 * time.Second))
+	m4.Lap("a")
+	m4.Lap("b")
+	m4.Lap("c")
+	m4.Stop()
 
 	c.Close()
 
