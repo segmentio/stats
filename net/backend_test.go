@@ -311,7 +311,7 @@ func TestSleep(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		if d := sleep(test.in, test.max); d != test.out {
+		if d := sleep(nil, test.in, test.max); d != test.out {
 			t.Errorf("sleep(%s, %s): %s != %s", test.in, test.max, test.out, d)
 		}
 	}

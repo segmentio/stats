@@ -216,7 +216,7 @@ func connect(done <-chan struct{}, config *Config) (conn net.Conn) {
 		case <-done:
 			return
 		default:
-			retryAfter = sleep(retryAfter, config.RetryAfterMax)
+			retryAfter = sleep(done, retryAfter, config.RetryAfterMax)
 		}
 	}
 }
@@ -231,8 +231,11 @@ func dial(config *Config) (conn net.Conn) {
 	return
 }
 
-func sleep(d time.Duration, max time.Duration) time.Duration {
-	time.Sleep(d)
+func sleep(done <-chan struct{}, d time.Duration, max time.Duration) time.Duration {
+	select {
+	case <-done:
+	case <-time.After(d):
+	}
 	return backoff(d, max)
 }
 
