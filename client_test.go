@@ -32,9 +32,9 @@ func TestClient(t *testing.T) {
 	m1.Set(0)
 	m3.Observe(1)
 
-	m4.Lap("a")
-	m4.Lap("b")
-	m4.Lap("c")
+	m4.Step("a")
+	m4.Step("b")
+	m4.Step("c")
 	m4.Stop()
 
 	c.Close()
@@ -74,19 +74,19 @@ func TestClient(t *testing.T) {
 			Type:  "histogram",
 			Name:  "test.events.duration",
 			Value: 1,
-			Tags:  Tags{{"hello", "world"}, {"lap", "a"}},
+			Tags:  Tags{{"hello", "world"}, {"step", "a"}},
 		},
 		Event{
 			Type:  "histogram",
 			Name:  "test.events.duration",
 			Value: 1,
-			Tags:  Tags{{"hello", "world"}, {"lap", "b"}},
+			Tags:  Tags{{"hello", "world"}, {"step", "b"}},
 		},
 		Event{
 			Type:  "histogram",
 			Name:  "test.events.duration",
 			Value: 1,
-			Tags:  Tags{{"hello", "world"}, {"lap", "c"}},
+			Tags:  Tags{{"hello", "world"}, {"step", "c"}},
 		},
 		Event{
 			Type:  "histogram",

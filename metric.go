@@ -35,7 +35,7 @@ type Histogram interface {
 type Timer interface {
 	Metric
 
-	Lap(name string, tags ...Tag)
+	Step(name string, tags ...Tag)
 
 	Stop(tags ...Tag)
 }
@@ -145,7 +145,7 @@ func (t *timer) Type() string {
 	return "timer"
 }
 
-func (t *timer) Lap(name string, tags ...Tag) {
+func (t *timer) Step(name string, tags ...Tag) {
 	now := t.now()
 
 	t.mtx.Lock()
@@ -162,7 +162,7 @@ func (t *timer) Stop(tags ...Tag) {
 
 func (t *timer) histogram(name string, tags ...Tag) histogram {
 	if len(name) != 0 {
-		tags = append(tags, Tag{"lap", name})
+		tags = append(tags, Tag{"step", name})
 	}
 	return histogram{t.clone(tags...)}
 }
