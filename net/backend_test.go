@@ -525,8 +525,8 @@ func TestBackend(t *testing.T) {
 	})
 
 	b.Set(stats.NewGauge(stats.MakeOpts("test", ""), nil), 1)
-	b.Add(stats.NewGauge(stats.MakeOpts("test", ""), nil), 2)
-	b.Observe(stats.NewGauge(stats.MakeOpts("test", ""), nil), time.Second)
+	b.Add(stats.NewCounter(stats.MakeOpts("test", ""), nil), 2)
+	b.Observe(stats.NewHistogram(stats.MakeOpts("test", ""), nil), time.Second)
 
 	time.Sleep(time.Millisecond)
 
