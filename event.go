@@ -3,22 +3,20 @@ package stats
 import "time"
 
 type Event struct {
-	Type   string      `json:"type"`
-	Name   string      `json:"name"`
-	Help   string      `json:"help,omitempty"`
-	Value  interface{} `json:"value"`
-	Sample float64     `json:"sample"`
-	Tags   Tags        `json:"tags,omitempty"`
+	Type  string      `json:"type"`
+	Name  string      `json:"name"`
+	Help  string      `json:"help,omitempty"`
+	Value interface{} `json:"value"`
+	Tags  Tags        `json:"tags,omitempty"`
 }
 
 func MakeEvent(m Metric, v interface{}) Event {
 	return Event{
-		Type:   m.Type(),
-		Name:   m.Name(),
-		Help:   m.Help(),
-		Sample: m.Sample(),
-		Tags:   m.Tags(),
-		Value:  v,
+		Type:  m.Type(),
+		Name:  m.Name(),
+		Help:  m.Help(),
+		Tags:  m.Tags(),
+		Value: v,
 	}
 }
 

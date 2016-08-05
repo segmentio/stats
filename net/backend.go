@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"os"
 	"runtime"
@@ -15,11 +16,11 @@ import (
 )
 
 type Protocol interface {
-	WriteSet(w io.Writer, m stats.Metric, v float64) error
+	WriteSet(w io.Writer, m stats.Metric, v float64, r float64) error
 
-	WriteAdd(w io.Writer, m stats.Metric, v float64) error
+	WriteAdd(w io.Writer, m stats.Metric, v float64, r float64) error
 
-	WriteObserve(w io.Writer, m stats.Metric, v time.Duration) error
+	WriteObserve(w io.Writer, m stats.Metric, v time.Duration, r float64) error
 }
 
 type Config struct {
@@ -32,6 +33,7 @@ type Config struct {
 	RetryAfterMax time.Duration
 	FlushTimeout  time.Duration
 	WriteTimeout  time.Duration
+	SampleRate    float64
 	Dial          func(string, string) (net.Conn, error)
 	Fail          func(error)
 }
@@ -68,14 +70,6 @@ func setConfigDefaults(config Config) Config {
 		config.QueueSize = 1000
 	}
 
-	if config.Dial == nil {
-		config.Dial = net.Dial
-	}
-
-	if config.Fail == nil {
-		config.Fail = makeFailFunc(os.Stderr)
-	}
-
 	if config.RetryAfterMin == 0 {
 		config.RetryAfterMin = 100 * time.Millisecond
 	}
@@ -92,10 +86,22 @@ func setConfigDefaults(config Config) Config {
 		config.WriteTimeout = 1 * time.Second
 	}
 
+	if config.SampleRate == 0 {
+		config.SampleRate = 1
+	}
+
+	if config.Dial == nil {
+		config.Dial = net.Dial
+	}
+
+	if config.Fail == nil {
+		config.Fail = makeFailFunc(os.Stderr)
+	}
+
 	return config
 }
 
-type writer func(Protocol, io.Writer, stats.Metric, interface{}) error
+type writer func(Protocol, io.Writer, stats.Metric, interface{}, float64) error
 
 type job struct {
 	metric stats.Metric
@@ -143,16 +149,16 @@ func enqueue(job job, jobs chan<- job, fail func(error)) {
 	}
 }
 
-func set(p Protocol, w io.Writer, m stats.Metric, v interface{}) error {
-	return p.WriteSet(w, m, v.(float64))
+func set(p Protocol, w io.Writer, m stats.Metric, v interface{}, r float64) error {
+	return p.WriteSet(w, m, v.(float64), r)
 }
 
-func add(p Protocol, w io.Writer, m stats.Metric, v interface{}) error {
-	return p.WriteAdd(w, m, v.(float64))
+func add(p Protocol, w io.Writer, m stats.Metric, v interface{}, r float64) error {
+	return p.WriteAdd(w, m, v.(float64), r)
 }
 
-func observe(p Protocol, w io.Writer, m stats.Metric, v interface{}) error {
-	return p.WriteObserve(w, m, v.(time.Duration))
+func observe(p Protocol, w io.Writer, m stats.Metric, v interface{}, r float64) error {
+	return p.WriteObserve(w, m, v.(time.Duration), r)
 }
 
 func run(jobs <-chan job, join *sync.WaitGroup, config *Config) {
@@ -182,7 +188,10 @@ func run(jobs <-chan job, join *sync.WaitGroup, config *Config) {
 				conn = flush(conn, buf, config)
 				return
 			}
-			conn = write(conn, buf, job, config)
+
+			if config.SampleRate == 1 || config.SampleRate > rand.Float64() {
+				conn = write(conn, buf, job, config)
+			}
 
 		case <-timer.C:
 			conn = flush(conn, buf, config)
@@ -226,7 +235,7 @@ func backoff(d time.Duration, max time.Duration) time.Duration {
 func write(conn net.Conn, buf *bytes.Buffer, job job, config *Config) net.Conn {
 	n1 := buf.Len()
 
-	if err := job.write(config.Protocol, buf, job.metric, job.value); err != nil {
+	if err := job.write(config.Protocol, buf, job.metric, job.value, config.SampleRate); err != nil {
 		handleError(err, config)
 		return conn
 	}

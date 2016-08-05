@@ -2,7 +2,6 @@ package stats
 
 import (
 	"io"
-	"math/rand"
 	"time"
 )
 
@@ -22,7 +21,6 @@ type Config struct {
 	Backend Backend
 	Scope   string
 	Tags    Tags
-	Rand    func() float64
 }
 
 func NewClient(scope string, backend Backend, tags ...Tag) Client {
@@ -34,9 +32,6 @@ func NewClient(scope string, backend Backend, tags ...Tag) Client {
 }
 
 func NewClientWith(config Config) Client {
-	if config.Rand == nil {
-		config.Rand = rand.Float64
-	}
 	return client{
 		backend: config.Backend,
 		scope:   config.Scope,
@@ -48,7 +43,6 @@ type client struct {
 	backend Backend
 	scope   string
 	tags    Tags
-	rand    func() float64
 }
 
 func (c client) Close() error {
@@ -83,10 +77,6 @@ func (c client) opts(opts Opts) Opts {
 	copy(tags, c.tags)
 	copy(tags[n1:], opts.Tags)
 	opts.Tags = tags
-
-	if opts.Rand == nil {
-		opts.Rand = c.rand
-	}
 
 	return opts
 }

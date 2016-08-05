@@ -1,6 +1,8 @@
 package datadog
 
 import (
+	"bytes"
+	"io"
 	"net"
 	"reflect"
 	"testing"
@@ -21,9 +23,59 @@ func TestSetConfigDefaults(t *testing.T) {
 	}
 }
 
+func TestProtocol(t *testing.T) {
+	tests := []struct {
+		metric stats.Metric
+		value  interface{}
+		rate   float64
+		string string
+		method func(protocol, io.Writer, stats.Metric, interface{}, float64) error
+	}{
+		{
+			metric: stats.NewGauge(stats.Opts{Name: "hello"}, nil),
+			value:  float64(1),
+			rate:   float64(1),
+			string: "hello:1|g\n",
+			method: func(p protocol, w io.Writer, m stats.Metric, v interface{}, r float64) error {
+				return p.WriteSet(w, m, v.(float64), r)
+			},
+		},
+
+		{
+			metric: stats.NewCounter(stats.Opts{Name: "hello"}, nil),
+			value:  float64(1),
+			rate:   float64(0.1),
+			string: "hello:1|c|@0.1\n",
+			method: func(p protocol, w io.Writer, m stats.Metric, v interface{}, r float64) error {
+				return p.WriteAdd(w, m, v.(float64), r)
+			},
+		},
+
+		{
+			metric: stats.NewHistogram(stats.Opts{Name: "hello"}, nil),
+			value:  time.Second,
+			rate:   float64(1),
+			string: "hello:1000|h\n",
+			method: func(p protocol, w io.Writer, m stats.Metric, v interface{}, r float64) error {
+				return p.WriteObserve(w, m, v.(time.Duration), r)
+			},
+		},
+	}
+
+	for _, test := range tests {
+		b := &bytes.Buffer{}
+		p := protocol{}
+
+		if err := test.method(p, b, test.metric, test.value, test.rate); err != nil {
+			t.Error(err)
+		} else if s := b.String(); s != test.string {
+			t.Errorf("bad serialization: %#v != %#v", test.string, s)
+		}
+	}
+}
+
 func TestBackend(t *testing.T) {
 	packets := []string{}
-	rand := func() float64 { return 0.05 }
 
 	server, _ := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
 	defer server.Close()
@@ -48,7 +100,7 @@ func TestBackend(t *testing.T) {
 		stats.Tag{Name: "answer", Value: "42"},
 	)
 	c.Gauge(stats.Opts{Name: "events", Unit: "level"}).Set(1)
-	c.Counter(stats.Opts{Name: "events", Unit: "count", Sample: 0.1, Rand: rand}).Add(1)
+	c.Counter(stats.Opts{Name: "events", Unit: "count"}).Add(1)
 	c.Histogram(stats.Opts{Name: "events", Unit: "duration"}).Observe(time.Second)
 	c.Close()
 
@@ -60,7 +112,7 @@ func TestBackend(t *testing.T) {
 
 	if !reflect.DeepEqual(packets, []string{
 		`datadog.events.level:1|g|#hello_:world_,answer:42
-datadog.events.count:1|c|@0.1|#hello_:world_,answer:42
+datadog.events.count:1|c|#hello_:world_,answer:42
 datadog.events.duration:1000|h|#hello_:world_,answer:42
 `,
 	}) {

@@ -151,6 +151,7 @@ func TestWriteSuccessNoFlush(t *testing.T) {
 	if write(c, b, j, &Config{
 		Protocol:   testProto{},
 		BufferSize: 512,
+		SampleRate: 1,
 	}) != c {
 		t.Error("write should return the connection on success")
 	}
@@ -159,7 +160,7 @@ func TestWriteSuccessNoFlush(t *testing.T) {
 		t.Errorf("write shouldn't have flushed when there was enough room in the buffer: %#v", s)
 	}
 
-	if s := b.String(); s != "set:test:1\n" {
+	if s := b.String(); s != "set:test:1/1\n" {
 		t.Errorf("the connection buffer contains invalid data: %s", s)
 	}
 }
@@ -173,20 +174,21 @@ func TestWriteSuccessFlush(t *testing.T) {
 		write:  set,
 	}
 
-	b.WriteString("set:test:0\n")
+	b.WriteString("set:test:0/1\n")
 
 	if write(c, b, j, &Config{
 		Protocol:   testProto{},
 		BufferSize: 20,
+		SampleRate: 1,
 	}) != c {
 		t.Error("write should return the connection on success")
 	}
 
-	if s := c.String(); s != "set:test:0\n" {
+	if s := c.String(); s != "set:test:0/1\n" {
 		t.Error("write should have flushed the initial buffer to the connection")
 	}
 
-	if s := b.String(); s != "set:test:10\n" {
+	if s := b.String(); s != "set:test:10/1\n" {
 		t.Errorf("the connection buffer contains invalid data: %s", s)
 	}
 }
@@ -203,11 +205,12 @@ func TestWriteSuccessNoBuffer(t *testing.T) {
 	if write(c, b, j, &Config{
 		Protocol:   testProto{},
 		BufferSize: 10,
+		SampleRate: 1,
 	}) != c {
 		t.Error("write should return the connection on success")
 	}
 
-	if s := c.String(); s != "set:test:10\n" {
+	if s := c.String(); s != "set:test:10/1\n" {
 		t.Error("write should have flushed directly to the connection")
 	}
 
@@ -229,6 +232,7 @@ func TestWriteFailureProtocol(t *testing.T) {
 	if write(c, b, j, &Config{
 		Protocol:   testProto{err: testError},
 		BufferSize: 10,
+		SampleRate: 1,
 		Fail:       func(err error) { e = err },
 	}) != c {
 		t.Error("write should return the connection on protocol failures")
@@ -252,6 +256,7 @@ func TestWriteFailureConn(t *testing.T) {
 	if write(c, b, j, &Config{
 		Protocol:   testProto{},
 		BufferSize: 10,
+		SampleRate: 1,
 		Fail:       func(err error) { e = err },
 	}) != nil {
 		t.Error("write should return nil on connection failure")
@@ -399,13 +404,14 @@ func TestRun(t *testing.T) {
 		RetryAfterMin: time.Second,
 		RetryAfterMax: time.Second,
 		FlushTimeout:  100 * time.Microsecond,
+		SampleRate:    1,
 		Dial:          func(_ string, _ string) (net.Conn, error) { return conn, nil },
 	})
 
 	time.AfterFunc(time.Millisecond, func() { close(jobs) })
 	join.Wait()
 
-	if s := conn.String(); s != "set:test:1\nadd:test:2\nobserve:test:1s\n" {
+	if s := conn.String(); s != "set:test:1/1\nadd:test:2/1\nobserve:test:1s/1\n" {
 		t.Errorf("run flushed invalid data to the connection: %s", s)
 	}
 }
@@ -483,7 +489,7 @@ func TestBackend(t *testing.T) {
 
 	b.Close()
 
-	if s := conn.String(); s != "set:test:1\nadd:test:2\nobserve:test:1s\n" {
+	if s := conn.String(); s != "set:test:1/1\nadd:test:2/1\nobserve:test:1s/1\n" {
 		t.Errorf("run flushed invalid data to the connection: %s", s)
 	}
 }
@@ -492,23 +498,23 @@ type testProto struct {
 	err error
 }
 
-func (p testProto) WriteSet(w io.Writer, m stats.Metric, v float64) error {
-	return p.write("set", w, m, v)
+func (p testProto) WriteSet(w io.Writer, m stats.Metric, v float64, r float64) error {
+	return p.write("set", w, m, v, r)
 }
 
-func (p testProto) WriteAdd(w io.Writer, m stats.Metric, v float64) error {
-	return p.write("add", w, m, v)
+func (p testProto) WriteAdd(w io.Writer, m stats.Metric, v float64, r float64) error {
+	return p.write("add", w, m, v, r)
 }
 
-func (p testProto) WriteObserve(w io.Writer, m stats.Metric, v time.Duration) (err error) {
-	return p.write("observe", w, m, v)
+func (p testProto) WriteObserve(w io.Writer, m stats.Metric, v time.Duration, r float64) (err error) {
+	return p.write("observe", w, m, v, r)
 }
 
-func (p testProto) write(s string, w io.Writer, m stats.Metric, v interface{}) (err error) {
+func (p testProto) write(s string, w io.Writer, m stats.Metric, v interface{}, r float64) (err error) {
 	if p.err != nil {
 		return p.err
 	}
-	_, err = fmt.Fprintf(w, "%s:%s:%v\n", s, m.Name(), v)
+	_, err = fmt.Fprintf(w, "%s:%s:%v/%g\n", s, m.Name(), v, r)
 	return
 }
 
