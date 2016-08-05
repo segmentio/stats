@@ -30,7 +30,7 @@ func main() {
     client := stats.NewClient("app", stats.MultiBackend(
         datadog.NewBackend("localhost:8125"),
         log_stats.NewBackend(log.New(os.Stderr, "stats: ", log.Lstdflags)),
-    )
+    ))
     defer client.Close()
 
     // Define a couple of metrics.
