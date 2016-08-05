@@ -184,46 +184,41 @@ func run(done <-chan struct{}, jobs <-chan job, join *sync.WaitGroup, config *Co
 
 	for {
 		if conn == nil {
-			select {
-			case conn = <-connect(config):
-			case <-done:
-				return
-			}
+			conn = connect(done, config)
 		}
 
 		select {
-		case job, ok := <-jobs:
-			if ok {
-				if config.SampleRate == 1 || config.SampleRate > rand.Float64() {
-					conn = write(conn, buf, job, config)
-				}
+		case job, open := <-jobs:
+			if !open {
+				conn = flush(conn, buf, config)
+				return
+			}
+
+			if config.SampleRate == 1 || config.SampleRate > rand.Float64() {
+				conn = write(conn, buf, job, config)
 			}
 
 		case <-timer.C:
 			conn = flush(conn, buf, config)
-
-		case <-done:
-			conn = flush(conn, buf, config)
-			return
 		}
 	}
 }
 
-func connect(config *Config) <-chan net.Conn {
-	connChan := make(chan net.Conn, 1)
+func connect(done <-chan struct{}, config *Config) (conn net.Conn) {
+	retryAfter := config.RetryAfterMin
 
-	go func() {
-		retryAfter := config.RetryAfterMin
-		for {
-			if conn := dial(config); conn == nil {
-				retryAfter = sleep(retryAfter, config.RetryAfterMax)
-			} else {
-				connChan <- conn
-			}
+	for {
+		if conn = dial(config); conn != nil {
+			return
 		}
-	}()
 
-	return connChan
+		select {
+		case <-done:
+			return
+		default:
+			retryAfter = sleep(retryAfter, config.RetryAfterMax)
+		}
+	}
 }
 
 func dial(config *Config) (conn net.Conn) {

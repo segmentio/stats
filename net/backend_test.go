@@ -353,8 +353,9 @@ func TestDialFailure(t *testing.T) {
 	}
 }
 
-func TestConnect(t *testing.T) {
+func TestConnectComplete(t *testing.T) {
 	conn := &testConn{}
+	done := make(chan struct{})
 
 	dialSuccess := func(_ string, _ string) (net.Conn, error) { return conn, nil }
 	dialFailure := func(_ string, _ string) (net.Conn, error) { return nil, testError }
@@ -371,12 +372,28 @@ func TestConnect(t *testing.T) {
 		config.Dial = dialSuccess
 	}
 
-	if c := <-connect(config); c != conn {
+	if c := connect(done, config); c != conn {
 		t.Errorf("connect returned an invalid connection: %v", c)
 	}
 }
 
-func TestRun(t *testing.T) {
+func TestConnectAbort(t *testing.T) {
+	done := make(chan struct{})
+	close(done)
+
+	config := &Config{
+		RetryAfterMin: time.Microsecond,
+		RetryAfterMax: time.Microsecond,
+		Dial:          func(_ string, _ string) (net.Conn, error) { return nil, testError },
+		Fail:          func(err error) {},
+	}
+
+	if c := connect(done, config); c != nil {
+		t.Errorf("connect returned an invalid connection: %v", c)
+	}
+}
+
+func TestRunComplete(t *testing.T) {
 	conn := &testConn{}
 	done := make(chan struct{})
 	jobs := make(chan job, 3)
@@ -408,7 +425,10 @@ func TestRun(t *testing.T) {
 		Dial:          func(_ string, _ string) (net.Conn, error) { return conn, nil },
 	})
 
-	time.AfterFunc(time.Millisecond, func() { close(done) })
+	time.AfterFunc(time.Millisecond, func() {
+		close(jobs)
+		close(done)
+	})
 	join.Wait()
 
 	if s := conn.String(); s != "set:test:1/1\nadd:test:2/1\nobserve:test:1s/1\n" {
