@@ -2,6 +2,8 @@ package stats
 
 import (
 	"io"
+	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -23,6 +25,10 @@ type Config struct {
 	Tags    Tags
 	Now     func() time.Time
 }
+
+var (
+	DefaultScope = filepath.Base(os.Args[0])
+)
 
 func NewClient(scope string, backend Backend, tags ...Tag) Client {
 	return NewClientWith(Config{
