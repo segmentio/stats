@@ -106,7 +106,7 @@ func TestMakeMetric(t *testing.T) {
 		x Metric
 	}{
 		{
-			m: stats.NewGauge(nil, stats.Opts{Name: "test", Tags: stats.Tags{{"hello", "world"}}}),
+			m: stats.NewGauge(stats.MakeOpts("test", stats.Tag{"hello", "world"})),
 			v: 1,
 			t: now,
 			x: Metric{

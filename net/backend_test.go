@@ -143,7 +143,7 @@ func TestWriteSuccessNoFlush(t *testing.T) {
 	c := &testConn{}
 	b := &bytes.Buffer{}
 	j := job{
-		metric: stats.NewGauge(nil, stats.MakeOpts("test")),
+		metric: stats.NewGauge(stats.MakeOpts("test")),
 		value:  1.0,
 		write:  set,
 	}
@@ -169,7 +169,7 @@ func TestWriteSuccessFlush(t *testing.T) {
 	c := &testConn{}
 	b := &bytes.Buffer{}
 	j := job{
-		metric: stats.NewGauge(nil, stats.MakeOpts("test")),
+		metric: stats.NewGauge(stats.MakeOpts("test")),
 		value:  10.0,
 		write:  set,
 	}
@@ -197,7 +197,7 @@ func TestWriteSuccessNoBuffer(t *testing.T) {
 	c := &testConn{}
 	b := &bytes.Buffer{}
 	j := job{
-		metric: stats.NewGauge(nil, stats.MakeOpts("test")),
+		metric: stats.NewGauge(stats.MakeOpts("test")),
 		value:  10.0,
 		write:  set,
 	}
@@ -224,7 +224,7 @@ func TestWriteFailureProtocol(t *testing.T) {
 	c := &testConn{}
 	b := &bytes.Buffer{}
 	j := job{
-		metric: stats.NewGauge(nil, stats.MakeOpts("test")),
+		metric: stats.NewGauge(stats.MakeOpts("test")),
 		value:  10.0,
 		write:  set,
 	}
@@ -248,7 +248,7 @@ func TestWriteFailureConn(t *testing.T) {
 	c := &testConn{err: testError}
 	b := &bytes.Buffer{}
 	j := job{
-		metric: stats.NewGauge(nil, stats.MakeOpts("test")),
+		metric: stats.NewGauge(stats.MakeOpts("test")),
 		value:  10.0,
 		write:  set,
 	}
@@ -398,17 +398,17 @@ func TestRunComplete(t *testing.T) {
 	done := make(chan struct{})
 	jobs := make(chan job, 3)
 	jobs <- job{
-		metric: stats.NewGauge(nil, stats.MakeOpts("test")),
+		metric: stats.NewGauge(stats.MakeOpts("test")),
 		value:  1.0,
 		write:  set,
 	}
 	jobs <- job{
-		metric: stats.NewGauge(nil, stats.MakeOpts("test")),
+		metric: stats.NewGauge(stats.MakeOpts("test")),
 		value:  2.0,
 		write:  add,
 	}
 	jobs <- job{
-		metric: stats.NewGauge(nil, stats.MakeOpts("test")),
+		metric: stats.NewGauge(stats.MakeOpts("test")),
 		value:  time.Second,
 		write:  observe,
 	}
@@ -468,7 +468,7 @@ func TestSetConfigDefaults(t *testing.T) {
 func TestEnqueueSuccess(t *testing.T) {
 	c := make(chan job, 1)
 	j := job{
-		metric: stats.NewGauge(nil, stats.MakeOpts("test")),
+		metric: stats.NewGauge(stats.MakeOpts("test")),
 		value:  1.0,
 		write:  nil,
 	}
@@ -484,7 +484,7 @@ func TestEnqueueFailureFull(t *testing.T) {
 	e := error(nil)
 	c := make(chan job, 0)
 	j := job{
-		metric: stats.NewGauge(nil, stats.MakeOpts("test")),
+		metric: stats.NewGauge(stats.MakeOpts("test")),
 		value:  1.0,
 		write:  nil,
 	}
@@ -500,7 +500,7 @@ func TestEnqueueFailureClosed(t *testing.T) {
 	e := error(nil)
 	c := make(chan job, 1)
 	j := job{
-		metric: stats.NewGauge(nil, stats.MakeOpts("test")),
+		metric: stats.NewGauge(stats.MakeOpts("test")),
 		value:  1.0,
 		write:  nil,
 	}
@@ -524,9 +524,9 @@ func TestBackend(t *testing.T) {
 		Dial:          func(_ string, _ string) (net.Conn, error) { return conn, nil },
 	})
 
-	b.Set(stats.NewGauge(b, stats.MakeOpts("test")), 1)
-	b.Add(stats.NewCounter(b, stats.MakeOpts("test")), 2)
-	b.Observe(stats.NewHistogram(b, stats.MakeOpts("test")), time.Second)
+	b.Set(stats.NewGauge(stats.MakeOpts("test")), 1)
+	b.Add(stats.NewCounter(stats.MakeOpts("test")), 2)
+	b.Observe(stats.NewHistogram(stats.MakeOpts("test")), time.Second)
 
 	time.Sleep(time.Millisecond)
 

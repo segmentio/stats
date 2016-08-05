@@ -32,7 +32,7 @@ func TestProtocol(t *testing.T) {
 		method func(protocol, io.Writer, stats.Metric, interface{}, float64) error
 	}{
 		{
-			metric: stats.NewGauge(nil, stats.Opts{Name: "hello"}),
+			metric: stats.NewGauge(stats.Opts{Name: "hello"}),
 			value:  float64(1),
 			rate:   float64(1),
 			string: "hello:1|g\n",
@@ -42,7 +42,7 @@ func TestProtocol(t *testing.T) {
 		},
 
 		{
-			metric: stats.NewCounter(nil, stats.Opts{Name: "hello"}),
+			metric: stats.NewCounter(stats.Opts{Name: "hello"}),
 			value:  float64(1),
 			rate:   float64(0.1),
 			string: "hello:1|c|@0.1\n",
@@ -52,7 +52,7 @@ func TestProtocol(t *testing.T) {
 		},
 
 		{
-			metric: stats.NewHistogram(nil, stats.Opts{Name: "hello"}),
+			metric: stats.NewHistogram(stats.Opts{Name: "hello"}),
 			value:  time.Second,
 			rate:   float64(1),
 			string: "hello:1000|h\n",

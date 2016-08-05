@@ -39,19 +39,19 @@ func TestMetricType(t *testing.T) {
 		s string
 	}{
 		{
-			m: NewGauge(nil, Opts{}),
+			m: NewGauge(Opts{}),
 			s: "gauge",
 		},
 		{
-			m: NewCounter(nil, Opts{}),
+			m: NewCounter(Opts{}),
 			s: "counter",
 		},
 		{
-			m: NewHistogram(nil, Opts{}),
+			m: NewHistogram(Opts{}),
 			s: "histogram",
 		},
 		{
-			m: NewTimer(nil, Opts{}),
+			m: NewTimer(Opts{}),
 			s: "timer",
 		},
 	}

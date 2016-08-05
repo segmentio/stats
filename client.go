@@ -51,25 +51,26 @@ type client struct {
 func (c client) Close() error { return c.backend.Close() }
 
 func (c client) Gauge(name string, tags ...Tag) Gauge {
-	return NewGauge(c.backend, c.opts(name, tags...))
+	return NewGauge(c.opts(name, tags...))
 }
 
 func (c client) Counter(name string, tags ...Tag) Counter {
-	return NewCounter(c.backend, c.opts(name, tags...))
+	return NewCounter(c.opts(name, tags...))
 }
 
 func (c client) Histogram(name string, tags ...Tag) Histogram {
-	return NewHistogram(c.backend, c.opts(name, tags...))
+	return NewHistogram(c.opts(name, tags...))
 }
 
 func (c client) Timer(name string, tags ...Tag) Timer {
-	return NewTimerWith(c.now, c.backend, c.opts(name, tags...))
+	return NewTimerWith(c.now, c.opts(name, tags...))
 }
 
 func (c client) opts(name string, tags ...Tag) Opts {
 	return Opts{
-		Scope: c.scope,
-		Name:  name,
-		Tags:  concatTags(c.tags, Tags(tags)),
+		Backend: c.backend,
+		Scope:   c.scope,
+		Name:    name,
+		Tags:    concatTags(c.tags, Tags(tags)),
 	}
 }

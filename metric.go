@@ -41,10 +41,11 @@ type Timer interface {
 }
 
 type Opts struct {
-	Scope string
-	Name  string
-	Unit  string
-	Tags  Tags
+	Backend Backend
+	Scope   string
+	Name    string
+	Unit    string
+	Tags    Tags
 }
 
 func MakeOpts(name string, tags ...Tag) Opts {
@@ -60,11 +61,11 @@ type metric struct {
 	backend Backend
 }
 
-func makeMetric(backend Backend, opts Opts) metric {
+func makeMetric(opts Opts) metric {
 	return metric{
 		name:    JoinMetricName(opts.Scope, opts.Name, opts.Unit),
 		tags:    opts.Tags,
-		backend: backend,
+		backend: opts.Backend,
 	}
 }
 
@@ -80,8 +81,8 @@ func (m metric) clone(tags ...Tag) metric {
 
 type gauge struct{ metric }
 
-func NewGauge(backend Backend, opts Opts) Gauge {
-	return gauge{makeMetric(backend, opts)}
+func NewGauge(opts Opts) Gauge {
+	return gauge{makeMetric(opts)}
 }
 
 func (g gauge) Type() string {
@@ -94,8 +95,8 @@ func (g gauge) Set(value float64, tags ...Tag) {
 
 type counter struct{ metric }
 
-func NewCounter(backend Backend, opts Opts) Counter {
-	return counter{makeMetric(backend, opts)}
+func NewCounter(opts Opts) Counter {
+	return counter{makeMetric(opts)}
 }
 
 func (c counter) Type() string {
@@ -108,8 +109,8 @@ func (c counter) Add(value float64, tags ...Tag) {
 
 type histogram struct{ metric }
 
-func NewHistogram(backend Backend, opts Opts) Histogram {
-	return histogram{makeMetric(backend, opts)}
+func NewHistogram(opts Opts) Histogram {
+	return histogram{makeMetric(opts)}
 }
 
 func (h histogram) Type() string {
@@ -128,16 +129,16 @@ type timer struct {
 	now   func() time.Time
 }
 
-func NewTimer(backend Backend, opts Opts) Timer {
-	return NewTimerWith(nil, backend, opts)
+func NewTimer(opts Opts) Timer {
+	return NewTimerWith(nil, opts)
 }
 
-func NewTimerWith(now func() time.Time, backend Backend, opts Opts) Timer {
+func NewTimerWith(now func() time.Time, opts Opts) Timer {
 	if now == nil {
 		now = time.Now
 	}
 	start := now()
-	return &timer{metric: makeMetric(backend, opts), start: start, last: start, now: now}
+	return &timer{metric: makeMetric(opts), start: start, last: start, now: now}
 }
 
 func (t *timer) Type() string {
