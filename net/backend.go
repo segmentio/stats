@@ -49,14 +49,17 @@ func SplitNetworkAddress(addr string) (network string, address string) {
 func NewBackendWith(config Config) stats.Backend {
 	config = setConfigDefaults(config)
 
-	j := make(chan job, config.QueueSize)
+	jobs := make(chan job, config.QueueSize)
+	done := make(chan struct{})
+
 	b := &backend{
-		jobs: j,
 		fail: config.Fail,
+		jobs: jobs,
+		done: done,
 	}
 
 	b.join.Add(1)
-	go run(j, &b.join, &config)
+	go run(done, jobs, &b.join, &config)
 
 	return b
 }
@@ -112,6 +115,7 @@ type job struct {
 type backend struct {
 	join sync.WaitGroup
 	jobs chan<- job
+	done chan struct{}
 	fail func(error)
 }
 
@@ -119,6 +123,7 @@ func (b *backend) Close() (err error) {
 	defer b.join.Wait()
 	defer func() { recover() }()
 	close(b.jobs)
+	close(b.done)
 	return
 }
 
@@ -161,7 +166,7 @@ func observe(p Protocol, w io.Writer, m stats.Metric, v interface{}, r float64) 
 	return p.WriteObserve(w, m, v.(time.Duration), r)
 }
 
-func run(jobs <-chan job, join *sync.WaitGroup, config *Config) {
+func run(done <-chan struct{}, jobs <-chan job, join *sync.WaitGroup, config *Config) {
 	var conn net.Conn
 
 	defer join.Done()
@@ -179,35 +184,46 @@ func run(jobs <-chan job, join *sync.WaitGroup, config *Config) {
 
 	for {
 		if conn == nil {
-			conn = connect(config)
+			select {
+			case conn = <-connect(config):
+			case <-done:
+				return
+			}
 		}
 
 		select {
-		case job, open := <-jobs:
-			if !open {
-				conn = flush(conn, buf, config)
-				return
-			}
-
-			if config.SampleRate == 1 || config.SampleRate > rand.Float64() {
-				conn = write(conn, buf, job, config)
+		case job, ok := <-jobs:
+			if ok {
+				if config.SampleRate == 1 || config.SampleRate > rand.Float64() {
+					conn = write(conn, buf, job, config)
+				}
 			}
 
 		case <-timer.C:
 			conn = flush(conn, buf, config)
+
+		case <-done:
+			conn = flush(conn, buf, config)
+			return
 		}
 	}
 }
 
-func connect(config *Config) (conn net.Conn) {
-	retryAfter := config.RetryAfterMin
-	for {
-		if conn = dial(config); conn == nil {
-			retryAfter = sleep(retryAfter, config.RetryAfterMax)
-		} else {
-			return
+func connect(config *Config) <-chan net.Conn {
+	connChan := make(chan net.Conn, 1)
+
+	go func() {
+		retryAfter := config.RetryAfterMin
+		for {
+			if conn := dial(config); conn == nil {
+				retryAfter = sleep(retryAfter, config.RetryAfterMax)
+			} else {
+				connChan <- conn
+			}
 		}
-	}
+	}()
+
+	return connChan
 }
 
 func dial(config *Config) (conn net.Conn) {

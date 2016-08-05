@@ -371,14 +371,14 @@ func TestConnect(t *testing.T) {
 		config.Dial = dialSuccess
 	}
 
-	if c := connect(config); c != conn {
+	if c := <-connect(config); c != conn {
 		t.Errorf("connect returned an invalid connection: %v", c)
 	}
 }
 
 func TestRun(t *testing.T) {
 	conn := &testConn{}
-
+	done := make(chan struct{})
 	jobs := make(chan job, 3)
 	jobs <- job{
 		metric: stats.NewGauge(stats.MakeOpts("test", ""), nil),
@@ -399,7 +399,7 @@ func TestRun(t *testing.T) {
 	join := &sync.WaitGroup{}
 	join.Add(1)
 
-	go run(jobs, join, &Config{
+	go run(done, jobs, join, &Config{
 		Protocol:      testProto{},
 		RetryAfterMin: time.Second,
 		RetryAfterMax: time.Second,
@@ -408,12 +408,35 @@ func TestRun(t *testing.T) {
 		Dial:          func(_ string, _ string) (net.Conn, error) { return conn, nil },
 	})
 
-	time.AfterFunc(time.Millisecond, func() { close(jobs) })
+	time.AfterFunc(time.Millisecond, func() { close(done) })
 	join.Wait()
 
 	if s := conn.String(); s != "set:test:1/1\nadd:test:2/1\nobserve:test:1s/1\n" {
 		t.Errorf("run flushed invalid data to the connection: %s", s)
 	}
+}
+
+func TestRunNoConnect(t *testing.T) {
+	conn := &testConn{}
+	done := make(chan struct{})
+	jobs := make(chan job, 3)
+
+	join := &sync.WaitGroup{}
+	join.Add(1)
+
+	close(jobs)
+	close(done)
+
+	go run(done, jobs, join, &Config{
+		Protocol:      testProto{},
+		RetryAfterMin: time.Second,
+		RetryAfterMax: time.Second,
+		FlushTimeout:  100 * time.Microsecond,
+		SampleRate:    1,
+		Dial:          func(_ string, _ string) (net.Conn, error) { return conn, nil },
+	})
+
+	join.Wait()
 }
 
 func TestSetConfigDefaults(t *testing.T) {
