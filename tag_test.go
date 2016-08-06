@@ -150,3 +150,28 @@ func TestTagsFormat(t *testing.T) {
 		}
 	}
 }
+
+func TestTagsGet(t *testing.T) {
+	tests := []struct {
+		tags  Tags
+		name  string
+		value string
+	}{
+		{
+			tags:  nil,
+			name:  "hello",
+			value: "",
+		},
+		{
+			tags:  Tags{{"hello", "world"}},
+			name:  "hello",
+			value: "world",
+		},
+	}
+
+	for _, test := range tests {
+		if s := test.tags.Get(test.name); s != test.value {
+			t.Errorf("%#v: invalid value: %s != %s", test.tags, test.value, s)
+		}
+	}
+}

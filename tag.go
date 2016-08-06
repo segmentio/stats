@@ -141,6 +141,15 @@ func makeString(v reflect.Value) string {
 	}
 }
 
+func (t Tags) Get(name string) string {
+	for _, tag := range t {
+		if tag.Name == name {
+			return tag.Value
+		}
+	}
+	return ""
+}
+
 func (t Tags) String() string {
 	b, _ := t.MarshalJSON()
 	return string(b)
