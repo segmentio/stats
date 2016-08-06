@@ -128,6 +128,8 @@ func TestHttpHandler(t *testing.T) {
 	ioutil.ReadAll(res.Body)
 
 	for _, e := range backend.Events {
-		t.Log(e)
+		if s := e.Tags.Get("bucket"); e.Name != "http_server.request.count" && s != "2xx" {
+			t.Errorf("invalid bucket in metric event tags: %s", s)
+		}
 	}
 }
