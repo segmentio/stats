@@ -1,104 +1,133 @@
 package stats
 
 import (
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"reflect"
 	"strings"
 	"testing"
 )
 
-func TestHttpHandler(t *testing.T) {
+func TestCopyHttpHeader(t *testing.T) {
+	h1 := http.Header{"Content-Type": {"text/plain"}, "Content-Length": {"11"}}
+	h2 := copyHttpHeader(h1)
+
+	if !reflect.DeepEqual(h1, h2) {
+		t.Errorf("%v != %v", h1, h2)
+	}
+}
+
+func TestHttpResponseStatusBucket(t *testing.T) {
 	tests := []struct {
 		status int
-		events int
 		bucket string
-		body   string
 	}{
 		{
-			status: 101,
-			events: 11,
+			status: 0,
+			bucket: "???",
+		},
+		{
+			status: 100,
 			bucket: "1xx",
-			body:   "Hello World!",
 		},
 		{
 			status: 200,
-			events: 11,
 			bucket: "2xx",
-			body:   "Hello World!",
 		},
 		{
 			status: 300,
-			events: 11,
 			bucket: "3xx",
-			body:   "Hello World!",
 		},
 		{
 			status: 400,
-			events: 11,
 			bucket: "4xx",
-			body:   "Hello World!",
 		},
 		{
 			status: 500,
-			events: 11,
 			bucket: "5xx",
-			body:   "Hello World!",
-		},
-		{
-			status: 600,
-			events: 11,
-			bucket: "???",
-			body:   "Hello World!",
 		},
 	}
 
 	for _, test := range tests {
-		events, body, err := runTestHttpHandler(test.status, test.body)
-
-		if err != nil {
-			t.Error(err)
-			continue
-		}
-
-		if test.status >= 200 && body != test.body {
-			t.Errorf("test-status-%d: invalid response body: %#v != %#v", test.status, test.body, body)
-			continue
-		}
-
-		if len(events) != test.events {
-			t.Errorf("test-status-%d: invalid metric events, expected %d but found %d:", test.status, test.events, len(events))
-		}
-
-		for i, e := range events {
-			if i != 0 {
-				if bucket := e.Tags.Get("bucket"); bucket != test.bucket {
-					t.Errorf("tests-status-%d: event %# has an invalid bucket, %#v != %#v\n- %v", test.status, i, test.bucket, bucket, e)
-				}
-			}
+		if s := httpResponseStatusBucket(test.status); s != test.bucket {
+			t.Errorf("bucket(%d) => %s != %s", test.status, test.bucket, s)
 		}
 	}
 }
 
-func runTestHttpHandler(status int, body string) (events []Event, response string, err error) {
+func TestHttpRequestLength(t *testing.T) {
+	tests := []struct {
+		req *http.Request
+		len int
+	}{
+		{
+			req: &http.Request{
+				Method:        "GET",
+				URL:           &url.URL{Path: "/"},
+				Host:          "localhost",
+				ContentLength: 11,
+				Header:        http.Header{"Content-Type": {"text/plain"}},
+				Body:          ioutil.NopCloser(strings.NewReader("Hello World!")),
+			},
+			len: 93,
+		},
+	}
+
+	for i, test := range tests {
+		if n := httpRequestHeaderLength(test.req); n != test.len {
+			t.Errorf("httpRequestHeaderLength #%d => %d != %d", i, test.len, n)
+		}
+	}
+}
+
+func TestHttpResponseLength(t *testing.T) {
+	tests := []struct {
+		res *http.Response
+		len int
+	}{
+		{
+			res: &http.Response{
+				StatusCode:    http.StatusOK,
+				ProtoMajor:    1,
+				ProtoMinor:    1,
+				Request:       &http.Request{Method: "GET"},
+				ContentLength: 11,
+				Header:        http.Header{"Content-Type": {"text/plain"}},
+				Body:          ioutil.NopCloser(strings.NewReader("Hello World!")),
+			},
+			len: 64,
+		},
+	}
+
+	for i, test := range tests {
+		if n := httpResponseHeaderLength(test.res); n != test.len {
+			t.Errorf("httpResponseHeaderLength #%d => %d != %d", i, test.len, n)
+		}
+	}
+}
+
+func TestHttpHandler(t *testing.T) {
 	backend := &EventBackend{}
 	client := NewClient("", backend)
 	defer client.Close()
 
 	server := httptest.NewServer(NewHttpHandler(client, http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		res.WriteHeader(status)
-		io.Copy(res, req.Body)
+		res.Write([]byte("Hello World"))
 	})))
 	defer server.Close()
-	var res *http.Response
 
-	if res, err = http.Post(server.URL, "text/plain", strings.NewReader(body)); err != nil {
+	res, err := http.Post(server.URL, "text/plain", strings.NewReader("Hi"))
+	if err != nil {
+		t.Error(err)
 		return
 	}
 	defer res.Body.Close()
 
-	b, _ := ioutil.ReadAll(res.Body)
-	events, response = backend.Events, string(b)
-	return
+	ioutil.ReadAll(res.Body)
+
+	for _, e := range backend.Events {
+		t.Log(e)
+	}
 }

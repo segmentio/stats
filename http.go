@@ -1,29 +1,60 @@
 package stats
 
 import (
-	"io"
+	"io/ioutil"
 	"net/http"
-	"path"
 	"strconv"
 )
 
 func NewHttpHandler(client Client, handler http.Handler) http.Handler {
-	return &httpHandler{
-		handler:        handler,
-		countReq:       client.Counter("http_request.count"),
-		countRes:       client.Counter("http_response.count"),
-		bytesReqHeader: client.Histogram("http_request_header.bytes"),
-		bytesResHeader: client.Histogram("http_response_header.bytes"),
-		bytesReqBody:   client.Histogram("http_request_body.bytes"),
-		bytesResBody:   client.Histogram("http_response_body.bytes"),
-		sizeReqHeader:  client.Histogram("http_request_header.size"),
-		sizeResHeader:  client.Histogram("http_response_header.size"),
-		timeReq:        client.Timer("http_request.duration"),
+	return httpHandler{
+		handler: handler,
+		stats:   newHttpStats(client, "http_server"),
 	}
 }
 
 type httpHandler struct {
-	handler        http.Handler
+	handler http.Handler
+	stats   *httpStats
+}
+
+func (h httpHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
+	tags := httpRequestTags(req)
+	clock := h.stats.timeReq.Start(tags...)
+
+	r := &CountReader{
+		R: req.Body,
+	}
+
+	w := &httpResponseWriter{
+		ResponseWriter: res,
+		tags:           tags,
+		clock:          clock,
+	}
+
+	req.Body = readCloser{r, req.Body}
+
+	h.stats.countReq.Add(1, tags...)
+	h.handler.ServeHTTP(w, req)
+	h.stats.report(httpStatsReport{
+		req: req,
+		res: &http.Response{
+			StatusCode:    w.status,
+			ProtoMajor:    req.ProtoMajor,
+			ProtoMinor:    req.ProtoMinor,
+			ContentLength: -1,
+			Request:       req,
+			Header:        w.Header(),
+			Body:          nopeReadCloser{},
+		},
+		reqBodyBytes: r.N,
+		resBodyBytes: w.bytes,
+		tags:         w.tags,
+		clock:        clock,
+	})
+}
+
+type httpStats struct {
 	countReq       Counter
 	countRes       Counter
 	bytesReqHeader Histogram
@@ -35,72 +66,46 @@ type httpHandler struct {
 	timeReq        Timer
 }
 
-func (h *httpHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	tags := Tags{
-		{"method", req.Method},
-		{"path", path.Clean(req.URL.Path)},
-		{"request_type", req.Header.Get("Content-Type")},
-		{"request_encoding", req.Header.Get("Content-Encoding")},
+func newHttpStats(client Client, namespace string) *httpStats {
+	return &httpStats{
+		countReq:       client.Counter(namespace + ".request.count"),
+		countRes:       client.Counter(namespace + ".response.count"),
+		bytesReqHeader: client.Histogram(namespace + ".request_header.bytes"),
+		bytesResHeader: client.Histogram(namespace + ".response_header.bytes"),
+		bytesReqBody:   client.Histogram(namespace + ".request_body.bytes"),
+		bytesResBody:   client.Histogram(namespace + ".response_body.bytes"),
+		sizeReqHeader:  client.Histogram(namespace + ".request_header.size"),
+		sizeResHeader:  client.Histogram(namespace + ".response_header.size"),
+		timeReq:        client.Timer(namespace + ".request.duration"),
 	}
-
-	c := &httpRequestContext{
-		tags:    tags,
-		handler: h,
-		clock:   h.timeReq.Start(tags...),
-	}
-
-	r := &httpRequestReader{
-		ReadCloser: req.Body,
-	}
-
-	w := &httpResponseWriter{
-		ResponseWriter: res,
-		clock:          c.clock,
-	}
-
-	req.Body = r
-	h.countReq.Add(1, append(tags)...)
-	h.handler.ServeHTTP(w, req)
-	c.done(r, w, req)
 }
 
-type httpRequestContext struct {
-	tags    Tags
-	clock   Clock
-	handler *httpHandler
+type httpStatsReport struct {
+	req          *http.Request
+	res          *http.Response
+	reqBodyBytes int
+	resBodyBytes int
+	tags         Tags
+	clock        Clock
 }
 
-func (c *httpRequestContext) done(r *httpRequestReader, w *httpResponseWriter, req *http.Request) {
-	tags := append(c.tags, w.tags...)
+func (s *httpStats) report(r httpStatsReport) {
+	r.clock.Stamp("write_body", r.tags...)
+	r.clock.Stop(r.tags...)
 
-	c.clock.Stamp("write_body", tags...)
-	c.clock.Stop(tags...)
+	reqHeaderBytes := httpRequestHeaderLength(r.req)
+	resHeaderBytes := httpResponseHeaderLength(r.res)
 
-	bytesReqHeader := guessReqHeaderBytes(req)
-	bytesResHeader := guessResHeaderBytes(req, w.status, w.Header())
+	s.bytesReqHeader.Observe(float64(reqHeaderBytes), r.tags...)
+	s.bytesResHeader.Observe(float64(resHeaderBytes), r.tags...)
 
-	c.handler.bytesReqHeader.Observe(float64(bytesReqHeader), tags...)
-	c.handler.bytesResHeader.Observe(float64(bytesResHeader), tags...)
+	s.bytesReqBody.Observe(float64(r.reqBodyBytes), r.tags...)
+	s.bytesResBody.Observe(float64(r.resBodyBytes), r.tags...)
 
-	c.handler.bytesReqBody.Observe(float64(r.bytes), tags...)
-	c.handler.bytesResBody.Observe(float64(w.bytes), tags...)
+	s.sizeReqHeader.Observe(float64(len(r.req.Header)), r.tags...)
+	s.sizeResHeader.Observe(float64(len(r.res.Header)), r.tags...)
 
-	c.handler.sizeReqHeader.Observe(float64(len(req.Header)), tags...)
-	c.handler.sizeResHeader.Observe(float64(len(w.Header())), tags...)
-
-	c.handler.countRes.Add(1, tags...)
-}
-
-type httpRequestReader struct {
-	io.ReadCloser
-	bytes int
-}
-
-func (r *httpRequestReader) Read(b []byte) (n int, err error) {
-	if n, err = r.ReadCloser.Read(b); n > 0 {
-		r.bytes += n
-	}
-	return
+	s.countRes.Add(1, r.tags...)
 }
 
 type httpResponseWriter struct {
@@ -116,28 +121,8 @@ func (w *httpResponseWriter) WriteHeader(status int) {
 		w.status = status
 		w.ResponseWriter.WriteHeader(status)
 
-		tagBucket := Tag{Name: "bucket"}
+		tagBucket := Tag{Name: "bucket", Value: httpResponseStatusBucket(status)}
 		tagStatus := Tag{Name: "status", Value: strconv.Itoa(status)}
-
-		switch {
-		case status < 100 || status >= 600:
-			tagBucket.Value = "???"
-
-		case status < 200:
-			tagBucket.Value = "1xx"
-
-		case status < 300:
-			tagBucket.Value = "2xx"
-
-		case status < 400:
-			tagBucket.Value = "3xx"
-
-		case status < 500:
-			tagBucket.Value = "4xx"
-
-		default:
-			tagBucket.Value = "5xx"
-		}
 
 		h := w.Header()
 		w.tags = append(w.tags,
@@ -161,19 +146,85 @@ func (w *httpResponseWriter) Write(b []byte) (n int, err error) {
 	return
 }
 
-func guessReqHeaderBytes(req *http.Request) (n int) {
-	return len(req.Method) + len(req.URL.String()) + len(req.Proto) + 5 + guessHeaderBytes(req.Header)
-}
-
-func guessResHeaderBytes(req *http.Request, status int, hdr http.Header) (n int) {
-	return len(req.Proto) + len(http.StatusText(status)) + 3 + guessHeaderBytes(hdr)
-}
-
-func guessHeaderBytes(h http.Header) (n int) {
-	for k, v := range h {
-		for _, s := range v {
-			n += len(k) + len(s) + 4
-		}
+func httpRequestTags(req *http.Request) Tags {
+	return Tags{
+		{"method", req.Method},
+		{"path", req.URL.Path},
+		{"request_type", req.Header.Get("Content-Type")},
+		{"request_encoding", req.Header.Get("Content-Encoding")},
 	}
-	return
+}
+
+func httpRequestHeaderLength(req *http.Request) int {
+	w := &CountWriter{W: ioutil.Discard}
+	r := &http.Request{
+		Method:           req.Method,
+		URL:              req.URL,
+		Host:             req.Host,
+		ContentLength:    -1,
+		TransferEncoding: req.TransferEncoding,
+		Header:           copyHttpHeader(req.Header),
+		Body:             nopeReadCloser{},
+	}
+
+	if req.ContentLength >= 0 {
+		r.Header.Set("Content-Length", strconv.FormatInt(req.ContentLength, 10))
+	}
+
+	r.Write(w)
+	return w.N
+}
+
+func httpResponseHeaderLength(res *http.Response) int {
+	w := &CountWriter{W: ioutil.Discard}
+	r := &http.Response{
+		StatusCode:       res.StatusCode,
+		ProtoMajor:       res.ProtoMajor,
+		ProtoMinor:       res.ProtoMinor,
+		Request:          res.Request,
+		TransferEncoding: res.TransferEncoding,
+		Trailer:          res.Trailer,
+		ContentLength:    -1,
+		Header:           copyHttpHeader(res.Header),
+		Body:             nopeReadCloser{},
+	}
+
+	if res.ContentLength >= 0 {
+		r.Header.Set("Content-Length", strconv.FormatInt(res.ContentLength, 10))
+	}
+
+	r.Write(w)
+	return w.N
+}
+
+func httpResponseStatusBucket(status int) string {
+	switch {
+	case status < 100 || status >= 600:
+		return "???"
+
+	case status < 200:
+		return "1xx"
+
+	case status < 300:
+		return "2xx"
+
+	case status < 400:
+		return "3xx"
+
+	case status < 500:
+		return "4xx"
+
+	default:
+		return "5xx"
+	}
+}
+
+func copyHttpHeader(hdr http.Header) http.Header {
+	copy := make(http.Header, len(hdr))
+
+	for name, value := range hdr {
+		copy[name] = value
+	}
+
+	return copy
 }
