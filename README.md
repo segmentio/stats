@@ -83,7 +83,7 @@ Monitoring HTTP Servers
 -----------------------
 
 The [github.com/segmentio/stats/httpstats](https://godoc.org/github.com/segmentio/stats/httpstats)
-package exposes a decorator of `htpt.Handler` that automatically adds metric
+package exposes a decorator of `http.Handler` that automatically adds metric
 colleciton to a HTTP handler, reporting things like request processing time,
 error counters, header and body sizes...
 
