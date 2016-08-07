@@ -524,9 +524,10 @@ func TestBackend(t *testing.T) {
 		Dial:          func(_ string, _ string) (net.Conn, error) { return conn, nil },
 	})
 
-	b.Set(stats.NewGauge(stats.MakeOpts("test")), 1)
-	b.Add(stats.NewCounter(stats.MakeOpts("test")), 2)
-	b.Observe(stats.NewHistogram(stats.MakeOpts("test")), 1)
+	now := time.Unix(1, 0)
+	b.Set(stats.NewGauge(stats.MakeOpts("test")), 1, now)
+	b.Add(stats.NewCounter(stats.MakeOpts("test")), 2, now)
+	b.Observe(stats.NewHistogram(stats.MakeOpts("test")), 1, now)
 
 	time.Sleep(time.Millisecond)
 
@@ -541,19 +542,19 @@ type testProto struct {
 	err error
 }
 
-func (p testProto) WriteSet(w io.Writer, m stats.Metric, v float64, r float64) error {
-	return p.write("set", w, m, v, r)
+func (p testProto) WriteSet(w io.Writer, m stats.Metric, v float64, r float64, t time.Time) error {
+	return p.write("set", w, m, v, r, t)
 }
 
-func (p testProto) WriteAdd(w io.Writer, m stats.Metric, v float64, r float64) error {
-	return p.write("add", w, m, v, r)
+func (p testProto) WriteAdd(w io.Writer, m stats.Metric, v float64, r float64, t time.Time) error {
+	return p.write("add", w, m, v, r, t)
 }
 
-func (p testProto) WriteObserve(w io.Writer, m stats.Metric, v float64, r float64) (err error) {
-	return p.write("observe", w, m, v, r)
+func (p testProto) WriteObserve(w io.Writer, m stats.Metric, v float64, r float64, t time.Time) (err error) {
+	return p.write("observe", w, m, v, r, t)
 }
 
-func (p testProto) write(s string, w io.Writer, m stats.Metric, v float64, r float64) (err error) {
+func (p testProto) write(s string, w io.Writer, m stats.Metric, v float64, r float64, t time.Time) (err error) {
 	if p.err != nil {
 		return p.err
 	}

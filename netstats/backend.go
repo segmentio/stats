@@ -16,11 +16,11 @@ import (
 )
 
 type Protocol interface {
-	WriteSet(w io.Writer, m stats.Metric, v float64, r float64) error
+	WriteSet(w io.Writer, m stats.Metric, v float64, r float64, t time.Time) error
 
-	WriteAdd(w io.Writer, m stats.Metric, v float64, r float64) error
+	WriteAdd(w io.Writer, m stats.Metric, v float64, r float64, t time.Time) error
 
-	WriteObserve(w io.Writer, m stats.Metric, v float64, r float64) error
+	WriteObserve(w io.Writer, m stats.Metric, v float64, r float64, t time.Time) error
 }
 
 type Config struct {
@@ -104,12 +104,13 @@ func setConfigDefaults(config Config) Config {
 	return config
 }
 
-type writer func(Protocol, io.Writer, stats.Metric, float64, float64) error
+type writer func(Protocol, io.Writer, stats.Metric, float64, float64, time.Time) error
 
 type job struct {
 	metric stats.Metric
 	value  float64
 	write  writer
+	time   time.Time
 }
 
 type backend struct {
@@ -127,17 +128,18 @@ func (b *backend) Close() (err error) {
 	return
 }
 
-func (b *backend) Set(m stats.Metric, v float64) { b.enqueue(m, v, set) }
+func (b *backend) Set(m stats.Metric, v float64, t time.Time) { b.enqueue(m, v, t, set) }
 
-func (b *backend) Add(m stats.Metric, v float64) { b.enqueue(m, v, add) }
+func (b *backend) Add(m stats.Metric, v float64, t time.Time) { b.enqueue(m, v, t, add) }
 
-func (b *backend) Observe(m stats.Metric, v float64) { b.enqueue(m, v, observe) }
+func (b *backend) Observe(m stats.Metric, v float64, t time.Time) { b.enqueue(m, v, t, observe) }
 
-func (b *backend) enqueue(m stats.Metric, v float64, w writer) {
+func (b *backend) enqueue(m stats.Metric, v float64, t time.Time, w writer) {
 	enqueue(job{
 		metric: m,
 		value:  v,
 		write:  w,
+		time:   t,
 	}, b.jobs, b.fail)
 }
 
@@ -154,16 +156,16 @@ func enqueue(job job, jobs chan<- job, fail func(error)) {
 	}
 }
 
-func set(p Protocol, w io.Writer, m stats.Metric, v float64, r float64) error {
-	return p.WriteSet(w, m, v, r)
+func set(p Protocol, w io.Writer, m stats.Metric, v float64, r float64, t time.Time) error {
+	return p.WriteSet(w, m, v, r, t)
 }
 
-func add(p Protocol, w io.Writer, m stats.Metric, v float64, r float64) error {
-	return p.WriteAdd(w, m, v, r)
+func add(p Protocol, w io.Writer, m stats.Metric, v float64, r float64, t time.Time) error {
+	return p.WriteAdd(w, m, v, r, t)
 }
 
-func observe(p Protocol, w io.Writer, m stats.Metric, v float64, r float64) error {
-	return p.WriteObserve(w, m, v, r)
+func observe(p Protocol, w io.Writer, m stats.Metric, v float64, r float64, t time.Time) error {
+	return p.WriteObserve(w, m, v, r, t)
 }
 
 func run(done <-chan struct{}, jobs <-chan job, join *sync.WaitGroup, config *Config) {
@@ -249,7 +251,7 @@ func backoff(d time.Duration, max time.Duration) time.Duration {
 func write(conn net.Conn, buf *bytes.Buffer, job job, config *Config) net.Conn {
 	n1 := buf.Len()
 
-	if err := job.write(config.Protocol, buf, job.metric, job.value, config.SampleRate); err != nil {
+	if err := job.write(config.Protocol, buf, job.metric, job.value, config.SampleRate, job.time); err != nil {
 		handleError(err, config)
 		return conn
 	}

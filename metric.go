@@ -18,6 +18,8 @@ type Gauge interface {
 	Metric
 
 	Set(value float64, tags ...Tag)
+
+	SetAt(value float64, time time.Time, tags ...Tag)
 }
 
 type Counter interface {
@@ -25,25 +27,37 @@ type Counter interface {
 
 	Set(value float64, tags ...Tag)
 
+	SetAt(value float64, time time.Time, tags ...Tag)
+
 	Add(value float64, tags ...Tag)
+
+	AddAt(value float64, time time.Time, tags ...Tag)
 }
 
 type Histogram interface {
 	Metric
 
 	Observe(value float64, tags ...Tag)
+
+	ObserveAt(value float64, time time.Time, tags ...Tag)
 }
 
 type Timer interface {
 	Metric
 
 	Start(tags ...Tag) Clock
+
+	StartAt(time time.Time, tags ...Tag) Clock
 }
 
 type Clock interface {
 	Stamp(name string, tags ...Tag)
 
+	StampAt(name string, time time.Time, tags ...Tag)
+
 	Stop(tags ...Tag)
+
+	StopAt(time time.Time, tags ...Tag)
 }
 
 type Opts struct {
@@ -52,6 +66,7 @@ type Opts struct {
 	Name    string
 	Unit    string
 	Tags    Tags
+	Now     func() time.Time
 }
 
 func MakeOpts(name string, tags ...Tag) Opts {
@@ -65,13 +80,18 @@ type metric struct {
 	name    string
 	tags    Tags
 	backend Backend
+	now     func() time.Time
 }
 
 func makeMetric(opts Opts) metric {
+	if opts.Now == nil {
+		opts.Now = time.Now
+	}
 	return metric{
 		name:    JoinMetricName(opts.Scope, opts.Name, opts.Unit),
 		tags:    opts.Tags,
 		backend: opts.Backend,
+		now:     opts.Now,
 	}
 }
 
@@ -91,8 +111,10 @@ func NewGauge(opts Opts) Gauge { return &gauge{makeMetric(opts)} }
 
 func (g *gauge) Type() string { return "gauge" }
 
-func (g *gauge) Set(value float64, tags ...Tag) {
-	g.backend.Set(&gauge{g.clone(tags...)}, value)
+func (g *gauge) Set(value float64, tags ...Tag) { g.SetAt(value, g.now(), tags...) }
+
+func (g *gauge) SetAt(value float64, time time.Time, tags ...Tag) {
+	g.backend.Set(&gauge{g.clone(tags...)}, value, time)
 }
 
 type counter struct {
@@ -105,18 +127,22 @@ func NewCounter(opts Opts) Counter { return &counter{metric: makeMetric(opts)} }
 
 func (c *counter) Type() string { return "counter" }
 
-func (c *counter) Set(value float64, tags ...Tag) {
+func (c *counter) Set(value float64, tags ...Tag) { c.SetAt(value, c.now(), tags...) }
+
+func (c *counter) SetAt(value float64, time time.Time, tags ...Tag) {
 	c.Lock()
 	defer c.Unlock()
-	c.backend.Add(&counter{metric: c.clone(tags...), value: value}, value-c.value)
+	c.backend.Add(&counter{metric: c.clone(tags...), value: value}, value-c.value, time)
 	c.value = value
 }
 
-func (c *counter) Add(value float64, tags ...Tag) {
+func (c *counter) Add(value float64, tags ...Tag) { c.AddAt(value, c.now(), tags...) }
+
+func (c *counter) AddAt(value float64, time time.Time, tags ...Tag) {
 	c.Lock()
 	defer c.Unlock()
 	c.value += value
-	c.backend.Add(&counter{metric: c.clone(tags...), value: c.value}, value)
+	c.backend.Add(&counter{metric: c.clone(tags...), value: c.value}, value, time)
 }
 
 type histogram struct{ metric }
@@ -125,54 +151,47 @@ func NewHistogram(opts Opts) Histogram { return &histogram{makeMetric(opts)} }
 
 func (h *histogram) Type() string { return "histogram" }
 
-func (h *histogram) Observe(value float64, tags ...Tag) {
-	h.backend.Observe(&histogram{h.clone(tags...)}, value)
+func (h *histogram) Observe(value float64, tags ...Tag) { h.ObserveAt(value, h.now(), tags...) }
+
+func (h *histogram) ObserveAt(value float64, time time.Time, tags ...Tag) {
+	h.backend.Observe(&histogram{h.clone(tags...)}, value, time)
 }
 
-type timer struct {
-	metric
-	now func() time.Time
-}
+type timer struct{ metric }
 
 func NewTimer(opts Opts) Timer {
-	return NewTimerWith(nil, opts)
-}
-
-func NewTimerWith(now func() time.Time, opts Opts) Timer {
-	if now == nil {
-		now = time.Now
-	}
-	return &timer{metric: makeMetric(opts), now: now}
+	return &timer{metric: makeMetric(opts)}
 }
 
 func (t *timer) Type() string { return "timer" }
 
-func (t *timer) Start(tags ...Tag) Clock {
-	now := t.now()
-	return &clock{metric: t.clone(tags...), start: now, last: now, now: t.now}
+func (t *timer) Start(tags ...Tag) Clock { return t.StartAt(t.now(), tags...) }
+
+func (t *timer) StartAt(time time.Time, tags ...Tag) Clock {
+	return &clock{metric: t.clone(tags...), start: time, last: time}
 }
 
 type clock struct {
+	sync.Mutex
 	metric
 	start time.Time
 	last  time.Time
-	mtx   sync.Mutex
-	now   func() time.Time
 }
 
-func (c *clock) Stamp(name string, tags ...Tag) {
-	now := c.now()
+func (c *clock) Stamp(name string, tags ...Tag) { c.StampAt(name, c.now(), tags...) }
 
-	c.mtx.Lock()
-	d := now.Sub(c.last)
-	c.last = now
-	c.mtx.Unlock()
-
-	c.backend.Observe(c.histogram(name, tags...), d.Seconds())
+func (c *clock) StampAt(name string, time time.Time, tags ...Tag) {
+	c.Lock()
+	d := time.Sub(c.last)
+	c.last = time
+	c.Unlock()
+	c.backend.Observe(c.histogram(name, tags...), d.Seconds(), time)
 }
 
-func (c *clock) Stop(tags ...Tag) {
-	c.backend.Observe(c.histogram("", tags...), c.now().Sub(c.start).Seconds())
+func (c *clock) Stop(tags ...Tag) { c.StopAt(c.now(), tags...) }
+
+func (c *clock) StopAt(time time.Time, tags ...Tag) {
+	c.backend.Observe(c.histogram("", tags...), time.Sub(c.start).Seconds(), time)
 }
 
 func (c *clock) histogram(name string, tags ...Tag) *histogram {

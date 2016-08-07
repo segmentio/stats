@@ -69,19 +69,19 @@ func setConfigDefaults(config Config) Config {
 
 type protocol struct{}
 
-func (p protocol) WriteSet(w io.Writer, m stats.Metric, v float64, r float64) error {
-	return p.write("g", w, m, v, r)
+func (p protocol) WriteSet(w io.Writer, m stats.Metric, v float64, r float64, t time.Time) error {
+	return p.write("g", w, m, v, r, t)
 }
 
-func (p protocol) WriteAdd(w io.Writer, m stats.Metric, v float64, r float64) error {
-	return p.write("c", w, m, v, r)
+func (p protocol) WriteAdd(w io.Writer, m stats.Metric, v float64, r float64, t time.Time) error {
+	return p.write("c", w, m, v, r, t)
 }
 
-func (p protocol) WriteObserve(w io.Writer, m stats.Metric, v float64, r float64) error {
-	return p.write("h", w, m, v, r)
+func (p protocol) WriteObserve(w io.Writer, m stats.Metric, v float64, r float64, t time.Time) error {
+	return p.write("h", w, m, v, r, t)
 }
 
-func (p protocol) write(s string, w io.Writer, m stats.Metric, v float64, r float64) (err error) {
+func (p protocol) write(s string, w io.Writer, m stats.Metric, v float64, r float64, t time.Time) (err error) {
 	_, err = fmt.Fprintf(w, "%s:%d|%s%v\n", sanitize(m.Name()), int64(v), s, sample(r))
 	return
 }

@@ -3,12 +3,20 @@ package stats
 import (
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestBackendFunc(t *testing.T) {
+	now := time.Now()
+
 	e := []Event{}
 	b := BackendFunc(func(x Event) { e = append(e, x) })
-	c := NewClient("test", b, Tag{"hello", "world"})
+	c := NewClientWith(Config{
+		Scope:   "test",
+		Backend: b,
+		Tags:    Tags{{"hello", "world"}},
+		Now:     func() time.Time { return now },
+	})
 
 	m1 := c.Gauge("events.quantity")
 	m2 := c.Counter("events.count", Tag{"extra", "tag"})
@@ -26,18 +34,21 @@ func TestBackendFunc(t *testing.T) {
 			Name:  "test.events.quantity",
 			Value: 1,
 			Tags:  Tags{{"hello", "world"}},
+			Time:  now,
 		},
 		Event{
 			Type:  "counter",
 			Name:  "test.events.count",
 			Value: 1,
 			Tags:  Tags{{"hello", "world"}, {"extra", "tag"}},
+			Time:  now,
 		},
 		Event{
 			Type:  "histogram",
 			Name:  "test.events.duration",
 			Value: 1,
 			Tags:  Tags{{"hello", "world"}},
+			Time:  now,
 		},
 	}) {
 		t.Errorf("invalid events: %#v", e)
@@ -45,8 +56,15 @@ func TestBackendFunc(t *testing.T) {
 }
 
 func TestMultiBackend(t *testing.T) {
+	now := time.Now()
+
 	b := []*EventBackend{&EventBackend{}, &EventBackend{}}
-	c := NewClient("test", MultiBackend(b[0], b[1]), Tag{"hello", "world"})
+	c := NewClientWith(Config{
+		Scope:   "test",
+		Backend: MultiBackend(b[0], b[1]),
+		Now:     func() time.Time { return now },
+		Tags:    Tags{{"hello", "world"}},
+	})
 
 	m1 := c.Gauge("events.quantity")
 	m2 := c.Counter("events.count", Tag{"extra", "tag"})
@@ -65,18 +83,21 @@ func TestMultiBackend(t *testing.T) {
 				Name:  "test.events.quantity",
 				Value: 1,
 				Tags:  Tags{{"hello", "world"}},
+				Time:  now,
 			},
 			Event{
 				Type:  "counter",
 				Name:  "test.events.count",
 				Value: 1,
 				Tags:  Tags{{"hello", "world"}, {"extra", "tag"}},
+				Time:  now,
 			},
 			Event{
 				Type:  "histogram",
 				Name:  "test.events.duration",
 				Value: 1,
 				Tags:  Tags{{"hello", "world"}},
+				Time:  now,
 			},
 		}) {
 			t.Errorf("invalid events: %#v", e.Events)

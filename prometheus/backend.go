@@ -83,6 +83,7 @@ func setConfigDefaults(config Config) Config {
 type job struct {
 	metric stats.Metric
 	value  float64
+	time   time.Time
 }
 
 type backend struct {
@@ -100,16 +101,17 @@ func (b *backend) Close() (err error) {
 	return
 }
 
-func (b *backend) Set(m stats.Metric, v float64) { b.enqueue(m, v) }
+func (b *backend) Set(m stats.Metric, v float64, t time.Time) { b.enqueue(m, v, t) }
 
-func (b *backend) Add(m stats.Metric, v float64) { b.enqueue(m, v) }
+func (b *backend) Add(m stats.Metric, v float64, t time.Time) { b.enqueue(m, v, t) }
 
-func (b *backend) Observe(m stats.Metric, v float64) { b.enqueue(m, v) }
+func (b *backend) Observe(m stats.Metric, v float64, t time.Time) { b.enqueue(m, v, t) }
 
-func (b *backend) enqueue(m stats.Metric, v float64) {
+func (b *backend) enqueue(m stats.Metric, v float64, t time.Time) {
 	enqueue(job{
 		metric: m,
 		value:  v,
+		time:   t,
 	}, b.jobs, b.fail)
 }
 
@@ -178,7 +180,7 @@ func run(jobs <-chan job, store *metricStore, join *sync.WaitGroup, config *Conf
 				return
 			}
 
-			if err := store.insert(makeMetric(job.metric, job.value, config.Now())); err != nil {
+			if err := store.insert(makeMetric(job.metric, job.value, job.time)); err != nil {
 				handleError(err, config)
 			}
 

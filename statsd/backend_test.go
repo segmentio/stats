@@ -29,7 +29,7 @@ func TestProtocol(t *testing.T) {
 		value  float64
 		rate   float64
 		string string
-		method func(protocol, io.Writer, stats.Metric, float64, float64) error
+		method func(protocol, io.Writer, stats.Metric, float64, float64, time.Time) error
 	}{
 		{
 			metric: stats.NewGauge(stats.Opts{Name: "hello"}),
@@ -57,10 +57,11 @@ func TestProtocol(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		now := time.Unix(1, 0)
 		b := &bytes.Buffer{}
 		p := protocol{}
 
-		if err := test.method(p, b, test.metric, test.value, test.rate); err != nil {
+		if err := test.method(p, b, test.metric, test.value, test.rate, now); err != nil {
 			t.Error(err)
 		} else if s := b.String(); s != test.string {
 			t.Errorf("bad serialization: %#v != %#v", test.string, s)

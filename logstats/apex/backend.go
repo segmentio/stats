@@ -18,6 +18,7 @@ func fields(e stats.Event) log.Fields {
 			"type":  e.Type,
 			"value": e.Value,
 			"tags":  tags(e.Tags),
+			"time":  e.Time,
 		},
 	}
 }

@@ -170,14 +170,17 @@ func TestRunComplete(t *testing.T) {
 	jobs <- job{
 		metric: stats.NewCounter(stats.Opts{Name: "metric_1"}),
 		value:  1,
+		time:   now,
 	}
 	jobs <- job{
 		metric: stats.NewCounter(stats.Opts{Name: "metric_1"}),
 		value:  1,
+		time:   now,
 	}
 	jobs <- job{
 		metric: stats.NewCounter(stats.Opts{Name: "metric_1"}),
 		value:  1,
+		time:   now,
 	}
 	close(jobs)
 
@@ -252,14 +255,17 @@ func TestRunError(t *testing.T) {
 	jobs <- job{
 		metric: stats.NewGauge(stats.Opts{Name: "metric_1"}),
 		value:  1,
+		time:   now,
 	}
 	jobs <- job{
 		metric: stats.NewCounter(stats.Opts{Name: "metric_1"}),
 		value:  1,
+		time:   now,
 	}
 	jobs <- job{
 		metric: stats.NewCounter(stats.Opts{Name: "metric_1"}),
 		value:  1,
+		time:   now,
 	}
 	close(jobs)
 
@@ -366,9 +372,9 @@ func TestBackend(t *testing.T) {
 	})
 	defer b.Close()
 
-	b.Set(stats.NewGauge(stats.MakeOpts("metric_1")), 1)
-	b.Add(stats.NewCounter(stats.MakeOpts("metric_2")), 2)
-	b.Observe(stats.NewHistogram(stats.MakeOpts("metric_3")), 1)
+	b.Set(stats.NewGauge(stats.MakeOpts("metric_1")), 1, now)
+	b.Add(stats.NewCounter(stats.MakeOpts("metric_2")), 2, now)
+	b.Observe(stats.NewHistogram(stats.MakeOpts("metric_3")), 1, now)
 
 	// give some time to the backend to start
 	time.Sleep(10 * time.Millisecond)

@@ -67,7 +67,7 @@ func (c client) Histogram(name string, tags ...Tag) Histogram {
 }
 
 func (c client) Timer(name string, tags ...Tag) Timer {
-	return NewTimerWith(c.now, c.opts(name, tags...))
+	return NewTimer(c.opts(name, tags...))
 }
 
 func (c client) opts(name string, tags ...Tag) Opts {
@@ -76,6 +76,7 @@ func (c client) opts(name string, tags ...Tag) Opts {
 		Scope:   c.scope,
 		Name:    name,
 		Tags:    concatTags(c.tags, copyTags(Tags(tags))),
+		Now:     c.now,
 	}
 }
 

@@ -7,18 +7,14 @@ import (
 )
 
 func TestClient(t *testing.T) {
-	now := time.Now()
+	now := time.Unix(1, 0)
 
 	b := &EventBackend{}
 	c := NewClientWith(Config{
 		Backend: b,
 		Scope:   "test",
 		Tags:    Tags{{"hello", "world"}},
-		Now: func() time.Time {
-			t := now
-			now = now.Add(time.Second)
-			return t
-		},
+		Now:     func() time.Time { return now },
 	})
 
 	m1 := c.Gauge("events.quantity")
@@ -32,69 +28,95 @@ func TestClient(t *testing.T) {
 	m1.Set(0)
 	m3.Observe(1)
 
-	m4.Stamp("a")
-	m4.Stamp("b")
-	m4.Stamp("c")
-	m4.Stop()
+	m4.StampAt("a", now.Add(1*time.Second))
+	m4.StampAt("b", now.Add(2*time.Second))
+	m4.StampAt("c", now.Add(3*time.Second))
+	m4.StopAt(now.Add(4 * time.Second))
 
 	c.Close()
 
-	if !reflect.DeepEqual(b.Events, []Event{
+	m4.Stamp("d")
+	m4.Stop()
+
+	events := []Event{
 		Event{
 			Type:  "gauge",
 			Name:  "test.events.quantity",
 			Value: 1,
 			Tags:  Tags{{"hello", "world"}},
+			Time:  now,
 		},
 		Event{
 			Type:  "gauge",
 			Name:  "test.events.quantity",
 			Value: 42,
 			Tags:  Tags{{"hello", "world"}},
+			Time:  now,
 		},
 		Event{
 			Type:  "counter",
 			Name:  "test.events.count",
 			Value: 10,
 			Tags:  Tags{{"hello", "world"}, {"extra", "tag"}},
+			Time:  now,
 		},
 		Event{
 			Type:  "gauge",
 			Name:  "test.events.quantity",
 			Value: 0,
 			Tags:  Tags{{"hello", "world"}},
+			Time:  now,
 		},
 		Event{
 			Type:  "histogram",
 			Name:  "test.events.duration",
 			Value: 1,
 			Tags:  Tags{{"hello", "world"}},
+			Time:  now,
 		},
 		Event{
 			Type:  "histogram",
 			Name:  "test.events.duration",
 			Value: 1,
 			Tags:  Tags{{"hello", "world"}, {"stamp", "a"}},
+			Time:  now.Add(1 * time.Second),
 		},
 		Event{
 			Type:  "histogram",
 			Name:  "test.events.duration",
 			Value: 1,
 			Tags:  Tags{{"hello", "world"}, {"stamp", "b"}},
+			Time:  now.Add(2 * time.Second),
 		},
 		Event{
 			Type:  "histogram",
 			Name:  "test.events.duration",
 			Value: 1,
 			Tags:  Tags{{"hello", "world"}, {"stamp", "c"}},
+			Time:  now.Add(3 * time.Second),
 		},
 		Event{
 			Type:  "histogram",
 			Name:  "test.events.duration",
 			Value: 4,
 			Tags:  Tags{{"hello", "world"}},
+			Time:  now.Add(4 * time.Second),
 		},
-	}) {
-		t.Errorf("invalid events: %#v", b.Events)
 	}
+
+	if !reflect.DeepEqual(b.Events, events) {
+		for i := range events {
+			e1 := b.Events[i]
+			e2 := events[i]
+
+			if !reflect.DeepEqual(e1, e2) {
+				t.Errorf("#%d:\n- %#v\n- %#v", i, e1, e2)
+			}
+		}
+	}
+}
+
+func TestClientClose(t *testing.T) {
+	client := NewClient("app", &EventBackend{})
+	client.Close()
 }
