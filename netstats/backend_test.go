@@ -1,4 +1,4 @@
-package net_stats
+package netstats
 
 import (
 	"bytes"

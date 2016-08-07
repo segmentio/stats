@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/segmentio/stats"
-	"github.com/segmentio/stats/net"
+	"github.com/segmentio/stats/netstats"
 )
 
 type Config struct {
@@ -27,7 +27,7 @@ type Config struct {
 }
 
 func NewBackend(addr string) stats.Backend {
-	network, address := net_stats.SplitNetworkAddress(addr)
+	network, address := netstats.SplitNetworkAddress(addr)
 	return NewBackendWith(Config{
 		Network: network,
 		Address: address,
