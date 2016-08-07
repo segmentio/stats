@@ -12,8 +12,13 @@ go get github.com/segmentio/stats
 Quick Start
 -----------
 
-**Counters**
+**Backends**
 
+The package's design allow for plugging one or more backends to the high-level
+`Client` interface. It makes it possible to send metrics to different locations,
+or easily change where to send metrics without having to make changes to the code.
+
+Here's an example of how to create a stats client with multiple backends:
 ```go
 package main
 
@@ -34,6 +39,31 @@ func main() {
     ))
     defer client.Close()
 
+    // ...
+
+}
+```
+
+**Metrics**
+
+The `Client` interface makes it easy to declare metrics, common metric types are supported:
+
+- [Gauges](https://godoc.org/github.com/segmentio/stats#Gauge)
+- [Counters](https://godoc.org/github.com/segmentio/stats#Counter)
+- [Histograms](https://godoc.org/github.com/segmentio/stats#Histogram)
+
+```go
+package main
+
+import (
+    "github.com/segmentio/stats"
+    "github.com/segmentio/stats/datadog"
+)
+
+func main() {
+    client := stats.NewClient("app", datadog.NewBackend("localhost:8125"))
+    defer client.Close()
+
     // Define a couple of metrics.
     userLogin := client.Counter("users.login")
     userLogout := client.Counter("users.logout")
@@ -45,6 +75,7 @@ func main() {
     // We can add some tags to the metrics as well.
     userLogin.Add(1, stats.Tag{"user", "luke"})
 
+    // ...
 }
 ```
 
@@ -69,6 +100,7 @@ import (
 
 func main() {
     client := stats.NewClient("app", datadog.NewBackend("localhost:8125"))
+    defer client.Close()
 
     // ...
 
@@ -102,6 +134,7 @@ import (
 
 func main() {
     client := stats.NewClient("app", datadog.NewBackend("localhost:8125"))
+    defer client.Close()
 
     // Make a new HTTP client with a transport that will report HTTP metrics.
     httpc := &http.Client{
@@ -127,6 +160,7 @@ import (
 
 func main() {
     client := stats.NewClient("app", datadog.NewBackend("localhost:8125"))
+    defer client.Close()
 
     // Wraps the default HTTP client's transport.
     http.DefaultClient.Transport = httpstats.NewTransport(client, http.DefaultClient.Transport)
