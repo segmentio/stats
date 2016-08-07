@@ -54,7 +54,7 @@ func (t httpTransport) setup(report *httpStatsReport, req *http.Request, clock s
 	do1 := func() { clock.Stamp("write_header", report.tags...) }
 	do2 := func() { clock.Stamp("write_body", report.tags...) }
 
-	req.Body = iostats.ReadCloser{
+	req.Body = readCloser{
 		Reader: iostats.ReaderFunc(func(b []byte) (int, error) {
 			once1.Do(do1)
 			return r.Read(b)
@@ -90,7 +90,7 @@ func (t httpTransport) teardownWithResponse(report *httpStatsReport, res *http.R
 
 	do := func() { clock.Stamp("read_body", report.tags...) }
 
-	res.Body = iostats.ReadCloser{
+	res.Body = readCloser{
 		Reader: iostats.ReaderFunc(func(b []byte) (n int, err error) {
 			if n, err = r.Read(b); err == io.EOF {
 				once1.Do(do)

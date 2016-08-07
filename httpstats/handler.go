@@ -41,7 +41,7 @@ func (h httpHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	once := &sync.Once{}
 	body := func() { clock.Stamp("read_body", tags...) }
 
-	req.Body = iostats.ReadCloser{
+	req.Body = readCloser{
 		Reader: iostats.ReaderFunc(func(b []byte) (n int, err error) {
 			if n, err = r.Read(b); err == io.EOF {
 				once.Do(body)
@@ -77,7 +77,7 @@ func (h httpHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 			ContentLength: -1,
 			Request:       req,
 			Header:        w.Header(),
-			Body:          iostats.NopeReadCloser{},
+			Body:          nopeReadCloser{},
 		},
 		reqBodyBytes: r.N,
 		resBodyBytes: w.bytes,

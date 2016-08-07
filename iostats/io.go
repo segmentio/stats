@@ -26,17 +26,6 @@ func (w *CountWriter) Write(b []byte) (n int, err error) {
 	return
 }
 
-type ReadCloser struct {
-	io.Reader
-	io.Closer
-}
-
-type NopeReadCloser struct{}
-
-func (n NopeReadCloser) Close() error { return nil }
-
-func (n NopeReadCloser) Read(b []byte) (int, error) { return 0, io.EOF }
-
 type ReaderFunc func([]byte) (int, error)
 
 func (f ReaderFunc) Read(b []byte) (int, error) { return f(b) }

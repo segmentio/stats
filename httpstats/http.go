@@ -2,6 +2,7 @@ package httpstats
 
 import (
 	"bufio"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -131,7 +132,7 @@ func httpRequestHeaderLength(req *http.Request) int {
 		ContentLength:    -1,
 		TransferEncoding: req.TransferEncoding,
 		Header:           copyHttpHeader(req.Header),
-		Body:             iostats.NopeReadCloser{},
+		Body:             nopeReadCloser{},
 	}
 
 	if req.ContentLength >= 0 {
@@ -153,7 +154,7 @@ func httpResponseHeaderLength(res *http.Response) int {
 		Trailer:          res.Trailer,
 		ContentLength:    -1,
 		Header:           copyHttpHeader(res.Header),
-		Body:             iostats.NopeReadCloser{},
+		Body:             nopeReadCloser{},
 	}
 
 	if res.ContentLength >= 0 {
@@ -195,3 +196,14 @@ func copyHttpHeader(hdr http.Header) http.Header {
 
 	return copy
 }
+
+type readCloser struct {
+	io.Reader
+	io.Closer
+}
+
+type nopeReadCloser struct{}
+
+func (n nopeReadCloser) Close() error { return nil }
+
+func (n nopeReadCloser) Read(b []byte) (int, error) { return 0, io.EOF }

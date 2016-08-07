@@ -59,19 +59,6 @@ func TestCountWriter(t *testing.T) {
 	}
 }
 
-func TestNopReadCloser(t *testing.T) {
-	x := NopeReadCloser{}
-	b := make([]byte, 10)
-
-	if n, err := x.Read(b); n != 0 || err != io.EOF {
-		t.Errorf("NopeReadCloser.Read should always return (0, io.EOF), got (%d, %v)", n, err)
-	}
-
-	if err := x.Close(); err != nil {
-		t.Errorf("NopReadCloser.Close should always return nil, got %v", err)
-	}
-}
-
 func TestReaderFunc(t *testing.T) {
 	r := ReaderFunc(strings.NewReader("Hello World!").Read)
 	b := make([]byte, 20)
