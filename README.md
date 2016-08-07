@@ -79,8 +79,10 @@ func main() {
 }
 ```
 
-Monitoring HTTP Servers
------------------------
+Monitoring
+----------
+
+### HTTP Servers
 
 The [github.com/segmentio/stats/httpstats](https://godoc.org/github.com/segmentio/stats/httpstats)
 package exposes a decorator of `http.Handler` that automatically adds metric
@@ -114,8 +116,7 @@ func main() {
 }
 ```
 
-Monitoring HTTP Clients
------------------------
+### HTTP Clients
 
 The [github.com/segmentio/stats/httpstats](https://godoc.org/github.com/segmentio/stats/httpstats)
 package exposes a decorator of `http.RoundTripper` which collects and reports
