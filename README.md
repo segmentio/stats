@@ -74,8 +74,63 @@ func main() {
 
     http.ListenAndServe(":8080", httpstats.NewHandler(client,
         http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+            // This HTTP handler is automatically reporting metrics for all
+            // requests it handles.
             // ...
         }),
     ))
+}
+```
+
+Monitoring HTTP Clients
+-----------------------
+
+The [github.com/segmentio/stats/httpstats](https://godoc.org/github.com/segmentio/stats/httpstats)
+package exposes a decorator of `http.RoundTripper` which collects and reports
+metrics for client requests the same way it's done on the server side.
+
+Here's an exmaple of how to use the decorator:
+```go
+package main
+
+import (
+    "net/http"
+
+    "github.com/segmentio/stats"
+    "github.com/segmentio/stats/httpstats"
+)
+
+func main() {
+    client := stats.NewClient("app", datadog.NewBackend("localhost:8125"))
+
+    // Make a new HTTP client with a transport that will report HTTP metrics.
+    httpc := &http.Client{
+        Transport: httpstats.NewTransport(client, &http.Transport{}),
+    }
+
+    // ...
+}
+```
+
+You can also modify the default HTTP client to automatically get metrics for all
+packages using it, this is very convinient to get insights into what dependencies
+are doing when it's they don't offer a way to set the HTTP client.
+```go
+package main
+
+import (
+    "net/http"
+
+    "github.com/segmentio/stats"
+    "github.com/segmentio/stats/httpstats"
+)
+
+func main() {
+    client := stats.NewClient("app", datadog.NewBackend("localhost:8125"))
+
+    // Wraps the default HTTP client's transport.
+    http.DefaultClient.Transport = httpstats.NewTransport(client, http.DefaultClient.Transport)
+
+    // ...
 }
 ```
