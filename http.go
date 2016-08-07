@@ -10,10 +10,10 @@ import (
 	"sync"
 )
 
-func NewHttpTransport(client Client, roundTripper http.RoundTripper) http.RoundTripper {
+func NewHttpTransport(client Client, transport http.RoundTripper) http.RoundTripper {
 	return httpTransport{
-		roundTripper: roundTripper,
-		stats:        newHttpStats(client, "http_client"),
+		transport: transport,
+		stats:     newHttpStats(client, "http_client"),
 	}
 }
 
@@ -25,8 +25,8 @@ func NewHttpHandler(client Client, handler http.Handler) http.Handler {
 }
 
 type httpTransport struct {
-	roundTripper http.RoundTripper
-	stats        *httpStats
+	transport http.RoundTripper
+	stats     *httpStats
 }
 
 func (t httpTransport) RoundTrip(req *http.Request) (res *http.Response, err error) {
@@ -40,8 +40,8 @@ func (t httpTransport) RoundTrip(req *http.Request) (res *http.Response, err err
 
 	t.setup(r, req, clock)
 
-	res, err = t.roundTripper.RoundTrip(req)
-	req.Body.Close() // safe guard, the roundtripper should have done it already
+	res, err = t.transport.RoundTrip(req)
+	req.Body.Close() // safe guard, the transport should have done it already
 
 	if err != nil {
 		t.teardownWithError(r, err, clock)
