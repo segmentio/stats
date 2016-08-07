@@ -1,4 +1,4 @@
-package json_stats
+package jsonstats
 
 import (
 	"bytes"

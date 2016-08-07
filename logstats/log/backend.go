@@ -1,4 +1,4 @@
-package log_stats
+package logstats
 
 import (
 	"log"

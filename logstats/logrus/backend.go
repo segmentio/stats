@@ -1,4 +1,4 @@
-package logrus_stats
+package logrusstats
 
 import (
 	"github.com/Sirupsen/logrus"

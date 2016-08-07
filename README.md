@@ -23,13 +23,14 @@ import (
 
     "github.com/segmentio/stats"
     "github.com/segmentio/stats/datadog"
+    "github.com/segmentio/stats/logstats/log"
 )
 
 func main() {
     // Create a stats client that sends data to a datadog agent and logs the events.
     client := stats.NewClient("app", stats.MultiBackend(
         datadog.NewBackend("localhost:8125"),
-        log_stats.NewBackend(log.New(os.Stderr, "stats: ", log.Lstdflags)),
+        logstats.NewBackend(log.New(os.Stderr, "stats: ", log.Lstdflags)),
     ))
     defer client.Close()
 

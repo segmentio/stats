@@ -1,4 +1,4 @@
-package apex_stats
+package apexstats
 
 import (
 	"testing"
