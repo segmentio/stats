@@ -109,6 +109,9 @@ func newTagsFromMapStringInterface(m map[string]interface{}) Tags {
 }
 
 func copyTags(t Tags) Tags {
+	if len(t) == 0 {
+		return nil
+	}
 	x := make(Tags, len(t))
 	copy(x, t)
 	return x

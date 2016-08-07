@@ -79,7 +79,7 @@ func (m metric) Tags() Tags { return m.tags }
 
 func (m metric) clone(tags ...Tag) metric {
 	c := m
-	c.tags = concatTags(c.tags, Tags(tags))
+	c.tags = concatTags(c.tags, copyTags(Tags(tags)))
 	return c
 }
 

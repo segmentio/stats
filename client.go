@@ -32,7 +32,7 @@ func NewClient(scope string, backend Backend, tags ...Tag) Client {
 	return NewClientWith(Config{
 		Backend: backend,
 		Scope:   scope,
-		Tags:    tags,
+		Tags:    copyTags(tags),
 	})
 }
 
@@ -75,7 +75,7 @@ func (c client) opts(name string, tags ...Tag) Opts {
 		Backend: c.backend,
 		Scope:   c.scope,
 		Name:    name,
-		Tags:    concatTags(c.tags, Tags(tags)),
+		Tags:    concatTags(c.tags, copyTags(Tags(tags))),
 	}
 }
 
