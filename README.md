@@ -47,3 +47,35 @@ func main() {
 
 }
 ```
+
+Monitoring HTTP Servers
+-----------------------
+
+The [github.com/segmentio/stats/httpstats](https://godoc.org/github.com/segmentio/stats/httpstats)
+package exposes a decorator of `htpt.Handler` that automatically adds metric
+colleciton to a HTTP handler, reporting things like request processing time,
+error counters, header and body sizes...
+
+Here's an example of how to use the decorator:
+```go
+package main
+
+import (
+    "net/http"
+
+    "github.com/segmentio/stats"
+    "github.com/segmentio/stats/httpstats"
+)
+
+func main() {
+    client := stats.NewClient("app", datadog.NewBackend("localhost:8125"))
+
+    // ...
+
+    http.ListenAndServe(":8080", httpstats.NewHandler(client,
+        http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+            // ...
+        }),
+    ))
+}
+```
