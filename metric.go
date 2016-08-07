@@ -23,6 +23,8 @@ type Gauge interface {
 type Counter interface {
 	Metric
 
+	Set(value float64, tags ...Tag)
+
 	Add(value float64, tags ...Tag)
 }
 
@@ -85,38 +87,46 @@ func (m metric) clone(tags ...Tag) metric {
 
 type gauge struct{ metric }
 
-func NewGauge(opts Opts) Gauge {
-	return gauge{makeMetric(opts)}
+func NewGauge(opts Opts) Gauge { return &gauge{makeMetric(opts)} }
+
+func (g *gauge) Type() string { return "gauge" }
+
+func (g *gauge) Set(value float64, tags ...Tag) {
+	g.backend.Set(&gauge{g.clone(tags...)}, value)
 }
 
-func (g gauge) Type() string { return "gauge" }
-
-func (g gauge) Set(value float64, tags ...Tag) {
-	g.backend.Set(gauge{g.clone(tags...)}, value)
+type counter struct {
+	sync.Mutex
+	metric
+	value float64
 }
 
-type counter struct{ metric }
+func NewCounter(opts Opts) Counter { return &counter{metric: makeMetric(opts)} }
 
-func NewCounter(opts Opts) Counter {
-	return counter{makeMetric(opts)}
+func (c *counter) Type() string { return "counter" }
+
+func (c *counter) Set(value float64, tags ...Tag) {
+	c.Lock()
+	defer c.Unlock()
+	c.backend.Add(&counter{metric: c.clone(tags...), value: value}, value-c.value)
+	c.value = value
 }
 
-func (c counter) Type() string { return "counter" }
-
-func (c counter) Add(value float64, tags ...Tag) {
-	c.backend.Add(counter{c.clone(tags...)}, value)
+func (c *counter) Add(value float64, tags ...Tag) {
+	c.Lock()
+	defer c.Unlock()
+	c.value += value
+	c.backend.Add(&counter{metric: c.clone(tags...), value: c.value}, value)
 }
 
 type histogram struct{ metric }
 
-func NewHistogram(opts Opts) Histogram {
-	return histogram{makeMetric(opts)}
-}
+func NewHistogram(opts Opts) Histogram { return &histogram{makeMetric(opts)} }
 
-func (h histogram) Type() string { return "histogram" }
+func (h *histogram) Type() string { return "histogram" }
 
-func (h histogram) Observe(value float64, tags ...Tag) {
-	h.backend.Observe(histogram{h.clone(tags...)}, value)
+func (h *histogram) Observe(value float64, tags ...Tag) {
+	h.backend.Observe(&histogram{h.clone(tags...)}, value)
 }
 
 type timer struct {
@@ -132,12 +142,12 @@ func NewTimerWith(now func() time.Time, opts Opts) Timer {
 	if now == nil {
 		now = time.Now
 	}
-	return timer{metric: makeMetric(opts), now: now}
+	return &timer{metric: makeMetric(opts), now: now}
 }
 
-func (t timer) Type() string { return "timer" }
+func (t *timer) Type() string { return "timer" }
 
-func (t timer) Start(tags ...Tag) Clock {
+func (t *timer) Start(tags ...Tag) Clock {
 	now := t.now()
 	return &clock{metric: t.clone(tags...), start: now, last: now, now: t.now}
 }
@@ -165,11 +175,11 @@ func (c *clock) Stop(tags ...Tag) {
 	c.backend.Observe(c.histogram("", tags...), c.now().Sub(c.start).Seconds())
 }
 
-func (c *clock) histogram(name string, tags ...Tag) histogram {
+func (c *clock) histogram(name string, tags ...Tag) *histogram {
 	if len(name) != 0 {
 		tags = append(tags, Tag{"stamp", name})
 	}
-	return histogram{c.clone(tags...)}
+	return &histogram{c.clone(tags...)}
 }
 
 func JoinMetricName(elems ...string) string {
