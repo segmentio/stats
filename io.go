@@ -36,3 +36,11 @@ type nopeReadCloser struct{}
 func (n nopeReadCloser) Close() error { return nil }
 
 func (n nopeReadCloser) Read(b []byte) (int, error) { return 0, io.EOF }
+
+type readerFunc func([]byte) (int, error)
+
+func (f readerFunc) Read(b []byte) (int, error) { return f(b) }
+
+type closerFunc func() error
+
+func (f closerFunc) Close() error { return f() }
