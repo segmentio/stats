@@ -58,29 +58,31 @@ func (h httpHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	res = w
 
 	if _, ok := w.ResponseWriter.(http.Hijacker); ok {
-		res = httpResponseHijacker{w}
+		res = &httpResponseHijacker{w, 0}
 	}
 
 	h.stats.countReq.Add(1, tags...)
 	h.handler.ServeHTTP(res, req)
 	req.Body.Close()
 
-	clock.Stamp("write_body", w.tags...)
-	clock.Stop(w.tags...)
+	if x, ok := res.(*httpResponseHijacker); ok && !x.hijacked() {
+		clock.Stamp("write_body", w.tags...)
+		clock.Stop(w.tags...)
 
-	h.stats.report(httpStatsReport{
-		req: req,
-		res: &http.Response{
-			StatusCode:    w.status,
-			ProtoMajor:    req.ProtoMajor,
-			ProtoMinor:    req.ProtoMinor,
-			ContentLength: -1,
-			Request:       req,
-			Header:        w.Header(),
-			Body:          nopeReadCloser{},
-		},
-		reqBodyBytes: r.N,
-		resBodyBytes: w.bytes,
-		tags:         w.tags,
-	})
+		h.stats.report(httpStatsReport{
+			req: req,
+			res: &http.Response{
+				StatusCode:    w.status,
+				ProtoMajor:    req.ProtoMajor,
+				ProtoMinor:    req.ProtoMinor,
+				ContentLength: -1,
+				Request:       req,
+				Header:        w.Header(),
+				Body:          nopeReadCloser{},
+			},
+			reqBodyBytes: r.N,
+			resBodyBytes: w.bytes,
+			tags:         w.tags,
+		})
+	}
 }

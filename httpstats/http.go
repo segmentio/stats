@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"sync/atomic"
 
 	"github.com/segmentio/stats"
 	"github.com/segmentio/stats/iostats"
@@ -72,10 +73,18 @@ func (s *httpStats) report(r httpStatsReport) {
 
 type httpResponseHijacker struct {
 	*httpResponseWriter
+	flag int32
 }
 
-func (w httpResponseHijacker) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-	return w.ResponseWriter.(http.Hijacker).Hijack()
+func (w *httpResponseHijacker) Hijack() (conn net.Conn, buf *bufio.ReadWriter, err error) {
+	if conn, buf, err = w.ResponseWriter.(http.Hijacker).Hijack(); err == nil {
+		atomic.StoreInt32(&w.flag, 1)
+	}
+	return
+}
+
+func (w *httpResponseHijacker) hijacked() bool {
+	return atomic.LoadInt32(&w.flag) == 1
 }
 
 type httpResponseWriter struct {

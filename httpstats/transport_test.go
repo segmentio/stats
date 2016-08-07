@@ -10,7 +10,7 @@ import (
 	"github.com/segmentio/stats"
 )
 
-func TestRoundTripper(t *testing.T) {
+func TestTransport(t *testing.T) {
 	backend := &stats.EventBackend{}
 	client := stats.NewClient("", backend)
 	defer client.Close()
@@ -49,7 +49,7 @@ func TestRoundTripper(t *testing.T) {
 	}
 }
 
-func TestRoundTripperError(t *testing.T) {
+func TestTransportError(t *testing.T) {
 	backend := &stats.EventBackend{}
 	client := stats.NewClient("", backend)
 	defer client.Close()
@@ -64,8 +64,7 @@ func TestRoundTripperError(t *testing.T) {
 		Transport: NewTransport(client, &http.Transport{}),
 	}
 
-	_, err := httpc.Post(server.URL, "text/plain", strings.NewReader("Hi"))
-	if err == nil {
+	if _, err := httpc.Post(server.URL, "text/plain", strings.NewReader("Hi")); err == nil {
 		t.Error("no error was reported by the http client")
 	}
 
