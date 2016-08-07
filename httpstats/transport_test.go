@@ -33,6 +33,9 @@ func TestRoundTripper(t *testing.T) {
 	ioutil.ReadAll(res.Body)
 	res.Body.Close()
 
+	backend.RLock()
+	defer backend.RUnlock()
+
 	if len(backend.Events) == 0 {
 		t.Error("no metric events were produced by the http transport")
 	}
@@ -65,6 +68,9 @@ func TestRoundTripperError(t *testing.T) {
 	if err == nil {
 		t.Error("no error was reported by the http client")
 	}
+
+	backend.RLock()
+	defer backend.RUnlock()
 
 	if len(backend.Events) == 0 {
 		t.Error("no metric events were produced by the http transport")

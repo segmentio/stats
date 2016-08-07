@@ -33,6 +33,9 @@ func TestHandler(t *testing.T) {
 	ioutil.ReadAll(res.Body)
 	res.Body.Close()
 
+	backend.RLock()
+	defer backend.RUnlock()
+
 	if len(backend.Events) == 0 {
 		t.Error("no metric events were produced by the http handler")
 	}

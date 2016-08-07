@@ -1,5 +1,7 @@
 package stats
 
+import "sync"
+
 type Event struct {
 	Type  string  `json:"type"`
 	Name  string  `json:"name"`
@@ -17,6 +19,7 @@ func MakeEvent(m Metric, v float64) Event {
 }
 
 type EventBackend struct {
+	sync.RWMutex
 	Events []Event
 }
 
@@ -28,4 +31,8 @@ func (b *EventBackend) Add(m Metric, v float64) { b.call(m, v) }
 
 func (b *EventBackend) Observe(m Metric, v float64) { b.call(m, v) }
 
-func (b *EventBackend) call(m Metric, v float64) { b.Events = append(b.Events, MakeEvent(m, v)) }
+func (b *EventBackend) call(m Metric, v float64) {
+	b.Lock()
+	defer b.Unlock()
+	b.Events = append(b.Events, MakeEvent(m, v))
+}
