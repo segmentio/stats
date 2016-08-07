@@ -12,7 +12,7 @@ go get github.com/segmentio/stats
 Quick Start
 -----------
 
-**Backends**
+### Backends
 
 The package's design allow for plugging one or more backends to the high-level
 `Client` interface. It makes it possible to send metrics to different locations,
@@ -44,7 +44,7 @@ func main() {
 }
 ```
 
-**Metrics**
+### Metrics
 
 The `Client` interface makes it easy to declare metrics, common metric types are supported:
 
