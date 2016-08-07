@@ -26,9 +26,7 @@ type Config struct {
 	Now     func() time.Time
 }
 
-var (
-	DefaultScope = filepath.Base(os.Args[0])
-)
+var DefaultScope string
 
 func NewClient(scope string, backend Backend, tags ...Tag) Client {
 	return NewClientWith(Config{
@@ -79,4 +77,15 @@ func (c client) opts(name string, tags ...Tag) Opts {
 		Name:    name,
 		Tags:    concatTags(c.tags, Tags(tags)),
 	}
+}
+
+func init() {
+	DefaultScope = defaultScope()
+}
+
+func defaultScope() (scope string) {
+	if len(os.Args) != 0 {
+		scope = filepath.Base(os.Args[0])
+	}
+	return
 }
