@@ -24,7 +24,7 @@ func TestClient(t *testing.T) {
 
 	m1.Set(1)
 	m1.Set(42)
-	m2.Set(10)
+	m2.Add(10)
 	m1.Set(0)
 	m3.Observe(1)
 

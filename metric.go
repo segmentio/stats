@@ -25,10 +25,6 @@ type Gauge interface {
 type Counter interface {
 	Metric
 
-	Set(value float64, tags ...Tag)
-
-	SetAt(value float64, time time.Time, tags ...Tag)
-
 	Add(value float64, tags ...Tag)
 
 	AddAt(value float64, time time.Time, tags ...Tag)
@@ -95,12 +91,12 @@ func makeMetric(opts Opts) metric {
 	}
 }
 
-func (m metric) Name() string { return m.name }
+func (m *metric) Name() string { return m.name }
 
-func (m metric) Tags() Tags { return m.tags }
+func (m *metric) Tags() Tags { return m.tags }
 
-func (m metric) clone(tags ...Tag) metric {
-	c := m
+func (m *metric) clone(tags ...Tag) metric {
+	c := *m
 	c.tags = concatTags(c.tags, copyTags(Tags(tags)))
 	return c
 }
@@ -117,32 +113,16 @@ func (g *gauge) SetAt(value float64, time time.Time, tags ...Tag) {
 	g.backend.Set(&gauge{g.clone(tags...)}, value, time)
 }
 
-type counter struct {
-	sync.Mutex
-	metric
-	value float64
-}
+type counter struct{ metric }
 
 func NewCounter(opts Opts) Counter { return &counter{metric: makeMetric(opts)} }
 
 func (c *counter) Type() string { return "counter" }
 
-func (c *counter) Set(value float64, tags ...Tag) { c.SetAt(value, c.now(), tags...) }
-
-func (c *counter) SetAt(value float64, time time.Time, tags ...Tag) {
-	c.Lock()
-	defer c.Unlock()
-	c.backend.Add(&counter{metric: c.clone(tags...), value: value}, value-c.value, time)
-	c.value = value
-}
-
 func (c *counter) Add(value float64, tags ...Tag) { c.AddAt(value, c.now(), tags...) }
 
 func (c *counter) AddAt(value float64, time time.Time, tags ...Tag) {
-	c.Lock()
-	defer c.Unlock()
-	c.value += value
-	c.backend.Add(&counter{metric: c.clone(tags...), value: c.value}, value, time)
+	c.backend.Add(&counter{metric: c.clone(tags...)}, value, time)
 }
 
 type histogram struct{ metric }
