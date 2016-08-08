@@ -20,7 +20,7 @@ func TestBackendFunc(t *testing.T) {
 
 	m1 := c.Gauge("events.quantity")
 	m2 := c.Counter("events.count", Tag{"extra", "tag"})
-	m3 := c.Histogram("events.duration")
+	m3 := c.Histogram("events.seconds")
 
 	m1.Set(1)
 	m2.Add(1)
@@ -45,7 +45,7 @@ func TestBackendFunc(t *testing.T) {
 		},
 		Event{
 			Type:  "histogram",
-			Name:  "test.events.duration",
+			Name:  "test.events.seconds",
 			Value: 1,
 			Tags:  Tags{{"hello", "world"}},
 			Time:  now,
@@ -68,7 +68,7 @@ func TestMultiBackend(t *testing.T) {
 
 	m1 := c.Gauge("events.quantity")
 	m2 := c.Counter("events.count", Tag{"extra", "tag"})
-	m3 := c.Histogram("events.duration")
+	m3 := c.Histogram("events.seconds")
 
 	m1.Set(1)
 	m2.Add(1)
@@ -94,7 +94,7 @@ func TestMultiBackend(t *testing.T) {
 			},
 			Event{
 				Type:  "histogram",
-				Name:  "test.events.duration",
+				Name:  "test.events.seconds",
 				Value: 1,
 				Tags:  Tags{{"hello", "world"}},
 				Time:  now,

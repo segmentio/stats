@@ -94,7 +94,7 @@ func TestBackend(t *testing.T) {
 
 	c.Gauge("events,.level").Set(1)
 	c.Counter("events.count").Add(1)
-	c.Histogram("events.duration").Observe(1)
+	c.Histogram("events.seconds").Observe(1)
 	c.Close()
 
 	select {
@@ -106,7 +106,7 @@ func TestBackend(t *testing.T) {
 	if !reflect.DeepEqual(packets, []string{
 		`statsd.events_.level:1|g
 statsd.events.count:1|c
-statsd.events.duration:1|h
+statsd.events.seconds:1|h
 `,
 	}) {
 		t.Errorf("invalid packets transmitted by the statsd client: %#v", packets)

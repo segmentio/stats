@@ -17,7 +17,7 @@ func TestBackend(t *testing.T) {
 
 	c.Gauge("events.level").Set(1)
 	c.Counter("events.count").Add(1)
-	c.Histogram("events.duration").Observe(1)
+	c.Histogram("events.seconds").Observe(1)
 	c.Close()
 
 	if n := len(h.Entries); n != 3 {

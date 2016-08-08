@@ -97,7 +97,7 @@ func TestBackend(t *testing.T) {
 
 	c.Gauge("events.level").Set(1)
 	c.Counter("events.count").Add(1)
-	c.Histogram("events.duration").Observe(1)
+	c.Histogram("events.seconds").Observe(1)
 	c.Close()
 
 	select {
@@ -109,7 +109,7 @@ func TestBackend(t *testing.T) {
 	if !reflect.DeepEqual(packets, []string{
 		`datadog.events.level:1|g|#hello_:world_,answer:42
 datadog.events.count:1|c|#hello_:world_,answer:42
-datadog.events.duration:1|h|#hello_:world_,answer:42
+datadog.events.seconds:1|h|#hello_:world_,answer:42
 `,
 	}) {
 		t.Errorf("invalid packets transmitted by the datadog client: %#v", packets)

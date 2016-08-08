@@ -77,7 +77,7 @@ func NewMemoryStats(client stats.Client, tags ...stats.Tag) *MemoryStats {
 	mem.Lookups = client.Counter("memory.lookups.count", tagsTotal...)
 	mem.Mallocs = client.Counter("memory.malloc.count", tagsTotal...)
 	mem.Frees = client.Counter("memory.free.count", tagsTotal...)
-	mem.Collects = client.Histogram("memory.collect.duration", tagsTotal...)
+	mem.Collects = client.Histogram("memory.collect.seconds", tagsTotal...)
 
 	tagsHeap := append(tags, stats.Tag{"type", "heap"})
 	mem.HeapActive = client.Gauge("memory.active.bytes", tagsHeap...)
@@ -109,8 +109,8 @@ func NewMemoryStats(client stats.Client, tags ...stats.Tag) *MemoryStats {
 
 	mem.NumGC = client.Counter("memory.gc.count", tags...)
 	mem.NextGC = client.Gauge("memory.gc_next.bytes", tags...)
-	mem.LastGC = client.Gauge("memory.gc_last.duration", tags...)
-	mem.Pauses = client.Histogram("memory.gc_pause.duration", tags...)
+	mem.LastGC = client.Gauge("memory.gc_last.seconds", tags...)
+	mem.Pauses = client.Histogram("memory.gc_pause.seconds", tags...)
 	mem.GCCPUFraction = client.Gauge("memory.gc_cpu.fraction", tags...)
 
 	ms := &runtime.MemStats{}

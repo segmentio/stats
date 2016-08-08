@@ -43,8 +43,8 @@ type RusageStats struct {
 
 func NewRusageStats(client stats.Client) *RusageStats {
 	return &RusageStats{
-		Utime:    client.Counter("rusage.utime.duration"),
-		Stime:    client.Counter("rusage.stime.duration"),
+		Utime:    client.Counter("rusage.utime.seconds"),
+		Stime:    client.Counter("rusage.stime.seconds"),
 		Maxrss:   client.Gauge("rusage.maxrss.bytes"),
 		Ixrss:    client.Gauge("rusage.ixrss.bytes"),
 		Idrss:    client.Gauge("rusage.idrss.bytes"),
@@ -69,8 +69,8 @@ func (ru *RusageStats) Collect() {
 	utime := timevalToDuration(rusage.Utime)
 	stime := timevalToDuration(rusage.Stime)
 
-	ru.Utime.Add(float64(utime - ru.lastUtime))
-	ru.Stime.Add(float64(stime - ru.lastStime))
+	ru.Utime.Add((utime - ru.lastUtime).Seconds())
+	ru.Stime.Add((stime - ru.lastStime).Seconds())
 	ru.Maxrss.Set(float64(rusage.Maxrss))
 	ru.Ixrss.Set(float64(rusage.Ixrss))
 	ru.Idrss.Set(float64(rusage.Idrss))

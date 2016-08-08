@@ -19,8 +19,8 @@ func TestClient(t *testing.T) {
 
 	m1 := c.Gauge("events.quantity")
 	m2 := c.Counter("events.count", Tag{"extra", "tag"})
-	m3 := c.Histogram("events.duration")
-	m4 := c.Timer("events.duration").Start()
+	m3 := c.Histogram("events.seconds")
+	m4 := c.Timer("events.seconds").Start()
 
 	m1.Set(1)
 	m1.Set(42)
@@ -69,35 +69,35 @@ func TestClient(t *testing.T) {
 		},
 		Event{
 			Type:  "histogram",
-			Name:  "test.events.duration",
+			Name:  "test.events.seconds",
 			Value: 1,
 			Tags:  Tags{{"hello", "world"}},
 			Time:  now,
 		},
 		Event{
 			Type:  "histogram",
-			Name:  "test.events.duration",
+			Name:  "test.events.seconds",
 			Value: 1,
 			Tags:  Tags{{"hello", "world"}, {"stamp", "a"}},
 			Time:  now.Add(1 * time.Second),
 		},
 		Event{
 			Type:  "histogram",
-			Name:  "test.events.duration",
+			Name:  "test.events.seconds",
 			Value: 1,
 			Tags:  Tags{{"hello", "world"}, {"stamp", "b"}},
 			Time:  now.Add(2 * time.Second),
 		},
 		Event{
 			Type:  "histogram",
-			Name:  "test.events.duration",
+			Name:  "test.events.seconds",
 			Value: 1,
 			Tags:  Tags{{"hello", "world"}, {"stamp", "c"}},
 			Time:  now.Add(3 * time.Second),
 		},
 		Event{
 			Type:  "histogram",
-			Name:  "test.events.duration",
+			Name:  "test.events.seconds",
 			Value: 4,
 			Tags:  Tags{{"hello", "world"}},
 			Time:  now.Add(4 * time.Second),

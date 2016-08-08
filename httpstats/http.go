@@ -37,7 +37,7 @@ func newHttpStats(client stats.Client, namespace string) *httpStats {
 		bytesResBody:   client.Histogram(namespace + ".response_body.bytes"),
 		sizeReqHeader:  client.Histogram(namespace + ".request_header.size"),
 		sizeResHeader:  client.Histogram(namespace + ".response_header.size"),
-		timeReq:        client.Timer(namespace + ".request.duration"),
+		timeReq:        client.Timer(namespace + ".request.seconds"),
 	}
 }
 
