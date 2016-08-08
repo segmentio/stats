@@ -41,24 +41,24 @@ type RusageStats struct {
 	lastNivcsw   int64
 }
 
-func NewRusageStats(client stats.Client) *RusageStats {
+func NewRusageStats(client stats.Client, tags ...stats.Tag) *RusageStats {
 	return &RusageStats{
-		Utime:    client.Counter("rusage.utime.seconds"),
-		Stime:    client.Counter("rusage.stime.seconds"),
-		Maxrss:   client.Gauge("rusage.maxrss.bytes"),
-		Ixrss:    client.Gauge("rusage.ixrss.bytes"),
-		Idrss:    client.Gauge("rusage.idrss.bytes"),
-		Isrss:    client.Gauge("rusage.isrss.bytes"),
-		Minflt:   client.Counter("rusage.minftl.count"),
-		Majflt:   client.Counter("rusage.majflt.count"),
-		Nswap:    client.Counter("rusage.nswap.count"),
-		Inblock:  client.Counter("rusage.inblock.count"),
-		Oublock:  client.Counter("rusage.oublock.count"),
-		Msgsnd:   client.Counter("rusage.msgsnd.count"),
-		Msgrcv:   client.Counter("rusage.msgrcv.count"),
-		Nsignals: client.Counter("rusage.nsignals.count"),
-		Nvcsw:    client.Counter("rusage.nvcsw.count"),
-		Nivcsw:   client.Counter("rusage.nivcsw.count"),
+		Utime:    client.Counter("rusage.utime.seconds", tags...),
+		Stime:    client.Counter("rusage.stime.seconds", tags...),
+		Maxrss:   client.Gauge("rusage.maxrss.bytes", tags...),
+		Ixrss:    client.Gauge("rusage.ixrss.bytes", tags...),
+		Idrss:    client.Gauge("rusage.idrss.bytes", tags...),
+		Isrss:    client.Gauge("rusage.isrss.bytes", tags...),
+		Minflt:   client.Counter("rusage.minftl.count", tags...),
+		Majflt:   client.Counter("rusage.majflt.count", tags...),
+		Nswap:    client.Counter("rusage.nswap.count", tags...),
+		Inblock:  client.Counter("rusage.inblock.count", tags...),
+		Oublock:  client.Counter("rusage.oublock.count", tags...),
+		Msgsnd:   client.Counter("rusage.msgsnd.count", tags...),
+		Msgrcv:   client.Counter("rusage.msgrcv.count", tags...),
+		Nsignals: client.Counter("rusage.nsignals.count", tags...),
+		Nvcsw:    client.Counter("rusage.nvcsw.count", tags...),
+		Nivcsw:   client.Counter("rusage.nivcsw.count", tags...),
 	}
 }
 

@@ -23,5 +23,6 @@ func TestRusageStats(t *testing.T) {
 		if !strings.HasPrefix(e.Name, "test.rusage.") {
 			t.Errorf("invalid event name for event #%d: %s", i, e.Name)
 		}
+		t.Logf("- %v", e)
 	}
 }

@@ -26,6 +26,7 @@ func TestMemoryStats(t *testing.T) {
 		if !strings.HasPrefix(e.Name, "test.memory.") {
 			t.Errorf("invalid event name for event #%d: %s", i, e.Name)
 		}
+		t.Logf("- %v", e)
 	}
 }
 

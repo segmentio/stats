@@ -22,9 +22,9 @@ func TestBackend(t *testing.T) {
 	c.Histogram("events.seconds").ObserveAt(1, now)
 	c.Close()
 
-	if s := b.String(); s != `{"type":"gauge","name":"log.events.level","value":1,"tags":{"hello":"world"},"time":"1970-01-01T00:00:01Z"}
-{"type":"counter","name":"log.events.count","value":1,"tags":{"hello":"world"},"time":"1970-01-01T00:00:01Z"}
-{"type":"histogram","name":"log.events.seconds","value":1,"tags":{"hello":"world"},"time":"1970-01-01T00:00:01Z"}
+	if s := b.String(); s != `{"type":"gauge","name":"log.events.level","value":1,"time":"1970-01-01T00:00:01Z","tags":{"hello":"world"}}
+{"type":"counter","name":"log.events.count","value":1,"time":"1970-01-01T00:00:01Z","tags":{"hello":"world"}}
+{"type":"histogram","name":"log.events.seconds","value":1,"time":"1970-01-01T00:00:01Z","tags":{"hello":"world"}}
 ` {
 		t.Errorf("invalid json: %s", s)
 	}

@@ -1,6 +1,7 @@
 package stats
 
 import (
+	"fmt"
 	"sync"
 	"time"
 )
@@ -9,8 +10,8 @@ type Event struct {
 	Type  string    `json:"type"`
 	Name  string    `json:"name"`
 	Value float64   `json:"value"`
-	Tags  Tags      `json:"tags,omitempty"`
 	Time  time.Time `json:"time"`
+	Tags  Tags      `json:"tags,omitempty"`
 }
 
 func MakeEvent(m Metric, v float64, t time.Time) Event {
@@ -21,6 +22,20 @@ func MakeEvent(m Metric, v float64, t time.Time) Event {
 		Value: v,
 		Time:  t,
 	}
+}
+
+func (e Event) String() string {
+	return fmt.Sprint(e)
+}
+
+func (e Event) Format(f fmt.State, _ rune) {
+	fmt.Fprintf(f, "{ type: %#v, name: %#v, value: %g, time: \"%s\", tags: [%v] }",
+		e.Type,
+		e.Name,
+		e.Value,
+		e.Time,
+		e.Tags,
+	)
 }
 
 type EventBackend struct {

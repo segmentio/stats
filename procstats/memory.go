@@ -68,7 +68,6 @@ type MemoryStats struct {
 }
 
 func NewMemoryStats(client stats.Client, tags ...stats.Tag) *MemoryStats {
-	tags = append(tags, stats.Tag{"go_version", runtime.Version()})
 	mem := &MemoryStats{}
 
 	tagsTotal := append(tags, stats.Tag{"type", "total"})

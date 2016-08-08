@@ -1,6 +1,7 @@
 package procstats
 
 import (
+	"runtime"
 	"time"
 
 	"github.com/segmentio/stats"
@@ -22,10 +23,15 @@ func NewCollector(client stats.Client) Collector {
 func NewCollectorWith(config CollectorConfig) Collector {
 	config = setCollectorConfigDefault(config)
 
+	tags := stats.Tags{
+		{"runtime", "go"},
+		{"version", runtime.Version()},
+	}
+
 	collec := &collector{
-		rusage:  NewRusageStats(config.Client),
-		runtime: NewRuntimeStats(config.Client),
-		memory:  NewMemoryStats(config.Client),
+		rusage:  NewRusageStats(config.Client, tags...),
+		runtime: NewRuntimeStats(config.Client, tags...),
+		memory:  NewMemoryStats(config.Client, tags...),
 		tick:    time.NewTicker(config.CollectInterval),
 		done:    make(chan struct{}),
 		join:    make(chan struct{}),
