@@ -85,8 +85,8 @@ Monitoring
 ### Processes
 
 The [github.com/segmentio/stats/httpstats](https://godoc.org/github.com/segmentio/stats/procstats)
-exposes an API for creating stats collector on local processes. By default stats are collected for
-the process itself and things like goroutines count or memory usage are reported.
+exposes an API for creating stats collector on local processes. Stats are collected for current
+the process and metrics like goroutines count or memory usage are reported.
 
 Here's an example of how to use the collector:
 ```go
