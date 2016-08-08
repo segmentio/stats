@@ -82,6 +82,36 @@ func main() {
 Monitoring
 ----------
 
+### Processes
+
+The [github.com/segmentio/stats/httpstats](https://godoc.org/github.com/segmentio/stats/procstats)
+exposes an API for creating stats collector on local processes. By default stats are collected for
+the process itself and things like goroutines count or memory usage are reported.
+
+Here's an example of how to use the collector:
+```go
+package main
+
+import (
+    "github.com/segmentio/stats"
+    "github.com/segmentio/stats/procstats"
+)
+
+
+func main() {
+    client := stats.NewClient("app", datadog.NewBackend("localhost:8125"))
+    defer client.Close()
+
+    // Creates a new stats collector for the current process.
+    collector := procstats.NewCollector(client)
+
+    // Gracefully stops stats collection.
+    defer collector.Stop()
+
+    // ...
+}
+```
+
 ### HTTP Servers
 
 The [github.com/segmentio/stats/httpstats](https://godoc.org/github.com/segmentio/stats/httpstats)
