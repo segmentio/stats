@@ -147,8 +147,7 @@ func main() {
 ```
 
 You can also modify the default HTTP client to automatically get metrics for all
-packages using it, this is very convinient to get insights into what dependencies
-are doing when it's they don't offer a way to set the HTTP client.
+packages using it, this is very convinient to get insights into dependencies.
 ```go
 package main
 
