@@ -28,7 +28,7 @@ import (
 
     "github.com/segmentio/stats"
     "github.com/segmentio/stats/datadog"
-    "github.com/segmentio/stats/logstats/log"
+    "github.com/segmentio/stats/logstats"
 )
 
 func main() {
