@@ -15,9 +15,9 @@ type RuntimeStats struct {
 func NewRuntimeStats(client stats.Client, tags ...stats.Tag) *RuntimeStats {
 	tags = append(tags, stats.Tag{"go_version", runtime.Version()})
 	return &RuntimeStats{
-		NumCPU:       client.Gauge("runtime.goroutine.count", tags...),
+		NumCPU:       client.Gauge("runtime.cpu.count", tags...),
 		NumCgoCall:   client.Gauge("runtime.cgo_call.count", tags...),
-		NumGoroutine: client.Gauge("runtime.cpu.count", tags...),
+		NumGoroutine: client.Gauge("runtime.goroutine.count", tags...),
 	}
 }
 

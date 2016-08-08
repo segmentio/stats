@@ -1,8 +1,6 @@
 package procstats
 
 import (
-	"os"
-	"strconv"
 	"time"
 
 	"github.com/segmentio/stats"
@@ -14,7 +12,6 @@ type Collector interface {
 
 type CollectorConfig struct {
 	Client          stats.Client
-	Pid             int
 	CollectInterval time.Duration
 }
 
@@ -26,20 +23,12 @@ func NewCollectorWith(config CollectorConfig) Collector {
 	config = setCollectorConfigDefault(config)
 
 	collec := &collector{
-		tick: time.NewTicker(config.CollectInterval),
-		pid:  config.Pid,
-		self: config.Pid == os.Getpid(),
-		done: make(chan struct{}),
-		join: make(chan struct{}),
-	}
-
-	tags := stats.Tags{
-		{"pid", strconv.Itoa(collec.pid)},
-	}
-
-	if collec.self {
-		collec.runtime = NewRuntimeStats(config.Client, tags...)
-		collec.memory = NewMemoryStats(config.Client, tags...)
+		rusage:  NewRusageStats(config.Client),
+		runtime: NewRuntimeStats(config.Client),
+		memory:  NewMemoryStats(config.Client),
+		tick:    time.NewTicker(config.CollectInterval),
+		done:    make(chan struct{}),
+		join:    make(chan struct{}),
 	}
 
 	go collec.run()
@@ -47,10 +36,6 @@ func NewCollectorWith(config CollectorConfig) Collector {
 }
 
 func setCollectorConfigDefault(config CollectorConfig) CollectorConfig {
-	if config.Pid == 0 {
-		config.Pid = os.Getpid()
-	}
-
 	if config.CollectInterval == 0 {
 		config.CollectInterval = 5 * time.Second
 	}
@@ -59,12 +44,11 @@ func setCollectorConfigDefault(config CollectorConfig) CollectorConfig {
 }
 
 type collector struct {
+	rusage  *RusageStats
 	runtime *RuntimeStats
 	memory  *MemoryStats
 
 	tick *time.Ticker
-	pid  int
-	self bool
 	done chan struct{}
 	join chan struct{}
 }
@@ -89,7 +73,6 @@ func (c *collector) run() {
 		select {
 		case <-c.tick.C:
 			c.collect()
-
 		case <-c.done:
 			return
 		}
@@ -97,8 +80,7 @@ func (c *collector) run() {
 }
 
 func (c *collector) collect() {
-	if c.self {
-		c.runtime.Collect()
-		c.memory.Collect()
-	}
+	c.rusage.Collect()
+	c.runtime.Collect()
+	c.memory.Collect()
 }
