@@ -70,45 +70,26 @@ func setConfigDefaults(config Config) Config {
 type protocol struct{}
 
 func (p protocol) WriteSet(w io.Writer, m stats.Metric, v float64, r float64, t time.Time) error {
-	return p.write("g", w, m, v, r, t)
+	return p.write(Gauge, w, m, v, r)
 }
 
 func (p protocol) WriteAdd(w io.Writer, m stats.Metric, v float64, r float64, t time.Time) error {
-	return p.write("c", w, m, v, r, t)
+	return p.write(Counter, w, m, v, r)
 }
 
 func (p protocol) WriteObserve(w io.Writer, m stats.Metric, v float64, r float64, t time.Time) error {
-	return p.write("h", w, m, v, r, t)
+	return p.write(Histogram, w, m, v, r)
 }
 
-func (p protocol) write(s string, w io.Writer, m stats.Metric, v float64, r float64, t time.Time) (err error) {
-	_, err = fmt.Fprintf(w, "%s:%g|%s%v%v\n", sanitize(m.Name()), v, s, sample(r), tags(m.Tags()))
+func (p protocol) write(t MetricType, w io.Writer, m stats.Metric, v float64, r float64) (err error) {
+	_, err = fmt.Fprint(w, Metric{
+		Name:       sanitize(m.Name()),
+		Value:      v,
+		Type:       t,
+		SampleRate: SampleRate(r),
+		Tags:       Tags(m.Tags()),
+	})
 	return
-}
-
-type sample float64
-
-func (sample sample) Format(f fmt.State, _ rune) {
-	if sample != 1 {
-		fmt.Fprintf(f, "|@%g", float64(sample))
-	}
-}
-
-type tags stats.Tags
-
-func (tags tags) Format(f fmt.State, _ rune) {
-	if len(tags) != 0 {
-		io.WriteString(f, "|#")
-
-		for i, t := range tags {
-			if i != 0 {
-				io.WriteString(f, ",")
-			}
-			io.WriteString(f, sanitize(t.Name))
-			io.WriteString(f, ":")
-			io.WriteString(f, sanitize(t.Value))
-		}
-	}
 }
 
 func sanitize(s string) string {
