@@ -36,8 +36,7 @@ func ParseMetric(s string) (m Metric, err error) {
 
 	val, next = nextToken(next)
 	typ, next = nextToken(next)
-	rate, next = nextToken(next)
-	tags, next = nextToken(next)
+	rate, tags = nextToken(next)
 	name, val = split(val, ':')
 
 	if len(name) == 0 {

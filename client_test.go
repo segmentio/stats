@@ -39,63 +39,63 @@ func TestClient(t *testing.T) {
 	m4.Stop()
 
 	events := []Event{
-		Event{
+		{
 			Type:  "gauge",
 			Name:  "test.events.quantity",
 			Value: 1,
 			Tags:  Tags{{"hello", "world"}},
 			Time:  now,
 		},
-		Event{
+		{
 			Type:  "gauge",
 			Name:  "test.events.quantity",
 			Value: 42,
 			Tags:  Tags{{"hello", "world"}},
 			Time:  now,
 		},
-		Event{
+		{
 			Type:  "counter",
 			Name:  "test.events.count",
 			Value: 10,
 			Tags:  Tags{{"hello", "world"}, {"extra", "tag"}},
 			Time:  now,
 		},
-		Event{
+		{
 			Type:  "gauge",
 			Name:  "test.events.quantity",
 			Value: 0,
 			Tags:  Tags{{"hello", "world"}},
 			Time:  now,
 		},
-		Event{
+		{
 			Type:  "histogram",
 			Name:  "test.events.seconds",
 			Value: 1,
 			Tags:  Tags{{"hello", "world"}},
 			Time:  now,
 		},
-		Event{
+		{
 			Type:  "histogram",
 			Name:  "test.events.seconds",
 			Value: 1,
 			Tags:  Tags{{"hello", "world"}, {"stamp", "a"}},
 			Time:  now.Add(1 * time.Second),
 		},
-		Event{
+		{
 			Type:  "histogram",
 			Name:  "test.events.seconds",
 			Value: 1,
 			Tags:  Tags{{"hello", "world"}, {"stamp", "b"}},
 			Time:  now.Add(2 * time.Second),
 		},
-		Event{
+		{
 			Type:  "histogram",
 			Name:  "test.events.seconds",
 			Value: 1,
 			Tags:  Tags{{"hello", "world"}, {"stamp", "c"}},
 			Time:  now.Add(3 * time.Second),
 		},
-		Event{
+		{
 			Type:  "histogram",
 			Name:  "test.events.seconds",
 			Value: 4,

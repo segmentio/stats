@@ -29,21 +29,21 @@ func TestBackendFunc(t *testing.T) {
 	c.Close()
 
 	if !reflect.DeepEqual(e, []Event{
-		Event{
+		{
 			Type:  "gauge",
 			Name:  "test.events.quantity",
 			Value: 1,
 			Tags:  Tags{{"hello", "world"}},
 			Time:  now,
 		},
-		Event{
+		{
 			Type:  "counter",
 			Name:  "test.events.count",
 			Value: 1,
 			Tags:  Tags{{"hello", "world"}, {"extra", "tag"}},
 			Time:  now,
 		},
-		Event{
+		{
 			Type:  "histogram",
 			Name:  "test.events.seconds",
 			Value: 1,
@@ -58,7 +58,7 @@ func TestBackendFunc(t *testing.T) {
 func TestMultiBackend(t *testing.T) {
 	now := time.Now()
 
-	b := []*EventBackend{&EventBackend{}, &EventBackend{}}
+	b := []*EventBackend{{}, {}}
 	c := NewClientWith(Config{
 		Scope:   "test",
 		Backend: MultiBackend(b[0], b[1]),
@@ -78,21 +78,21 @@ func TestMultiBackend(t *testing.T) {
 
 	for _, e := range b {
 		if !reflect.DeepEqual(e.Events, []Event{
-			Event{
+			{
 				Type:  "gauge",
 				Name:  "test.events.quantity",
 				Value: 1,
 				Tags:  Tags{{"hello", "world"}},
 				Time:  now,
 			},
-			Event{
+			{
 				Type:  "counter",
 				Name:  "test.events.count",
 				Value: 1,
 				Tags:  Tags{{"hello", "world"}, {"extra", "tag"}},
 				Time:  now,
 			},
-			Event{
+			{
 				Type:  "histogram",
 				Name:  "test.events.seconds",
 				Value: 1,

@@ -157,7 +157,7 @@ func TestMetricApply(t *testing.T) {
 func TestMetricStoreInsertSuccess(t *testing.T) {
 	store := newMetricStore()
 	tests := []Metric{
-		Metric{
+		{
 			Name:  "metric_1",
 			Type:  "gauge",
 			Value: 1,
@@ -165,7 +165,7 @@ func TestMetricStoreInsertSuccess(t *testing.T) {
 			sum:   1,
 			count: 1,
 		},
-		Metric{
+		{
 			Name:   "metric_1",
 			Type:   "gauge",
 			Value:  1,
@@ -174,7 +174,7 @@ func TestMetricStoreInsertSuccess(t *testing.T) {
 			sum:    1,
 			count:  1,
 		},
-		Metric{
+		{
 			Name:  "metric_2",
 			Type:  "gauge",
 			Value: 42,
@@ -182,7 +182,7 @@ func TestMetricStoreInsertSuccess(t *testing.T) {
 			sum:   42,
 			count: 1,
 		},
-		Metric{
+		{
 			Name:  "metric_1",
 			Type:  "gauge",
 			Value: 10,
@@ -242,7 +242,7 @@ func TestMetricStoreExpire(t *testing.T) {
 
 	store := newMetricStore()
 	tests := []Metric{
-		Metric{
+		{
 			Name:  "metric_1",
 			Type:  "gauge",
 			Value: 1,
@@ -251,7 +251,7 @@ func TestMetricStoreExpire(t *testing.T) {
 			sum:   1,
 			count: 1,
 		},
-		Metric{
+		{
 			Name:   "metric_1",
 			Type:   "gauge",
 			Value:  1,
@@ -261,7 +261,7 @@ func TestMetricStoreExpire(t *testing.T) {
 			sum:    1,
 			count:  1,
 		},
-		Metric{
+		{
 			Name:  "metric_2",
 			Type:  "gauge",
 			Value: 42,
@@ -270,7 +270,7 @@ func TestMetricStoreExpire(t *testing.T) {
 			sum:   42,
 			count: 1,
 		},
-		Metric{
+		{
 			Name:  "metric_1",
 			Type:  "gauge",
 			Value: 10,

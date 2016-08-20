@@ -198,7 +198,7 @@ func TestRunComplete(t *testing.T) {
 	join.Wait()
 
 	if metrics := store.snapshot(); !reflect.DeepEqual(metrics, []Metric{
-		Metric{
+		{
 			Name:  "metric_1",
 			Type:  "counter",
 			Value: 3,
@@ -288,7 +288,7 @@ func TestRunError(t *testing.T) {
 	}
 
 	if metrics := store.snapshot(); !reflect.DeepEqual(metrics, []Metric{
-		Metric{
+		{
 			Name:  "metric_1",
 			Type:  "gauge",
 			Value: 1,
