@@ -82,7 +82,7 @@ func setConfigDefaults(config Config) Config {
 	}
 
 	if config.FlushTimeout == 0 {
-		config.FlushTimeout = 5 * time.Second
+		config.FlushTimeout = 1 * time.Second
 	}
 
 	if config.WriteTimeout == 0 {
