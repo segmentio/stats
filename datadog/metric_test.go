@@ -104,7 +104,7 @@ func TestParseFailure(t *testing.T) {
 
 	for _, test := range tests {
 		if _, err := ParseMetric(test); err == nil {
-			t.Error("%#v: expected parsing error", test)
+			t.Errorf("%#v: expected parsing error", test)
 		}
 	}
 }

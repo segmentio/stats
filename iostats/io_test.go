@@ -23,7 +23,7 @@ func TestCountReader(t *testing.T) {
 		c := &CountReader{R: strings.NewReader(test.s)}
 		b := make([]byte, len(test.s))
 
-		if n, err := c.Read(b); err != nil {
+		if n, err := c.Read(b); err != nil && err != io.EOF {
 			t.Error(err)
 		} else if n != len(test.s) {
 			t.Errorf("invalid byte count returned by the reader: %d != %d", len(test.s), n)
