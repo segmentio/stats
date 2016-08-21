@@ -13,19 +13,19 @@ const (
 )
 
 type Metric struct {
-	Name   string
-	Value  int64
-	Type   MetricType
-	Sample Sample
+	Name       string
+	Value      int64
+	Type       MetricType
+	SampleRate SampleRate
 }
 
 func (m Metric) Format(f fmt.State, _ rune) {
-	fmt.Fprintf(f, "%s:%d|%s%v\n", m.Name, m.Value, m.Type, m.Sample)
+	fmt.Fprintf(f, "%s:%d|%s%v\n", m.Name, m.Value, m.Type, m.SampleRate)
 }
 
-type Sample float64
+type SampleRate float64
 
-func (r Sample) Format(f fmt.State, _ rune) {
+func (r SampleRate) Format(f fmt.State, _ rune) {
 	if r != 0 && r != 1 {
 		fmt.Fprintf(f, "|@%g", float64(r))
 	}

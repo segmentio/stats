@@ -81,10 +81,10 @@ func (p protocol) WriteObserve(w io.Writer, m stats.Metric, v float64, t time.Ti
 
 func (p protocol) write(w io.Writer, t MetricType, m stats.Metric, v float64) (err error) {
 	_, err = fmt.Fprint(w, Metric{
-		Name:   sanitize(m.Name()),
-		Value:  int64(v),
-		Type:   t,
-		Sample: Sample(m.Sample()),
+		Name:       sanitize(m.Name()),
+		Value:      int64(v),
+		Type:       t,
+		SampleRate: SampleRate(m.Sample()),
 	})
 	return
 }
