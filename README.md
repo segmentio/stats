@@ -94,6 +94,7 @@ package main
 
 import (
     "github.com/segmentio/stats"
+    "github.com/segmentio/stats/datadog"
     "github.com/segmentio/stats/procstats"
 )
 
@@ -127,6 +128,7 @@ import (
     "net/http"
 
     "github.com/segmentio/stats"
+    "github.com/segmentio/stats/datadog"
     "github.com/segmentio/stats/httpstats"
 )
 
@@ -160,6 +162,7 @@ import (
     "net/http"
 
     "github.com/segmentio/stats"
+    "github.com/segmentio/stats/datadog"
     "github.com/segmentio/stats/httpstats"
 )
 
@@ -185,6 +188,7 @@ import (
     "net/http"
 
     "github.com/segmentio/stats"
+    "github.com/segmentio/stats/datadog"
     "github.com/segmentio/stats/httpstats"
 )
 
