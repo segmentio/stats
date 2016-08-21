@@ -16,11 +16,11 @@ import (
 )
 
 type Protocol interface {
-	WriteSet(w io.Writer, m stats.Metric, v float64, r float64, t time.Time) error
+	WriteSet(w io.Writer, m stats.Metric, v float64, t time.Time) error
 
-	WriteAdd(w io.Writer, m stats.Metric, v float64, r float64, t time.Time) error
+	WriteAdd(w io.Writer, m stats.Metric, v float64, t time.Time) error
 
-	WriteObserve(w io.Writer, m stats.Metric, v float64, r float64, t time.Time) error
+	WriteObserve(w io.Writer, m stats.Metric, v float64, t time.Time) error
 }
 
 type Config struct {
@@ -33,7 +33,6 @@ type Config struct {
 	RetryAfterMax time.Duration
 	FlushTimeout  time.Duration
 	WriteTimeout  time.Duration
-	SampleRate    float64
 	Dial          func(string, string) (net.Conn, error)
 	Fail          func(error)
 }
@@ -89,10 +88,6 @@ func setConfigDefaults(config Config) Config {
 		config.WriteTimeout = 1 * time.Second
 	}
 
-	if config.SampleRate == 0 {
-		config.SampleRate = 1
-	}
-
 	if config.Dial == nil {
 		config.Dial = net.Dial
 	}
@@ -104,7 +99,7 @@ func setConfigDefaults(config Config) Config {
 	return config
 }
 
-type writer func(Protocol, io.Writer, stats.Metric, float64, float64, time.Time) error
+type writer func(Protocol, io.Writer, stats.Metric, float64, time.Time) error
 
 type job struct {
 	metric stats.Metric
@@ -149,23 +144,25 @@ func enqueue(job job, jobs chan<- job, fail func(error)) {
 			fail(fmt.Errorf("discarding %s because the metric queue was closed", job.metric.Name()))
 		}
 	}()
-	select {
-	case jobs <- job:
-	default:
-		fail(fmt.Errorf("discarding %s because the metric queue is full", job.metric.Name()))
+	if r := job.metric.Sample(); r == 1 || r > rand.Float64() {
+		select {
+		case jobs <- job:
+		default:
+			fail(fmt.Errorf("discarding %s because the metric queue is full", job.metric.Name()))
+		}
 	}
 }
 
-func set(p Protocol, w io.Writer, m stats.Metric, v float64, r float64, t time.Time) error {
-	return p.WriteSet(w, m, v, r, t)
+func set(p Protocol, w io.Writer, m stats.Metric, v float64, t time.Time) error {
+	return p.WriteSet(w, m, v, t)
 }
 
-func add(p Protocol, w io.Writer, m stats.Metric, v float64, r float64, t time.Time) error {
-	return p.WriteAdd(w, m, v, r, t)
+func add(p Protocol, w io.Writer, m stats.Metric, v float64, t time.Time) error {
+	return p.WriteAdd(w, m, v, t)
 }
 
-func observe(p Protocol, w io.Writer, m stats.Metric, v float64, r float64, t time.Time) error {
-	return p.WriteObserve(w, m, v, r, t)
+func observe(p Protocol, w io.Writer, m stats.Metric, v float64, t time.Time) error {
+	return p.WriteObserve(w, m, v, t)
 }
 
 func run(done <-chan struct{}, jobs <-chan job, join *sync.WaitGroup, config *Config) {
@@ -195,10 +192,7 @@ func run(done <-chan struct{}, jobs <-chan job, join *sync.WaitGroup, config *Co
 				conn = flush(conn, buf, config)
 				return
 			}
-
-			if config.SampleRate == 1 || config.SampleRate > rand.Float64() {
-				conn = write(conn, buf, job, config)
-			}
+			conn = write(conn, buf, job, config)
 
 		case <-timer.C:
 			conn = flush(conn, buf, config)
@@ -251,7 +245,7 @@ func backoff(d time.Duration, max time.Duration) time.Duration {
 func write(conn net.Conn, buf *bytes.Buffer, job job, config *Config) net.Conn {
 	n1 := buf.Len()
 
-	if err := job.write(config.Protocol, buf, job.metric, job.value, config.SampleRate, job.time); err != nil {
+	if err := job.write(config.Protocol, buf, job.metric, job.value, job.time); err != nil {
 		handleError(err, config)
 		return conn
 	}

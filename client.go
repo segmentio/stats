@@ -23,10 +23,13 @@ type Config struct {
 	Backend Backend
 	Scope   string
 	Tags    Tags
+	Sample  float64
 	Now     func() time.Time
 }
 
-var DefaultScope string
+var (
+	DefaultScope string
+)
 
 func NewClient(scope string, backend Backend, tags ...Tag) Client {
 	return NewClientWith(Config{
@@ -41,6 +44,7 @@ func NewClientWith(config Config) Client {
 		backend: config.Backend,
 		scope:   config.Scope,
 		tags:    config.Tags,
+		sample:  config.Sample,
 		now:     config.Now,
 	}
 }
@@ -49,6 +53,7 @@ type client struct {
 	backend Backend
 	scope   string
 	tags    Tags
+	sample  float64
 	now     func() time.Time
 }
 
@@ -75,6 +80,7 @@ func (c client) opts(name string, tags ...Tag) Opts {
 		Backend: c.backend,
 		Scope:   c.scope,
 		Name:    name,
+		Sample:  c.sample,
 		Tags:    concatTags(c.tags, copyTags(Tags(tags))),
 		Now:     c.now,
 	}

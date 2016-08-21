@@ -9,7 +9,7 @@ func TestEventString(t *testing.T) {
 	}{
 		{
 			e: Event{},
-			s: `{ type: "", name: "", value: 0, time: "0001-01-01 00:00:00 +0000 UTC", tags: [] }`,
+			s: `{ type: "", name: "", value: 0, sample: 0, time: "0001-01-01 00:00:00 +0000 UTC", tags: [] }`,
 		},
 	}
 

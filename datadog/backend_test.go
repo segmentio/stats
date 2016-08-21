@@ -27,22 +27,19 @@ func TestProtocol(t *testing.T) {
 	tests := []struct {
 		metric stats.Metric
 		value  float64
-		rate   float64
 		string string
-		method func(protocol, io.Writer, stats.Metric, float64, float64, time.Time) error
+		method func(protocol, io.Writer, stats.Metric, float64, time.Time) error
 	}{
 		{
 			metric: stats.NewGauge(stats.Opts{Name: "hello"}),
 			value:  1,
-			rate:   1,
 			string: "hello:1|g\n",
 			method: protocol.WriteSet,
 		},
 
 		{
-			metric: stats.NewCounter(stats.Opts{Name: "hello"}),
+			metric: stats.NewCounter(stats.Opts{Name: "hello", Sample: 0.1}),
 			value:  1,
-			rate:   0.1,
 			string: "hello:1|c|@0.1\n",
 			method: protocol.WriteAdd,
 		},
@@ -50,7 +47,6 @@ func TestProtocol(t *testing.T) {
 		{
 			metric: stats.NewHistogram(stats.Opts{Name: "hello"}),
 			value:  1,
-			rate:   1,
 			string: "hello:1|h\n",
 			method: protocol.WriteObserve,
 		},
@@ -61,7 +57,7 @@ func TestProtocol(t *testing.T) {
 		b := &bytes.Buffer{}
 		p := protocol{}
 
-		if err := test.method(p, b, test.metric, test.value, test.rate, now); err != nil {
+		if err := test.method(p, b, test.metric, test.value, now); err != nil {
 			t.Error(err)
 		} else if s := b.String(); s != test.string {
 			t.Errorf("bad serialization: %#v != %#v", test.string, s)

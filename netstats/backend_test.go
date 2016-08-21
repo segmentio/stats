@@ -151,7 +151,6 @@ func TestWriteSuccessNoFlush(t *testing.T) {
 	if write(c, b, j, &Config{
 		Protocol:   testProto{},
 		BufferSize: 512,
-		SampleRate: 1,
 	}) != c {
 		t.Error("write should return the connection on success")
 	}
@@ -179,7 +178,6 @@ func TestWriteSuccessFlush(t *testing.T) {
 	if write(c, b, j, &Config{
 		Protocol:   testProto{},
 		BufferSize: 20,
-		SampleRate: 1,
 	}) != c {
 		t.Error("write should return the connection on success")
 	}
@@ -205,7 +203,6 @@ func TestWriteSuccessNoBuffer(t *testing.T) {
 	if write(c, b, j, &Config{
 		Protocol:   testProto{},
 		BufferSize: 10,
-		SampleRate: 1,
 	}) != c {
 		t.Error("write should return the connection on success")
 	}
@@ -232,7 +229,6 @@ func TestWriteFailureProtocol(t *testing.T) {
 	if write(c, b, j, &Config{
 		Protocol:   testProto{err: testError},
 		BufferSize: 10,
-		SampleRate: 1,
 		Fail:       func(err error) { e = err },
 	}) != c {
 		t.Error("write should return the connection on protocol failures")
@@ -256,7 +252,6 @@ func TestWriteFailureConn(t *testing.T) {
 	if write(c, b, j, &Config{
 		Protocol:   testProto{},
 		BufferSize: 10,
-		SampleRate: 1,
 		Fail:       func(err error) { e = err },
 	}) != nil {
 		t.Error("write should return nil on connection failure")
@@ -421,7 +416,6 @@ func TestRunComplete(t *testing.T) {
 		RetryAfterMin: time.Second,
 		RetryAfterMax: time.Second,
 		FlushTimeout:  100 * time.Microsecond,
-		SampleRate:    1,
 		Dial:          func(_ string, _ string) (net.Conn, error) { return conn, nil },
 	})
 
@@ -452,7 +446,6 @@ func TestRunNoConnect(t *testing.T) {
 		RetryAfterMin: time.Second,
 		RetryAfterMax: time.Second,
 		FlushTimeout:  100 * time.Microsecond,
-		SampleRate:    1,
 		Dial:          func(_ string, _ string) (net.Conn, error) { return conn, nil },
 	})
 
@@ -542,23 +535,23 @@ type testProto struct {
 	err error
 }
 
-func (p testProto) WriteSet(w io.Writer, m stats.Metric, v float64, r float64, t time.Time) error {
-	return p.write("set", w, m, v, r, t)
+func (p testProto) WriteSet(w io.Writer, m stats.Metric, v float64, t time.Time) error {
+	return p.write("set", w, m, v, t)
 }
 
-func (p testProto) WriteAdd(w io.Writer, m stats.Metric, v float64, r float64, t time.Time) error {
-	return p.write("add", w, m, v, r, t)
+func (p testProto) WriteAdd(w io.Writer, m stats.Metric, v float64, t time.Time) error {
+	return p.write("add", w, m, v, t)
 }
 
-func (p testProto) WriteObserve(w io.Writer, m stats.Metric, v float64, r float64, t time.Time) (err error) {
-	return p.write("observe", w, m, v, r, t)
+func (p testProto) WriteObserve(w io.Writer, m stats.Metric, v float64, t time.Time) (err error) {
+	return p.write("observe", w, m, v, t)
 }
 
-func (p testProto) write(s string, w io.Writer, m stats.Metric, v float64, r float64, t time.Time) (err error) {
+func (p testProto) write(s string, w io.Writer, m stats.Metric, v float64, t time.Time) (err error) {
 	if p.err != nil {
 		return p.err
 	}
-	_, err = fmt.Fprintf(w, "%s:%s:%g/%g\n", s, m.Name(), v, r)
+	_, err = fmt.Fprintf(w, "%s:%s:%g/%g\n", s, m.Name(), v, m.Sample())
 	return
 }
 

@@ -12,6 +12,8 @@ type Metric interface {
 	Type() string
 
 	Tags() Tags
+
+	Sample() float64
 }
 
 type Gauge interface {
@@ -62,20 +64,17 @@ type Opts struct {
 	Name    string
 	Unit    string
 	Tags    Tags
+	Sample  float64
 	Now     func() time.Time
 }
 
-func MakeOpts(name string, tags ...Tag) Opts {
-	return Opts{
-		Name: name,
-		Tags: Tags(tags),
-	}
-}
+func MakeOpts(name string, tags ...Tag) Opts { return Opts{Name: name, Tags: Tags(tags)} }
 
 type metric struct {
 	name    string
 	tags    Tags
 	backend Backend
+	sample  float64
 	now     func() time.Time
 }
 
@@ -83,10 +82,16 @@ func makeMetric(opts Opts) metric {
 	if opts.Now == nil {
 		opts.Now = time.Now
 	}
+
+	if opts.Sample == 0 {
+		opts.Sample = 1
+	}
+
 	return metric{
 		name:    JoinMetricName(opts.Scope, opts.Name, opts.Unit),
 		tags:    opts.Tags,
 		backend: opts.Backend,
+		sample:  opts.Sample,
 		now:     opts.Now,
 	}
 }
@@ -94,6 +99,8 @@ func makeMetric(opts Opts) metric {
 func (m *metric) Name() string { return m.name }
 
 func (m *metric) Tags() Tags { return m.tags }
+
+func (m *metric) Sample() float64 { return m.sample }
 
 func (m *metric) clone(tags ...Tag) metric {
 	c := *m

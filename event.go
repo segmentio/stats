@@ -7,20 +7,22 @@ import (
 )
 
 type Event struct {
-	Type  string    `json:"type"`
-	Name  string    `json:"name"`
-	Value float64   `json:"value"`
-	Time  time.Time `json:"time"`
-	Tags  Tags      `json:"tags,omitempty"`
+	Type   string    `json:"type"`
+	Name   string    `json:"name"`
+	Value  float64   `json:"value"`
+	Sample float64   `json:"sample"`
+	Time   time.Time `json:"time"`
+	Tags   Tags      `json:"tags,omitempty"`
 }
 
 func MakeEvent(m Metric, v float64, t time.Time) Event {
 	return Event{
-		Type:  m.Type(),
-		Name:  m.Name(),
-		Tags:  m.Tags(),
-		Value: v,
-		Time:  t,
+		Type:   m.Type(),
+		Name:   m.Name(),
+		Tags:   m.Tags(),
+		Sample: m.Sample(),
+		Value:  v,
+		Time:   t,
 	}
 }
 
@@ -29,10 +31,11 @@ func (e Event) String() string {
 }
 
 func (e Event) Format(f fmt.State, _ rune) {
-	fmt.Fprintf(f, "{ type: %#v, name: %#v, value: %g, time: \"%s\", tags: [%v] }",
+	fmt.Fprintf(f, "{ type: %#v, name: %#v, value: %g, sample: %g, time: \"%s\", tags: [%v] }",
 		e.Type,
 		e.Name,
 		e.Value,
+		e.Sample,
 		e.Time,
 		e.Tags,
 	)

@@ -14,11 +14,12 @@ func NewBackend(logger *logrus.Logger) stats.Backend {
 func fields(e stats.Event) logrus.Fields {
 	return logrus.Fields{
 		"metric": logrus.Fields{
-			"name":  e.Name,
-			"type":  e.Type,
-			"value": e.Value,
-			"tags":  tags(e.Tags),
-			"time":  e.Time,
+			"name":   e.Name,
+			"type":   e.Type,
+			"value":  e.Value,
+			"sample": e.Sample,
+			"tags":   tags(e.Tags),
+			"time":   e.Time,
 		},
 	}
 }

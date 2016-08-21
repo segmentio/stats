@@ -19,11 +19,11 @@ const (
 )
 
 type Metric struct {
-	Name       string
-	Value      float64
-	Type       MetricType
-	SampleRate SampleRate
-	Tags       Tags
+	Name   string
+	Value  float64
+	Type   MetricType
+	Sample Sample
+	Tags   Tags
 }
 
 func ParseMetric(s string) (m Metric, err error) {
@@ -96,10 +96,10 @@ func ParseMetric(s string) (m Metric, err error) {
 	}
 
 	m = Metric{
-		Name:       name,
-		Value:      value,
-		Type:       MetricType(typ),
-		SampleRate: SampleRate(sampleRate),
+		Name:   name,
+		Value:  value,
+		Type:   MetricType(typ),
+		Sample: Sample(sampleRate),
 	}
 
 	if tags := strings.Split(tags, ","); len(tags) != 0 {
@@ -135,7 +135,7 @@ func split(s string, b byte) (head string, tail string) {
 }
 
 func (m Metric) Format(f fmt.State, _ rune) {
-	fmt.Fprintf(f, "%s:%g|%s%v%v\n", m.Name, m.Value, m.Type, m.SampleRate, m.Tags)
+	fmt.Fprintf(f, "%s:%g|%s%v%v\n", m.Name, m.Value, m.Type, m.Sample, m.Tags)
 }
 
 type Tags stats.Tags
@@ -155,9 +155,9 @@ func (tags Tags) Format(f fmt.State, _ rune) {
 	}
 }
 
-type SampleRate float64
+type Sample float64
 
-func (r SampleRate) Format(f fmt.State, _ rune) {
+func (r Sample) Format(f fmt.State, _ rune) {
 	if r != 0 && r != 1 {
 		fmt.Fprintf(f, "|@%g", float64(r))
 	}

@@ -20,7 +20,6 @@ type Config struct {
 	RetryAfterMax time.Duration
 	FlushTimeout  time.Duration
 	WriteTimeout  time.Duration
-	SampleRate    float64
 	Dial          func(string, string) (net.Conn, error)
 	Fail          func(error)
 }
@@ -45,7 +44,6 @@ func NewBackendWith(config Config) stats.Backend {
 		RetryAfterMax: config.RetryAfterMax,
 		FlushTimeout:  config.FlushTimeout,
 		WriteTimeout:  config.WriteTimeout,
-		SampleRate:    config.SampleRate,
 		Dial:          config.Dial,
 		Fail:          config.Fail,
 	})
@@ -69,25 +67,25 @@ func setConfigDefaults(config Config) Config {
 
 type protocol struct{}
 
-func (p protocol) WriteSet(w io.Writer, m stats.Metric, v float64, r float64, t time.Time) error {
-	return p.write(Gauge, w, m, v, r)
+func (p protocol) WriteSet(w io.Writer, m stats.Metric, v float64, t time.Time) error {
+	return p.write(Gauge, w, m, v)
 }
 
-func (p protocol) WriteAdd(w io.Writer, m stats.Metric, v float64, r float64, t time.Time) error {
-	return p.write(Counter, w, m, v, r)
+func (p protocol) WriteAdd(w io.Writer, m stats.Metric, v float64, t time.Time) error {
+	return p.write(Counter, w, m, v)
 }
 
-func (p protocol) WriteObserve(w io.Writer, m stats.Metric, v float64, r float64, t time.Time) error {
-	return p.write(Histogram, w, m, v, r)
+func (p protocol) WriteObserve(w io.Writer, m stats.Metric, v float64, t time.Time) error {
+	return p.write(Histogram, w, m, v)
 }
 
-func (p protocol) write(t MetricType, w io.Writer, m stats.Metric, v float64, r float64) (err error) {
+func (p protocol) write(t MetricType, w io.Writer, m stats.Metric, v float64) (err error) {
 	_, err = fmt.Fprint(w, Metric{
-		Name:       sanitize(m.Name()),
-		Value:      v,
-		Type:       t,
-		SampleRate: SampleRate(r),
-		Tags:       Tags(m.Tags()),
+		Name:   sanitize(m.Name()),
+		Value:  v,
+		Type:   t,
+		Sample: Sample(m.Sample()),
+		Tags:   Tags(m.Tags()),
 	})
 	return
 }

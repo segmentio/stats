@@ -14,66 +14,66 @@ func TestParseSuccess(t *testing.T) {
 		{
 			s: "page.views:1|c\n",
 			m: Metric{
-				Name:       "page.views",
-				Value:      1,
-				Type:       Counter,
-				SampleRate: 1,
-				Tags:       Tags{},
+				Name:   "page.views",
+				Value:  1,
+				Type:   Counter,
+				Sample: 1,
+				Tags:   Tags{},
 			},
 		},
 
 		{
 			s: "fuel.level:0.5|g\n",
 			m: Metric{
-				Name:       "fuel.level",
-				Value:      0.5,
-				Type:       Gauge,
-				SampleRate: 1,
-				Tags:       Tags{},
+				Name:   "fuel.level",
+				Value:  0.5,
+				Type:   Gauge,
+				Sample: 1,
+				Tags:   Tags{},
 			},
 		},
 
 		{
 			s: "song.length:240|h|@0.5\n",
 			m: Metric{
-				Name:       "song.length",
-				Value:      240,
-				Type:       Histogram,
-				SampleRate: 0.5,
-				Tags:       Tags{},
+				Name:   "song.length",
+				Value:  240,
+				Type:   Histogram,
+				Sample: 0.5,
+				Tags:   Tags{},
 			},
 		},
 
 		{
 			s: "users.uniques:1234|s\n",
 			m: Metric{
-				Name:       "users.uniques",
-				Value:      1234,
-				Type:       Set,
-				SampleRate: 1,
-				Tags:       Tags{},
+				Name:   "users.uniques",
+				Value:  1234,
+				Type:   Set,
+				Sample: 1,
+				Tags:   Tags{},
 			},
 		},
 
 		{
 			s: "users.online:1|c|#country:china\n",
 			m: Metric{
-				Name:       "users.online",
-				Value:      1,
-				Type:       Counter,
-				SampleRate: 1,
-				Tags:       Tags{{"country", "china"}},
+				Name:   "users.online",
+				Value:  1,
+				Type:   Counter,
+				Sample: 1,
+				Tags:   Tags{{"country", "china"}},
 			},
 		},
 
 		{
 			s: "users.online:1|c|@0.5|#country:china\n",
 			m: Metric{
-				Name:       "users.online",
-				Value:      1,
-				Type:       Counter,
-				SampleRate: 0.5,
-				Tags:       Tags{{"country", "china"}},
+				Name:   "users.online",
+				Value:  1,
+				Type:   Counter,
+				Sample: 0.5,
+				Tags:   Tags{{"country", "china"}},
 			},
 		},
 	}
