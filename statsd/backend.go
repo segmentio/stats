@@ -68,28 +68,25 @@ func setConfigDefaults(config Config) Config {
 type protocol struct{}
 
 func (p protocol) WriteSet(w io.Writer, m stats.Metric, v float64, t time.Time) error {
-	return p.write("g", w, m, v, t)
+	return p.write(w, Gauge, m, v)
 }
 
 func (p protocol) WriteAdd(w io.Writer, m stats.Metric, v float64, t time.Time) error {
-	return p.write("c", w, m, v, t)
+	return p.write(w, Counter, m, v)
 }
 
 func (p protocol) WriteObserve(w io.Writer, m stats.Metric, v float64, t time.Time) error {
-	return p.write("h", w, m, v, t)
+	return p.write(w, Histogram, m, v)
 }
 
-func (p protocol) write(s string, w io.Writer, m stats.Metric, v float64, t time.Time) (err error) {
-	_, err = fmt.Fprintf(w, "%s:%d|%s%v\n", sanitize(m.Name()), int64(v), s, sample(m.Sample()))
+func (p protocol) write(w io.Writer, t MetricType, m stats.Metric, v float64) (err error) {
+	_, err = fmt.Fprint(w, Metric{
+		Name:   sanitize(m.Name()),
+		Value:  int64(v),
+		Type:   t,
+		Sample: Sample(m.Sample()),
+	})
 	return
-}
-
-type sample float64
-
-func (s sample) Format(f fmt.State, _ rune) {
-	if s != 1 {
-		fmt.Fprintf(f, "|@%g", float64(s))
-	}
 }
 
 func sanitize(s string) string {
