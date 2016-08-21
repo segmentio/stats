@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"reflect"
 	"strings"
@@ -466,7 +467,7 @@ func TestEnqueueSuccess(t *testing.T) {
 		write:  nil,
 	}
 
-	enqueue(j, c, nil)
+	enqueue(j, c, rand.Float64, nil)
 
 	if x := <-c; !reflect.DeepEqual(j, x) {
 		t.Errorf("invalid job found after enqueing in channel: %#v", x)
@@ -482,7 +483,7 @@ func TestEnqueueFailureFull(t *testing.T) {
 		write:  nil,
 	}
 
-	enqueue(j, c, func(err error) { e = err })
+	enqueue(j, c, rand.Float64, func(err error) { e = err })
 
 	if e == nil {
 		t.Errorf("no error reported by an enqueue operation that should have failed")
@@ -499,7 +500,7 @@ func TestEnqueueFailureClosed(t *testing.T) {
 	}
 
 	close(c)
-	enqueue(j, c, func(err error) { e = err })
+	enqueue(j, c, rand.Float64, func(err error) { e = err })
 
 	if e == nil {
 		t.Errorf("no error reported by an enqueue operation that should have failed")

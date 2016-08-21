@@ -35,6 +35,7 @@ type Config struct {
 	WriteTimeout  time.Duration
 	Dial          func(string, string) (net.Conn, error)
 	Fail          func(error)
+	Rand          func() float64
 }
 
 func SplitNetworkAddress(addr string) (network string, address string) {
@@ -52,6 +53,7 @@ func NewBackendWith(config Config) stats.Backend {
 	done := make(chan struct{})
 
 	b := &backend{
+		rand: config.Rand,
 		fail: config.Fail,
 		jobs: jobs,
 		done: done,
@@ -96,6 +98,10 @@ func setConfigDefaults(config Config) Config {
 		config.Fail = makeFailFunc(os.Stderr)
 	}
 
+	if config.Rand == nil {
+		config.Rand = rand.Float64
+	}
+
 	return config
 }
 
@@ -112,6 +118,7 @@ type backend struct {
 	join sync.WaitGroup
 	jobs chan<- job
 	done chan struct{}
+	rand func() float64
 	fail func(error)
 }
 
@@ -135,16 +142,16 @@ func (b *backend) enqueue(m stats.Metric, v float64, t time.Time, w writer) {
 		value:  v,
 		write:  w,
 		time:   t,
-	}, b.jobs, b.fail)
+	}, b.jobs, b.rand, b.fail)
 }
 
-func enqueue(job job, jobs chan<- job, fail func(error)) {
+func enqueue(job job, jobs chan<- job, rand func() float64, fail func(error)) {
 	defer func() {
 		if x := recover(); x != nil {
 			fail(fmt.Errorf("discarding %s because the metric queue was closed", job.metric.Name()))
 		}
 	}()
-	if r := job.metric.Sample(); r == 1 || r > rand.Float64() {
+	if r := job.metric.Sample(); r == 1 || r > rand() {
 		select {
 		case jobs <- job:
 		default:

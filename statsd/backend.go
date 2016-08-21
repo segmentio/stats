@@ -22,6 +22,7 @@ type Config struct {
 	WriteTimeout  time.Duration
 	Dial          func(string, string) (net.Conn, error)
 	Fail          func(error)
+	Rand          func() float64
 }
 
 func NewBackend(addr string) stats.Backend {
@@ -46,6 +47,7 @@ func NewBackendWith(config Config) stats.Backend {
 		WriteTimeout:  config.WriteTimeout,
 		Dial:          config.Dial,
 		Fail:          config.Fail,
+		Rand:          config.Rand,
 	})
 }
 
