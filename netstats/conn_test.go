@@ -28,7 +28,7 @@ func TestConn(t *testing.T) {
 	events := []stats.Event{
 		{
 			Type:   "histogram",
-			Name:   "test.conn.outbound.bytes",
+			Name:   "test.conn.write.bytes",
 			Value:  12,
 			Sample: 1,
 			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_address", "127.0.0.1:2121"}, {"remote_address", "127.0.0.1:4242"}},
@@ -36,7 +36,7 @@ func TestConn(t *testing.T) {
 		},
 		{
 			Type:   "histogram",
-			Name:   "test.conn.inbound.bytes",
+			Name:   "test.conn.read.bytes",
 			Value:  10,
 			Sample: 1,
 			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_address", "127.0.0.1:2121"}, {"remote_address", "127.0.0.1:4242"}},
@@ -44,7 +44,7 @@ func TestConn(t *testing.T) {
 		},
 		{
 			Type:   "histogram",
-			Name:   "test.conn.inbound.bytes",
+			Name:   "test.conn.read.bytes",
 			Value:  2,
 			Sample: 1,
 			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_address", "127.0.0.1:2121"}, {"remote_address", "127.0.0.1:4242"}},

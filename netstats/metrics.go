@@ -10,8 +10,8 @@ type Metrics struct {
 
 func NewMetrics(client stats.Client, tags ...stats.Tag) *Metrics {
 	return &Metrics{
-		BytesIn:  client.Histogram("conn.inbound.bytes", tags...),
-		BytesOut: client.Histogram("conn.outbound.bytes", tags...),
+		BytesIn:  client.Histogram("conn.read.bytes", tags...),
+		BytesOut: client.Histogram("conn.write.bytes", tags...),
 		Errors:   client.Counter("conn.errors.count", tags...),
 	}
 }
