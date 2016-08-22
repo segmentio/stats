@@ -57,3 +57,14 @@ func (b multiBackend) Observe(m Metric, v float64, t time.Time) {
 		x.Observe(m, v, t)
 	}
 }
+
+type discardBackend struct{}
+
+func (_ discardBackend) Close() error                             { return nil }
+func (_ discardBackend) Set(_ Metric, _ float64, _ time.Time)     {}
+func (_ discardBackend) Add(_ Metric, _ float64, _ time.Time)     {}
+func (_ discardBackend) Observe(_ Metric, _ float64, _ time.Time) {}
+
+var (
+	Discard Backend = discardBackend{}
+)

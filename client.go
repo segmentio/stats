@@ -28,7 +28,7 @@ type Config struct {
 }
 
 var (
-	DefaultScope string
+	DefaultScope string = defaultScope()
 )
 
 func NewClient(scope string, backend Backend, tags ...Tag) Client {
@@ -84,10 +84,6 @@ func (c client) opts(name string, tags ...Tag) Opts {
 		Tags:    concatTags(c.tags, copyTags(Tags(tags))),
 		Now:     c.now,
 	}
-}
-
-func init() {
-	DefaultScope = defaultScope()
 }
 
 func defaultScope() (scope string) {

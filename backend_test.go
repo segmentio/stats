@@ -110,3 +110,10 @@ func TestMultiBackend(t *testing.T) {
 		}
 	}
 }
+
+func TestDiscardBackend(t *testing.T) {
+	Discard.Set(nil, 0, time.Time{})
+	Discard.Add(nil, 0, time.Time{})
+	Discard.Observe(nil, 0, time.Time{})
+	Discard.Close()
+}
