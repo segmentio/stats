@@ -575,22 +575,15 @@ func (c *testConn) Write(b []byte) (int, error) {
 	return c.Buffer.Write(b)
 }
 
-func (c *testConn) Close() error { return nil }
+func (c *testConn) Close() error                       { return c.err }
+func (c *testConn) LocalAddr() net.Addr                { return testLocalAddr }
+func (c *testConn) RemoteAddr() net.Addr               { return testRemoteAddr }
+func (c *testConn) SetDeadline(_ time.Time) error      { return c.err }
+func (c *testConn) SetReadDeadline(_ time.Time) error  { return c.err }
+func (c *testConn) SetWriteDeadline(_ time.Time) error { return c.err }
 
-func (c *testConn) LocalAddr() net.Addr { return testAddr{} }
-
-func (c *testConn) RemoteAddr() net.Addr { return testAddr{} }
-
-func (c *testConn) SetDeadline(_ time.Time) error { return nil }
-
-func (c *testConn) SetReadDeadline(_ time.Time) error { return nil }
-
-func (c *testConn) SetWriteDeadline(_ time.Time) error { return nil }
-
-type testAddr struct{}
-
-func (_ testAddr) Network() string { return "tcp" }
-
-func (_ testAddr) String() string { return "localhost" }
-
-var testError = errors.New("test")
+var (
+	testLocalAddr  = &net.TCPAddr{IP: net.IP{127, 0, 0, 1}, Port: 2121}
+	testRemoteAddr = &net.TCPAddr{IP: net.IP{127, 0, 0, 1}, Port: 4242}
+	testError      = errors.New("test")
+)
