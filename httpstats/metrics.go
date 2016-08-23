@@ -98,14 +98,13 @@ func (m *Metrics) makeMessageBody(body io.ReadCloser, time stats.Clock, tags ...
 }
 
 func makeRequestTags(req *http.Request, tags ...stats.Tag) stats.Tags {
-	host, port := requestHost(req)
+	host, _ := requestHost(req)
 	ctype, charset := contentType(req.Header)
 	return append(stats.Tags{
 		{"http_req_method", req.Method},
 		{"http_req_path", req.URL.Path},
 		{"http_req_protocol", req.Proto},
 		{"http_req_host", host},
-		{"http_req_host_port", net.JoinHostPort(host, port)},
 		{"http_req_content_type", ctype},
 		{"http_req_content_charset", charset},
 		{"http_req_content_encoding", contentEncoding(req.Header)},
