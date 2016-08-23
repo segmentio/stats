@@ -111,24 +111,30 @@ func TestRequestHost(t *testing.T) {
 	tests := []struct {
 		req  *http.Request
 		host string
+		port string
 	}{
 		{
 			req:  &http.Request{Host: "host"},
 			host: "host",
+			port: "",
 		},
 		{
 			req:  &http.Request{URL: &url.URL{Host: "url"}},
 			host: "url",
+			port: "",
 		},
 		{
-			req:  &http.Request{URL: &url.URL{}, Header: http.Header{"Host": {"header"}}},
+			req:  &http.Request{URL: &url.URL{}, Header: http.Header{"Host": {"header:port"}}},
 			host: "header",
+			port: "port",
 		},
 	}
 
 	for _, test := range tests {
-		if host := requestHost(test.req); host != test.host {
+		if host, port := requestHost(test.req); host != test.host {
 			t.Errorf("invalid request host: %#v != %#v", test.host, host)
+		} else if port != test.port {
+			t.Errorf("invalid request port: %#v != %#v", test.port, port)
 		}
 	}
 }

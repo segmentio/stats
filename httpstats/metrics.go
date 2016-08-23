@@ -3,6 +3,7 @@ package httpstats
 import (
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -97,12 +98,14 @@ func (m *Metrics) makeMessageBody(body io.ReadCloser, time stats.Clock, tags ...
 }
 
 func makeRequestTags(req *http.Request, tags ...stats.Tag) stats.Tags {
+	host, port := requestHost(req)
 	ctype, charset := contentType(req.Header)
 	return append(stats.Tags{
 		{"http_req_method", req.Method},
 		{"http_req_path", req.URL.Path},
 		{"http_req_protocol", req.Proto},
-		{"http_req_host", requestHost(req)},
+		{"http_req_host", host},
+		{"http_req_host_port", net.JoinHostPort(host, port)},
 		{"http_req_content_type", ctype},
 		{"http_req_content_charset", charset},
 		{"http_req_content_encoding", contentEncoding(req.Header)},
@@ -173,12 +176,17 @@ func responseHeaderLength(res *http.Response) int {
 	return w.N
 }
 
-func requestHost(req *http.Request) (host string) {
+func requestHost(req *http.Request) (host string, port string) {
 	if host = req.Host; len(host) == 0 {
 		if host = req.URL.Host; len(host) == 0 {
 			host = req.Header.Get("Host")
 		}
 	}
+
+	if h, p, e := net.SplitHostPort(host); e == nil {
+		host, port = h, p
+	}
+
 	return
 }
 
