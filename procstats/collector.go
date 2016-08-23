@@ -14,19 +14,23 @@ type Collector interface {
 type CollectorConfig struct {
 	Client          stats.Client
 	CollectInterval time.Duration
+	Tags            stats.Tags
 }
 
-func NewCollector(client stats.Client) Collector {
-	return NewCollectorWith(CollectorConfig{Client: client})
+func NewCollector(client stats.Client, tags ...stats.Tag) Collector {
+	return NewCollectorWith(CollectorConfig{
+		Client: client,
+		Tags:   stats.Tags(tags),
+	})
 }
 
 func NewCollectorWith(config CollectorConfig) Collector {
 	config = setCollectorConfigDefault(config)
 
-	tags := stats.Tags{
+	tags := append(stats.Tags{
 		{"runtime", "go"},
 		{"version", runtime.Version()},
-	}
+	}, config.Tags...)
 
 	collec := &collector{
 		rusage:  NewRusageStats(config.Client, tags...),
