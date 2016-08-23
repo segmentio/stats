@@ -14,13 +14,3 @@ func NewBackend(logger log.Interface) stats.Backend {
 func fields(e stats.Event) log.Fields {
 	return log.Fields{"metric": e}
 }
-
-func tags(tags stats.Tags) log.Fields {
-	fields := make(log.Fields, len(tags))
-
-	for _, tag := range tags {
-		fields[tag.Name] = tag.Value
-	}
-
-	return fields
-}
