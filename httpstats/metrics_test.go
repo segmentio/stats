@@ -9,16 +9,16 @@ import (
 	"testing"
 )
 
-func TestCopyHttpHeader(t *testing.T) {
+func TestCopyHeader(t *testing.T) {
 	h1 := http.Header{"Content-Type": {"text/plain"}, "Content-Length": {"11"}}
-	h2 := copyHttpHeader(h1)
+	h2 := copyHeader(h1)
 
 	if !reflect.DeepEqual(h1, h2) {
 		t.Errorf("%v != %v", h1, h2)
 	}
 }
 
-func TestHttpResponseStatusBucket(t *testing.T) {
+func TestResponseStatusBucket(t *testing.T) {
 	tests := []struct {
 		status int
 		bucket string
@@ -50,13 +50,13 @@ func TestHttpResponseStatusBucket(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		if s := httpResponseStatusBucket(test.status); s != test.bucket {
+		if s := responseStatusBucket(test.status); s != test.bucket {
 			t.Errorf("bucket(%d) => %s != %s", test.status, test.bucket, s)
 		}
 	}
 }
 
-func TestHttpRequestLength(t *testing.T) {
+func TestRequestLength(t *testing.T) {
 	tests := []struct {
 		req *http.Request
 		len int
@@ -75,13 +75,13 @@ func TestHttpRequestLength(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		if n := httpRequestHeaderLength(test.req); n != test.len {
-			t.Errorf("httpRequestHeaderLength #%d => %d != %d", i, test.len, n)
+		if n := requestHeaderLength(test.req); n != test.len {
+			t.Errorf("requestHeaderLength #%d => %d != %d", i, test.len, n)
 		}
 	}
 }
 
-func TestHttpResponseLength(t *testing.T) {
+func TestResponseLength(t *testing.T) {
 	tests := []struct {
 		res *http.Response
 		len int
@@ -101,8 +101,34 @@ func TestHttpResponseLength(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		if n := httpResponseHeaderLength(test.res); n != test.len {
-			t.Errorf("httpResponseHeaderLength #%d => %d != %d", i, test.len, n)
+		if n := responseHeaderLength(test.res); n != test.len {
+			t.Errorf("responseHeaderLength #%d => %d != %d", i, test.len, n)
+		}
+	}
+}
+
+func TestRequestHost(t *testing.T) {
+	tests := []struct {
+		req  *http.Request
+		host string
+	}{
+		{
+			req:  &http.Request{Host: "host"},
+			host: "host",
+		},
+		{
+			req:  &http.Request{URL: &url.URL{Host: "url"}},
+			host: "url",
+		},
+		{
+			req:  &http.Request{URL: &url.URL{}, Header: http.Header{"Host": {"header"}}},
+			host: "header",
+		},
+	}
+
+	for _, test := range tests {
+		if host := requestHost(test.req); host != test.host {
+			t.Errorf("invalid request host: %#v != %#v", test.host, host)
 		}
 	}
 }
