@@ -1,6 +1,8 @@
 package netstats
 
 import (
+	"io"
+	"net"
 	"reflect"
 	"testing"
 	"time"
@@ -26,28 +28,57 @@ func TestConn(t *testing.T) {
 	conn.Close()
 
 	events := []stats.Event{
+		// Write
 		{
 			Type:   "histogram",
-			Name:   "test.conn.write.bytes",
+			Name:   "test.conn.iops",
 			Value:  12,
 			Sample: 1,
-			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_address", "127.0.0.1:2121"}, {"remote_address", "127.0.0.1:4242"}},
+			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_address", "127.0.0.1:2121"}, {"remote_address", "127.0.0.1:4242"}, {"operation", "write"}},
 			Time:   now,
 		},
 		{
+			Type:   "counter",
+			Name:   "test.conn.bytes.count",
+			Value:  12,
+			Sample: 1,
+			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_address", "127.0.0.1:2121"}, {"remote_address", "127.0.0.1:4242"}, {"operation", "write"}},
+			Time:   now,
+		},
+
+		// Read
+		{
 			Type:   "histogram",
-			Name:   "test.conn.read.bytes",
+			Name:   "test.conn.iops",
 			Value:  10,
 			Sample: 1,
-			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_address", "127.0.0.1:2121"}, {"remote_address", "127.0.0.1:4242"}},
+			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_address", "127.0.0.1:2121"}, {"remote_address", "127.0.0.1:4242"}, {"operation", "read"}},
 			Time:   now,
 		},
 		{
+			Type:   "counter",
+			Name:   "test.conn.bytes.count",
+			Value:  10,
+			Sample: 1,
+			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_address", "127.0.0.1:2121"}, {"remote_address", "127.0.0.1:4242"}, {"operation", "read"}},
+			Time:   now,
+		},
+
+		// Read
+		{
 			Type:   "histogram",
-			Name:   "test.conn.read.bytes",
+			Name:   "test.conn.iops",
 			Value:  2,
 			Sample: 1,
-			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_address", "127.0.0.1:2121"}, {"remote_address", "127.0.0.1:4242"}},
+			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_address", "127.0.0.1:2121"}, {"remote_address", "127.0.0.1:4242"}, {"operation", "read"}},
+			Time:   now,
+		},
+		{
+			Type:   "counter",
+			Name:   "test.conn.bytes.count",
+			Value:  2,
+			Sample: 1,
+			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_address", "127.0.0.1:2121"}, {"remote_address", "127.0.0.1:4242"}, {"operation", "read"}},
 			Time:   now,
 		},
 	}
@@ -138,5 +169,14 @@ func TestConnError(t *testing.T) {
 
 	if !reflect.DeepEqual(backend.Events, events) {
 		t.Errorf("\n- %#v\n- %#v", events, backend.Events)
+	}
+}
+
+func TestRootError(t *testing.T) {
+	e1 := &net.OpError{Err: io.EOF}
+	e2 := rootError(e1)
+
+	if e2 != io.EOF {
+		t.Errorf("bad root error: %s", e2)
 	}
 }

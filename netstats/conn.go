@@ -31,10 +31,11 @@ func (c conn) Read(b []byte) (n int, err error) {
 	n, err = c.Conn.Read(b)
 
 	if n > 0 {
-		c.metrics.BytesIn.Observe(float64(n))
+		c.metrics.Reads.Observe(float64(n))
+		c.metrics.BytesIn.Add(float64(n))
 	}
 
-	if err != nil {
+	if err != nil && err != io.EOF {
 		c.error("read", err)
 	}
 
@@ -45,7 +46,8 @@ func (c conn) Write(b []byte) (n int, err error) {
 	n, err = c.Conn.Write(b)
 
 	if n > 0 {
-		c.metrics.BytesOut.Observe(float64(n))
+		c.metrics.Writes.Observe(float64(n))
+		c.metrics.BytesOut.Add(float64(n))
 	}
 
 	if err != nil {
@@ -84,11 +86,26 @@ func (c conn) SetWriteDeadline(t time.Time) (err error) {
 }
 
 func (c conn) error(op string, err error) {
-	// this is expected, don't report it
-	if err != io.EOF {
-		// only report serious errors, these should be handled gracefully
+	switch err = rootError(err); err {
+	case io.EOF, io.ErrClosedPipe, io.ErrUnexpectedEOF:
+		// this is expected to happen when connections are closed
+	default:
+		// only report serious errors, others should be handled gracefully
 		if e, ok := err.(net.Error); !ok || !(e.Temporary() || e.Timeout()) {
 			c.metrics.Errors.Add(1, stats.Tag{"operation", op})
 		}
 	}
+}
+
+func rootError(err error) error {
+searchRootError:
+	for i := 0; i != 10; i++ { // protect against cyclic errors
+		switch e := err.(type) {
+		case *net.OpError:
+			err = e.Err
+		default:
+			break searchRootError
+		}
+	}
+	return err
 }
