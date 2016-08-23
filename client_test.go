@@ -108,7 +108,7 @@ func TestClient(t *testing.T) {
 			Name:   "test.events.seconds",
 			Value:  4,
 			Sample: 1,
-			Tags:   Tags{{"hello", "world"}},
+			Tags:   Tags{{"hello", "world"}, {"stamp", "total"}},
 			Time:   now.Add(4 * time.Second),
 		},
 	}

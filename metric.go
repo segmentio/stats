@@ -178,7 +178,7 @@ func (c *clock) StampAt(name string, time time.Time, tags ...Tag) {
 func (c *clock) Stop(tags ...Tag) { c.StopAt(c.now(), tags...) }
 
 func (c *clock) StopAt(time time.Time, tags ...Tag) {
-	c.backend.Observe(c.histogram("", tags...), time.Sub(c.start).Seconds(), time)
+	c.backend.Observe(c.histogram("total", tags...), time.Sub(c.start).Seconds(), time)
 }
 
 func (c *clock) histogram(name string, tags ...Tag) *histogram {
