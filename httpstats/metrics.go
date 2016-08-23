@@ -39,7 +39,7 @@ func newMetrics(client stats.Client, reqOp string, resOp string, tags ...stats.T
 		Requests:  makeMessageMetrics(client, "request", reqOp, tags...),
 		Responses: makeMessageMetrics(client, "response", resOp, tags...),
 		Errors:    client.Counter("http.errors.count", tags...),
-		RTT:       client.Timer("https.rtt.seconds", tags...),
+		RTT:       client.Timer("http.rtt.seconds", tags...),
 	}
 }
 
