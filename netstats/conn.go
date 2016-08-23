@@ -11,11 +11,16 @@ import (
 func NewConn(c net.Conn, client stats.Client, tags ...stats.Tag) net.Conn {
 	laddr := c.LocalAddr()
 	raddr := c.RemoteAddr()
+
+	lhost, _, _ := net.SplitHostPort(laddr.String())
+	rhost, _, _ := net.SplitHostPort(raddr.String())
+
 	tags = append(tags,
 		stats.Tag{"protocol", laddr.Network()},
-		stats.Tag{"local_address", laddr.String()},
-		stats.Tag{"remote_address", raddr.String()},
+		stats.Tag{"local_addr", lhost},
+		stats.Tag{"remote_addr", rhost},
 	)
+
 	return conn{
 		Conn:    c,
 		metrics: NewMetrics(client, tags...),

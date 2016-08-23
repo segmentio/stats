@@ -34,7 +34,7 @@ func TestConn(t *testing.T) {
 			Name:   "test.conn.iops",
 			Value:  12,
 			Sample: 1,
-			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_address", "127.0.0.1:2121"}, {"remote_address", "127.0.0.1:4242"}, {"operation", "write"}},
+			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_addr", "127.0.0.1"}, {"remote_addr", "127.0.0.1"}, {"operation", "write"}},
 			Time:   now,
 		},
 		{
@@ -42,7 +42,7 @@ func TestConn(t *testing.T) {
 			Name:   "test.conn.bytes.count",
 			Value:  12,
 			Sample: 1,
-			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_address", "127.0.0.1:2121"}, {"remote_address", "127.0.0.1:4242"}, {"operation", "write"}},
+			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_addr", "127.0.0.1"}, {"remote_addr", "127.0.0.1"}, {"operation", "write"}},
 			Time:   now,
 		},
 
@@ -52,7 +52,7 @@ func TestConn(t *testing.T) {
 			Name:   "test.conn.iops",
 			Value:  10,
 			Sample: 1,
-			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_address", "127.0.0.1:2121"}, {"remote_address", "127.0.0.1:4242"}, {"operation", "read"}},
+			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_addr", "127.0.0.1"}, {"remote_addr", "127.0.0.1"}, {"operation", "read"}},
 			Time:   now,
 		},
 		{
@@ -60,7 +60,7 @@ func TestConn(t *testing.T) {
 			Name:   "test.conn.bytes.count",
 			Value:  10,
 			Sample: 1,
-			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_address", "127.0.0.1:2121"}, {"remote_address", "127.0.0.1:4242"}, {"operation", "read"}},
+			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_addr", "127.0.0.1"}, {"remote_addr", "127.0.0.1"}, {"operation", "read"}},
 			Time:   now,
 		},
 
@@ -70,7 +70,7 @@ func TestConn(t *testing.T) {
 			Name:   "test.conn.iops",
 			Value:  2,
 			Sample: 1,
-			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_address", "127.0.0.1:2121"}, {"remote_address", "127.0.0.1:4242"}, {"operation", "read"}},
+			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_addr", "127.0.0.1"}, {"remote_addr", "127.0.0.1"}, {"operation", "read"}},
 			Time:   now,
 		},
 		{
@@ -78,7 +78,7 @@ func TestConn(t *testing.T) {
 			Name:   "test.conn.bytes.count",
 			Value:  2,
 			Sample: 1,
-			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_address", "127.0.0.1:2121"}, {"remote_address", "127.0.0.1:4242"}, {"operation", "read"}},
+			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_addr", "127.0.0.1"}, {"remote_addr", "127.0.0.1"}, {"operation", "read"}},
 			Time:   now,
 		},
 	}
@@ -114,7 +114,7 @@ func TestConnError(t *testing.T) {
 			Name:   "test.conn.errors.count",
 			Value:  1,
 			Sample: 1,
-			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_address", "127.0.0.1:2121"}, {"remote_address", "127.0.0.1:4242"}, {"operation", "set-timeout"}},
+			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_addr", "127.0.0.1"}, {"remote_addr", "127.0.0.1"}, {"operation", "set-timeout"}},
 			Time:   now,
 		},
 		{
@@ -122,7 +122,7 @@ func TestConnError(t *testing.T) {
 			Name:   "test.conn.errors.count",
 			Value:  1,
 			Sample: 1,
-			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_address", "127.0.0.1:2121"}, {"remote_address", "127.0.0.1:4242"}, {"operation", "set-read-timeout"}},
+			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_addr", "127.0.0.1"}, {"remote_addr", "127.0.0.1"}, {"operation", "set-read-timeout"}},
 			Time:   now,
 		},
 		{
@@ -130,7 +130,7 @@ func TestConnError(t *testing.T) {
 			Name:   "test.conn.errors.count",
 			Value:  1,
 			Sample: 1,
-			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_address", "127.0.0.1:2121"}, {"remote_address", "127.0.0.1:4242"}, {"operation", "set-write-timeout"}},
+			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_addr", "127.0.0.1"}, {"remote_addr", "127.0.0.1"}, {"operation", "set-write-timeout"}},
 			Time:   now,
 		},
 		{
@@ -138,7 +138,7 @@ func TestConnError(t *testing.T) {
 			Name:   "test.conn.errors.count",
 			Value:  1,
 			Sample: 1,
-			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_address", "127.0.0.1:2121"}, {"remote_address", "127.0.0.1:4242"}, {"operation", "write"}},
+			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_addr", "127.0.0.1"}, {"remote_addr", "127.0.0.1"}, {"operation", "write"}},
 			Time:   now,
 		},
 		{
@@ -146,7 +146,7 @@ func TestConnError(t *testing.T) {
 			Name:   "test.conn.errors.count",
 			Value:  1,
 			Sample: 1,
-			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_address", "127.0.0.1:2121"}, {"remote_address", "127.0.0.1:4242"}, {"operation", "read"}},
+			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_addr", "127.0.0.1"}, {"remote_addr", "127.0.0.1"}, {"operation", "read"}},
 			Time:   now,
 		},
 		{
@@ -154,7 +154,7 @@ func TestConnError(t *testing.T) {
 			Name:   "test.conn.errors.count",
 			Value:  1,
 			Sample: 1,
-			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_address", "127.0.0.1:2121"}, {"remote_address", "127.0.0.1:4242"}, {"operation", "read"}},
+			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_addr", "127.0.0.1"}, {"remote_addr", "127.0.0.1"}, {"operation", "read"}},
 			Time:   now,
 		},
 		{
@@ -162,7 +162,7 @@ func TestConnError(t *testing.T) {
 			Name:   "test.conn.errors.count",
 			Value:  1,
 			Sample: 1,
-			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_address", "127.0.0.1:2121"}, {"remote_address", "127.0.0.1:4242"}, {"operation", "close"}},
+			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_addr", "127.0.0.1"}, {"remote_addr", "127.0.0.1"}, {"operation", "close"}},
 			Time:   now,
 		},
 	}
