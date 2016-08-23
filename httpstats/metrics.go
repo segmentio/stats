@@ -98,27 +98,31 @@ func (m *Metrics) makeMessageBody(body io.ReadCloser, time stats.Clock, tags ...
 }
 
 func makeRequestTags(req *http.Request, tags ...stats.Tag) stats.Tags {
+	ctype, charset := contentType(req.Header)
 	return append(stats.Tags{
 		{"http_req_method", req.Method},
 		{"http_req_path", req.URL.Path},
 		{"http_req_protocol", req.Proto},
 		{"http_req_host", requestHost(req)},
-		{"http_req_content_type", req.Header.Get("Content-Type")},
-		{"http_req_content_encoding", req.Header.Get("Content-Encoding")},
-		{"http_req_transfer_encoding", strings.Join(req.TransferEncoding, ",")},
+		{"http_req_content_type", ctype},
+		{"http_req_content_charset", charset},
+		{"http_req_content_encoding", contentEncoding(req.Header)},
+		{"http_req_transfer_encoding", transferEncoding(req.TransferEncoding)},
 	}, tags...)
 }
 
 func makeResponseTags(res *http.Response, tags ...stats.Tag) stats.Tags {
+	ctype, charset := contentType(res.Header)
 	tags = append(stats.Tags{
 		{"http_res_status_bucket", responseStatusBucket(res.StatusCode)},
 		{"http_res_status", strconv.Itoa(res.StatusCode)},
 		{"http_res_protocol", res.Proto},
 		{"http_res_server", res.Header.Get("Server")},
 		{"http_res_upgrade", res.Header.Get("Upgrade")},
-		{"http_res_content_type", res.Header.Get("Content-Type")},
-		{"http_res_content_encoding", res.Header.Get("Content-Encoding")},
-		{"http_res_transfer_encoding", strings.Join(res.TransferEncoding, ",")},
+		{"http_res_content_type", ctype},
+		{"http_res_content_charset", charset},
+		{"http_res_content_encoding", contentEncoding(res.Header)},
+		{"http_res_transfer_encoding", transferEncoding(res.TransferEncoding)},
 	}, tags...)
 
 	if req := res.Request; req != nil {
@@ -207,6 +211,46 @@ func copyHeader(h http.Header) http.Header {
 		copy[name] = value
 	}
 	return copy
+}
+
+func contentType(h http.Header) (string, string) {
+	return parseContentType(h.Get("Content-Type"))
+}
+
+func contentEncoding(h http.Header) string {
+	return strings.TrimSpace(h.Get("Content-Encoding"))
+}
+
+func transferEncoding(te []string) string {
+	switch len(te) {
+	case 0:
+		return ""
+	case 1:
+		return te[0]
+	default:
+		return strings.Join(te, ";")
+	}
+}
+
+func parseContentType(s string) (contentType string, charset string) {
+	for i := 0; len(s) != 0; i++ {
+		var t string
+		if t, s = parseHeaderToken(s); strings.HasPrefix(t, "charset=") {
+			charset = t[8:]
+		} else if len(contentType) == 0 {
+			contentType = t
+		}
+	}
+	return
+}
+
+func parseHeaderToken(s string) (token string, next string) {
+	if i := strings.IndexByte(s, ';'); i >= 0 {
+		token, next = strings.TrimSpace(s[:i]), strings.TrimSpace(s[i+1:])
+	} else {
+		token = strings.TrimSpace(s)
+	}
+	return
 }
 
 type readCloser struct {

@@ -132,3 +132,76 @@ func TestRequestHost(t *testing.T) {
 		}
 	}
 }
+
+func TestTransferEncoding(t *testing.T) {
+	tests := []struct {
+		s []string
+		e string
+	}{
+		{
+			s: nil,
+			e: "",
+		},
+		{
+			s: []string{"chunked"},
+			e: "chunked",
+		},
+		{
+			s: []string{"chunked", "identity"},
+			e: "chunked;identity",
+		},
+	}
+
+	for _, test := range tests {
+		if te := transferEncoding(test.s); te != test.e {
+			t.Errorf("invalid transfer encoding: %#v => %#v != %#v", test.s, test.e, te)
+		}
+	}
+}
+
+func TestParseContentType(t *testing.T) {
+	tests := []struct {
+		s string
+		t string
+		c string
+	}{
+		{
+			s: "",
+			t: "",
+			c: "",
+		},
+		{
+			s: "text/html",
+			t: "text/html",
+			c: "",
+		},
+		{
+			s: "text/html; charset=UTF-8",
+			t: "text/html",
+			c: "UTF-8",
+		},
+		{
+			s: "text/html; charset=UTF-8;",
+			t: "text/html",
+			c: "UTF-8",
+		},
+		{
+			s: "text/html;\ncharset=UTF-8\n",
+			t: "text/html",
+			c: "UTF-8",
+		},
+		{
+			s: "charset=UTF-8",
+			t: "",
+			c: "UTF-8",
+		},
+	}
+
+	for _, test := range tests {
+		if ctype, charset := parseContentType(test.s); ctype != test.t {
+			t.Errorf("invalid content type: %#v => %#v != %#v", test.s, test.t, ctype)
+		} else if charset != test.c {
+			t.Errorf("invalid charset: %#v => %#v != %v", test.s, test.c, charset)
+		}
+	}
+}
