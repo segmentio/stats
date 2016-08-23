@@ -67,14 +67,15 @@ func (c *conn) Write(b []byte) (n int, err error) {
 }
 
 func (c *conn) Close() (err error) {
-	if err = c.Conn.Close(); err != nil {
-		c.error("close", err)
-	}
-	c.once.Do(c.close)
+	err = c.Conn.Close()
+	c.once.Do(func() {
+		if err != nil {
+			c.error("close", err)
+		}
+		c.metrics.Close.Add(1)
+	})
 	return
 }
-
-func (c *conn) close() { c.metrics.Close.Add(1) }
 
 func (c *conn) SetDeadline(t time.Time) (err error) {
 	if err = c.Conn.SetDeadline(t); err != nil {
