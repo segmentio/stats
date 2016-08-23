@@ -21,8 +21,9 @@ type httpHandler struct {
 }
 
 func (h httpHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	var clock stats.Clock
-	clock, req.Body = h.metrics.ObserveRequest(req)
+	clock := h.metrics.RTT.Start()
+
+	req.Body, _ = h.metrics.ObserveRequest(req)
 
 	w := &httpResponseWriter{
 		ResponseWriter: res,

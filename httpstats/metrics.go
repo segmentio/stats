@@ -53,26 +53,25 @@ func makeMessageMetrics(client stats.Client, typ string, op string, tags ...stat
 	}
 }
 
-func (m *Metrics) ObserveRequest(req *http.Request, tags ...stats.Tag) (time stats.Clock, body io.ReadCloser) {
-	time = m.RTT.Start()
+func (m *Metrics) ObserveRequest(req *http.Request, tags ...stats.Tag) (body io.ReadCloser, reqtags stats.Tags) {
 	tags = makeRequestTags(req, tags...)
 
 	m.Requests.Count.Add(1, tags...)
 	m.Requests.HeaderSizes.Observe(float64(len(req.Header)), tags...)
 	m.Requests.HeaderBytes.Observe(float64(requestHeaderLength(req)), tags...)
 
-	body = m.makeMessageBody(req.Body, nil, tags...)
+	body, reqtags = m.makeMessageBody(req.Body, nil, tags...), stats.Tags(tags)
 	return
 }
 
-func (m *Metrics) ObserveResponse(res *http.Response, time stats.Clock, tags ...stats.Tag) (body io.ReadCloser) {
+func (m *Metrics) ObserveResponse(res *http.Response, time stats.Clock, tags ...stats.Tag) (body io.ReadCloser, restags stats.Tags) {
 	tags = makeResponseTags(res, tags...)
 
 	m.Responses.Count.Add(1, tags...)
 	m.Responses.HeaderSizes.Observe(float64(len(res.Header)), tags...)
 	m.Responses.HeaderBytes.Observe(float64(responseHeaderLength(res)), tags...)
 
-	body = m.makeMessageBody(res.Body, time, tags...)
+	body, restags = m.makeMessageBody(res.Body, time, tags...), stats.Tags(tags)
 	return
 }
 

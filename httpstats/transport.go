@@ -19,18 +19,18 @@ type httpTransport struct {
 }
 
 func (t httpTransport) RoundTrip(req *http.Request) (res *http.Response, err error) {
-	var clock stats.Clock
+	var clock = t.metrics.RTT.Start()
+	var tags stats.Tags
 
-	clock, req.Body = t.metrics.ObserveRequest(req)
+	req.Body, tags = t.metrics.ObserveRequest(req)
 	res, err = t.transport.RoundTrip(req)
 	req.Body.Close() // safe guard, the transport should have done it already
-	clock.Stop()
 
 	if err != nil {
 		t.metrics.Errors.Add(1, makeRequestTags(req)...)
-		clock.Stop()
+		clock.Stop(tags...)
 	} else {
-		res.Body = t.metrics.ObserveResponse(res, clock)
+		res.Body, _ = t.metrics.ObserveResponse(res, clock)
 	}
 
 	return
