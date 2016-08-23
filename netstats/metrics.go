@@ -3,6 +3,8 @@ package netstats
 import "github.com/segmentio/stats"
 
 type Metrics struct {
+	Open     stats.Counter
+	Close    stats.Counter
 	Reads    stats.Histogram
 	Writes   stats.Histogram
 	BytesIn  stats.Counter
@@ -17,6 +19,14 @@ func NewMetrics(client stats.Client, tags ...stats.Tag) *Metrics {
 
 	n := len(tags)
 	tags = append(tags, stats.Tag{})
+
+	// open
+	tags[n] = stats.Tag{"operation", "open"}
+	m.Open = client.Counter("conn.open.count", tags...)
+
+	// close
+	tags[n] = stats.Tag{"operation", "close"}
+	m.Close = client.Counter("conn.close.count", tags...)
 
 	// read
 	tags[n] = stats.Tag{"operation", "read"}

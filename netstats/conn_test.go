@@ -28,6 +28,16 @@ func TestConn(t *testing.T) {
 	conn.Close()
 
 	events := []stats.Event{
+		// Open
+		{
+			Type:   "counter",
+			Name:   "test.conn.open.count",
+			Value:  1,
+			Sample: 1,
+			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_addr", "127.0.0.1"}, {"local_port", "2121"}, {"remote_addr", "127.0.0.1"}, {"remote_port", "4242"}, {"operation", "open"}},
+			Time:   now,
+		},
+
 		// Write
 		{
 			Type:   "histogram",
@@ -81,6 +91,16 @@ func TestConn(t *testing.T) {
 			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_addr", "127.0.0.1"}, {"local_port", "2121"}, {"remote_addr", "127.0.0.1"}, {"remote_port", "4242"}, {"operation", "read"}},
 			Time:   now,
 		},
+
+		// Close
+		{
+			Type:   "counter",
+			Name:   "test.conn.close.count",
+			Value:  1,
+			Sample: 1,
+			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_addr", "127.0.0.1"}, {"local_port", "2121"}, {"remote_addr", "127.0.0.1"}, {"remote_port", "4242"}, {"operation", "close"}},
+			Time:   now,
+		},
 	}
 
 	if !reflect.DeepEqual(backend.Events, events) {
@@ -109,6 +129,14 @@ func TestConnError(t *testing.T) {
 	conn.Close()
 
 	events := []stats.Event{
+		{
+			Type:   "counter",
+			Name:   "test.conn.open.count",
+			Value:  1,
+			Sample: 1,
+			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_addr", "127.0.0.1"}, {"local_port", "2121"}, {"remote_addr", "127.0.0.1"}, {"remote_port", "4242"}, {"operation", "open"}},
+			Time:   now,
+		},
 		{
 			Type:   "counter",
 			Name:   "test.conn.errors.count",
@@ -160,6 +188,14 @@ func TestConnError(t *testing.T) {
 		{
 			Type:   "counter",
 			Name:   "test.conn.errors.count",
+			Value:  1,
+			Sample: 1,
+			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_addr", "127.0.0.1"}, {"local_port", "2121"}, {"remote_addr", "127.0.0.1"}, {"remote_port", "4242"}, {"operation", "close"}},
+			Time:   now,
+		},
+		{
+			Type:   "counter",
+			Name:   "test.conn.close.count",
 			Value:  1,
 			Sample: 1,
 			Tags:   stats.Tags{{"protocol", "tcp"}, {"local_addr", "127.0.0.1"}, {"local_port", "2121"}, {"remote_addr", "127.0.0.1"}, {"remote_port", "4242"}, {"operation", "close"}},

@@ -3,6 +3,7 @@ package netstats
 import (
 	"io"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/segmentio/stats"
@@ -23,18 +24,19 @@ func NewConn(c net.Conn, client stats.Client, tags ...stats.Tag) net.Conn {
 		stats.Tag{"remote_port", rport},
 	)
 
-	return conn{
-		Conn:    c,
-		metrics: NewMetrics(client, tags...),
-	}
+	m := NewMetrics(client, tags...)
+	m.Open.Add(1)
+
+	return &conn{Conn: c, metrics: m}
 }
 
 type conn struct {
 	net.Conn
 	metrics *Metrics
+	once    sync.Once
 }
 
-func (c conn) Read(b []byte) (n int, err error) {
+func (c *conn) Read(b []byte) (n int, err error) {
 	n, err = c.Conn.Read(b)
 
 	if n > 0 {
@@ -49,7 +51,7 @@ func (c conn) Read(b []byte) (n int, err error) {
 	return
 }
 
-func (c conn) Write(b []byte) (n int, err error) {
+func (c *conn) Write(b []byte) (n int, err error) {
 	n, err = c.Conn.Write(b)
 
 	if n > 0 {
@@ -64,35 +66,38 @@ func (c conn) Write(b []byte) (n int, err error) {
 	return
 }
 
-func (c conn) Close() (err error) {
+func (c *conn) Close() (err error) {
 	if err = c.Conn.Close(); err != nil {
 		c.error("close", err)
 	}
+	c.once.Do(c.close)
 	return
 }
 
-func (c conn) SetDeadline(t time.Time) (err error) {
+func (c *conn) close() { c.metrics.Close.Add(1) }
+
+func (c *conn) SetDeadline(t time.Time) (err error) {
 	if err = c.Conn.SetDeadline(t); err != nil {
 		c.error("set-timeout", err)
 	}
 	return
 }
 
-func (c conn) SetReadDeadline(t time.Time) (err error) {
+func (c *conn) SetReadDeadline(t time.Time) (err error) {
 	if err = c.Conn.SetReadDeadline(t); err != nil {
 		c.error("set-read-timeout", err)
 	}
 	return
 }
 
-func (c conn) SetWriteDeadline(t time.Time) (err error) {
+func (c *conn) SetWriteDeadline(t time.Time) (err error) {
 	if err = c.Conn.SetWriteDeadline(t); err != nil {
 		c.error("set-write-timeout", err)
 	}
 	return
 }
 
-func (c conn) error(op string, err error) {
+func (c *conn) error(op string, err error) {
 	switch err = rootError(err); err {
 	case io.EOF, io.ErrClosedPipe, io.ErrUnexpectedEOF:
 		// this is expected to happen when connections are closed
