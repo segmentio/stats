@@ -103,11 +103,11 @@ func main() {
     client := stats.NewClient("app", datadog.NewBackend("localhost:8125"))
     defer client.Close()
 
-    // Creates a new stats collector for the current process.
-    collector := procstats.NewCollector(client)
+    // Start a new collector for the current process, reporting Go metrics.
+    stop := procstats.Start(procstats.NewGoStats(client))
 
     // Gracefully stops stats collection.
-    defer collector.Stop()
+    defer stop()
 
     // ...
 }

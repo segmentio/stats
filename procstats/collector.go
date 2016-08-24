@@ -1,96 +1,69 @@
 package procstats
 
-import (
-	"runtime"
-	"time"
-
-	"github.com/segmentio/stats"
-)
+import "time"
 
 type Collector interface {
-	Stop()
+	Collect()
 }
 
-type CollectorConfig struct {
-	Client          stats.Client
+type CollectorFunc func()
+
+func (f CollectorFunc) Collect() { f() }
+
+type Config struct {
+	Collector       Collector
 	CollectInterval time.Duration
-	Tags            stats.Tags
 }
 
-func NewCollector(client stats.Client, tags ...stats.Tag) Collector {
-	return NewCollectorWith(CollectorConfig{
-		Client: client,
-		Tags:   stats.Tags(tags),
+func MultiCollector(collectors ...Collector) Collector {
+	return CollectorFunc(func() {
+		for _, c := range collectors {
+			c.Collect()
+		}
 	})
 }
 
-func NewCollectorWith(config CollectorConfig) Collector {
-	config = setCollectorConfigDefault(config)
-
-	tags := append(stats.Tags{
-		{"runtime", "go"},
-		{"version", runtime.Version()},
-	}, config.Tags...)
-
-	collec := &collector{
-		rusage:  NewRusageStats(config.Client, tags...),
-		runtime: NewRuntimeStats(config.Client, tags...),
-		memory:  NewMemoryStats(config.Client, tags...),
-		tick:    time.NewTicker(config.CollectInterval),
-		done:    make(chan struct{}),
-		join:    make(chan struct{}),
-	}
-
-	go collec.run()
-	return collec
+func Start(collector Collector) func() {
+	return StartWith(Config{
+		Collector: collector,
+	})
 }
 
-func setCollectorConfigDefault(config CollectorConfig) CollectorConfig {
+func StartWith(config Config) func() {
+	config = setConfigDefaults(config)
+
+	stop := make(chan struct{})
+	join := make(chan struct{})
+
+	go func() {
+		defer close(join)
+
+		ticker := time.NewTicker(config.CollectInterval)
+
+		for {
+			select {
+			case <-ticker.C:
+				config.Collector.Collect()
+			case <-stop:
+				return
+			}
+		}
+	}()
+
+	return func() {
+		close(stop)
+		<-join
+	}
+}
+
+func setConfigDefaults(config Config) Config {
 	if config.CollectInterval == 0 {
 		config.CollectInterval = 5 * time.Second
 	}
 
-	return config
-}
-
-type collector struct {
-	rusage  *RusageStats
-	runtime *RuntimeStats
-	memory  *MemoryStats
-
-	tick *time.Ticker
-	done chan struct{}
-	join chan struct{}
-}
-
-func (c *collector) Stop() {
-	c.stop()
-	c.wait()
-}
-
-func (c *collector) stop() {
-	defer func() { recover() }()
-	close(c.done)
-}
-
-func (c *collector) wait() {
-	<-c.join
-}
-
-func (c *collector) run() {
-	defer close(c.join)
-	for {
-		select {
-		case <-c.tick.C:
-			c.collect()
-		case <-c.done:
-			return
-		}
+	if config.Collector == nil {
+		config.Collector = MultiCollector()
 	}
-}
 
-func (c *collector) collect() {
-	c.rusage.Collect()
-	c.runtime.Collect()
-	c.memory.Collect()
+	return config
 }

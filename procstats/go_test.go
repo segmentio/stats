@@ -10,45 +10,50 @@ import (
 	"github.com/segmentio/stats"
 )
 
-func TestMemoryStats(t *testing.T) {
+func TestGoStats(t *testing.T) {
 	backend := &stats.EventBackend{}
 	client := stats.NewClient("test", backend)
 	defer client.Close()
 
-	memstats := NewMemoryStats(client)
-	memstats.Collect()
+	gostats := NewGoStats(client)
+	gostats.Collect()
 
 	if len(backend.Events) == 0 {
 		t.Error("no events were generated while collecting memory stats")
 	}
 
 	for i, e := range backend.Events {
-		if !strings.HasPrefix(e.Name, "test.memory.") {
+		switch {
+		case strings.HasPrefix(e.Name, "test.go.runtime."):
+		case strings.HasPrefix(e.Name, "test.go.memstats."):
+		default:
 			t.Errorf("invalid event name for event #%d: %s", i, e.Name)
 		}
-		t.Logf("- %v", e)
 	}
 }
 
-func TestMemoryStatsMock(t *testing.T) {
+func TestGoStatsMock(t *testing.T) {
 	now := time.Now()
 
 	backend := &stats.EventBackend{}
 	client := stats.NewClient("test", backend)
 	defer client.Close()
 
-	memstats := NewMemoryStats(client)
-	memstats.gc.NumGC = 1
-	memstats.gc.Pause = []time.Duration{time.Microsecond}
-	memstats.gc.PauseEnd = []time.Time{now.Add(-time.Second)}
-	memstats.report(time.Now(), time.Microsecond, time.Microsecond)
+	gostats := NewGoStats(client)
+	gostats.gc.NumGC = 1
+	gostats.gc.Pause = []time.Duration{time.Microsecond}
+	gostats.gc.PauseEnd = []time.Time{now.Add(-time.Second)}
+	gostats.updateMemStats(time.Now(), time.Microsecond, time.Microsecond)
 
 	if len(backend.Events) == 0 {
 		t.Error("no events were generated while collecting memory stats")
 	}
 
 	for i, e := range backend.Events {
-		if !strings.HasPrefix(e.Name, "test.memory.") {
+		switch {
+		case strings.HasPrefix(e.Name, "test.go.runtime."):
+		case strings.HasPrefix(e.Name, "test.go.memstats."):
+		default:
 			t.Errorf("invalid event name for event #%d: %s", i, e.Name)
 		}
 	}
