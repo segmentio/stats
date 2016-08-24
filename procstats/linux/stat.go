@@ -2,21 +2,36 @@ package linux
 
 import "fmt"
 
-type ProcState string
+type ProcState rune
 
 const (
-	Running                         ProcState = "R"
-	Sleeping                        ProcState = "S"
-	WaitingUninterruptibleDiskSleep ProcState = "D"
-	Zombie                          ProcState = "Z"
-	Stopped                         ProcState = "T"
-	TracingStop                     ProcState = "t"
-	Paging                          ProcState = "P"
-	Dead                            ProcState = "X"
-	Dead_                           ProcState = "x"
-	Wakekill                        ProcState = "W"
-	Parked                          ProcState = "P"
+	Running                         ProcState = 'R'
+	Sleeping                        ProcState = 'S'
+	WaitingUninterruptibleDiskSleep ProcState = 'D'
+	Zombie                          ProcState = 'Z'
+	Stopped                         ProcState = 'T'
+	TracingStop                     ProcState = 't'
+	Paging                          ProcState = 'P'
+	Dead                            ProcState = 'X'
+	Dead_                           ProcState = 'x'
+	Wakekill                        ProcState = 'W'
+	Parked                          ProcState = 'P'
 )
+
+func (ps ProcState) Format(f fmt.State, _ rune) {
+	fmt.Fprintf(f, "%c", rune(ps))
+}
+
+func (ps *ProcState) Scan(s fmt.ScanState, _ rune) (err error) {
+	var c rune
+	s.SkipSpace()
+
+	if c, _, err = s.ReadRune(); err == nil {
+		*ps = ProcState(c)
+	}
+
+	return
+}
 
 type ProcStat struct {
 	Pid                 int32     // (1) pid
