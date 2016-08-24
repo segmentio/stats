@@ -12,7 +12,7 @@ func TestCollector(t *testing.T) {
 	client := stats.NewClient(backend)
 	defer client.Close()
 
-	stop := StartCollectorWith(Config{
+	c := StartCollectorWith(Config{
 		CollectInterval: 100 * time.Microsecond,
 		Collector: MultiCollector(
 			NewGoMetrics(client),
@@ -21,20 +21,20 @@ func TestCollector(t *testing.T) {
 
 	// Let the collector do a few runs.
 	time.Sleep(time.Millisecond)
-	stop()
+	c.Close()
 
 	if len(backend.Events) == 0 {
 		t.Error("no events were generated while collecting process stats")
 	}
 }
 
-func TestCollectorStop(t *testing.T) {
+func TestCollectorCloser(t *testing.T) {
 	backend := &stats.EventBackend{}
 	client := stats.NewClient(backend)
 	defer client.Close()
 
-	stop := StartCollector(nil)
-	stop()
+	c := StartCollector(nil)
+	c.Close()
 
 	if len(backend.Events) != 0 {
 		t.Error("unexpected events after stopping the collector")

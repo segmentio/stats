@@ -1,6 +1,10 @@
 package procstats
 
-import "time"
+import (
+	"io"
+	"sync"
+	"time"
+)
 
 type Collector interface {
 	Collect()
@@ -23,11 +27,11 @@ func MultiCollector(collectors ...Collector) Collector {
 	})
 }
 
-func StartCollector(collector Collector) func() {
+func StartCollector(collector Collector) io.Closer {
 	return StartCollectorWith(Config{Collector: collector})
 }
 
-func StartCollectorWith(config Config) func() {
+func StartCollectorWith(config Config) io.Closer {
 	config = setConfigDefaults(config)
 
 	stop := make(chan struct{})
@@ -48,10 +52,7 @@ func StartCollectorWith(config Config) func() {
 		}
 	}()
 
-	return func() {
-		close(stop)
-		<-join
-	}
+	return &closer{stop: stop, join: join}
 }
 
 func setConfigDefaults(config Config) Config {
@@ -64,4 +65,20 @@ func setConfigDefaults(config Config) Config {
 	}
 
 	return config
+}
+
+type closer struct {
+	once sync.Once
+	stop chan<- struct{}
+	join <-chan struct{}
+}
+
+func (c *closer) Close() error {
+	c.once.Do(c.close)
+	return nil
+}
+
+func (c *closer) close() {
+	close(c.stop)
+	<-c.join
 }
