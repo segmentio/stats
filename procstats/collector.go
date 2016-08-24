@@ -23,13 +23,11 @@ func MultiCollector(collectors ...Collector) Collector {
 	})
 }
 
-func Start(collector Collector) func() {
-	return StartWith(Config{
-		Collector: collector,
-	})
+func StartCollector(collector Collector) func() {
+	return StartCollectorWith(Config{Collector: collector})
 }
 
-func StartWith(config Config) func() {
+func StartCollectorWith(config Config) func() {
 	config = setConfigDefaults(config)
 
 	stop := make(chan struct{})

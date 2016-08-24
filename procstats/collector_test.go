@@ -12,7 +12,7 @@ func TestCollector(t *testing.T) {
 	client := stats.NewClient(backend)
 	defer client.Close()
 
-	stop := StartWith(Config{
+	stop := StartCollectorWith(Config{
 		CollectInterval: 100 * time.Microsecond,
 		Collector: MultiCollector(
 			NewGoMetrics(client),
@@ -33,7 +33,7 @@ func TestCollectorStop(t *testing.T) {
 	client := stats.NewClient(backend)
 	defer client.Close()
 
-	stop := Start(nil)
+	stop := StartCollector(nil)
 	stop()
 
 	if len(backend.Events) != 0 {
