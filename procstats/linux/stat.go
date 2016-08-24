@@ -18,10 +18,6 @@ const (
 	Parked                          ProcState = 'P'
 )
 
-func (ps ProcState) Format(f fmt.State, _ rune) {
-	fmt.Fprintf(f, "%c", rune(ps))
-}
-
 func (ps *ProcState) Scan(s fmt.ScanState, _ rune) (err error) {
 	var c rune
 	s.SkipSpace()

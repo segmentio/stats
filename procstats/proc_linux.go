@@ -1,47 +1,64 @@
 package procstats
 
-import "github.com/segmentio/stats/procstats/linux"
+// #include <unistd.h>
+import "C"
+import (
+	"syscall"
+
+	"github.com/segmentio/stats/procstats/linux"
+)
 
 func collectProcMetrics(pid int) (m proc, err error) {
-	code := [...](func(int, *proc) error){
-		collectProcLimits,
-		collectProcStat,
-		collectOpenFileCount,
+	defer func() { err = convertPanicToError(recover()) }()
+
+	clockTicks := uint64(C.sysconf(C._SC_CLK_TCK))
+	pagesize := uint64(syscall.Getpagesize())
+
+	limits, err := linux.GetProcLimits(pid)
+	check(err)
+
+	stat, err := linux.GetProcStat(pid)
+	check(err)
+
+	sysinfo := syscall.Sysinfo_t{}
+	check(syscall.Sysinfo(&sysinfo))
+
+	statm, err := linux.GetProcStatm(pid)
+	check(err)
+
+	sched, err := linux.GetProcSched(pid)
+	check(err)
+
+	fds, err := linux.GetOpenFileCount(pid)
+	check(err)
+
+	m = proc{
+		cpu: cpu{
+			user: stat.Utime / clockTicks,
+			sys:  stat.Stime / clockTicks,
+		},
+
+		memory: memory{
+			available:       uint64(sysinfo.Unit) * sysinfo.Totalram,
+			size:            pagesize * statm.Size,
+			resident:        pagesize * statm.Resident,
+			shared:          pagesize * statm.Share,
+			text:            pagesize * statm.Text,
+			data:            pagesize * statm.Data,
+			majorPageFaults: stat.Majflt,
+			minorPageFaults: stat.Minflt,
+		},
+
+		files: files{
+			open: fds,
+			max:  limits.OpenFiles.Soft,
+		},
+
+		threads: threads{
+			num: uint64(stat.NumThreads),
+			voluntaryContextSwitches:   sched.NRVoluntarySwitches,
+			involuntaryContextSwitches: sched.NRInvoluntarySwitches,
+		},
 	}
-
-	for i, n := 0, len(code); i != n && err == nil; i++ {
-		err = code[i](pid, &m)
-	}
-
-	return
-}
-
-func collectProcLimits(pid int, m *proc) (err error) {
-	var limits linux.ProcLimits
-
-	if limits, err = linux.GetProcLimits(pid); err == nil {
-		m.files.max = limits.OpenFiles.Soft
-	}
-
-	return
-}
-
-func collectProcStat(pid int, m *proc) (err error) {
-	var stat linux.ProcStat
-
-	if stat, err = linux.GetProcStat(pid); err == nil {
-		// TODO: extract CPU, (see sysconf)
-
-		m.memory.majorPageFaults = uint64(stat.Majflt)
-		m.memory.minorPageFaults = uint64(stat.Minflt)
-
-		m.threads.num = uint64(stat.NumThreads)
-	}
-
-	return
-}
-
-func collectOpenFileCount(pid int, m *proc) (err error) {
-	m.files.open, err = linux.GetOpenFileCount(pid)
 	return
 }

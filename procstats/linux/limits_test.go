@@ -53,7 +53,3 @@ Max realtime timeout      unlimited            unlimited            us
 		t.Error(proc)
 	}
 }
-
-func TestGetProcLimits(t *testing.T) {
-
-}

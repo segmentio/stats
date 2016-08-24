@@ -88,3 +88,29 @@ func TestForEachProperty(t *testing.T) {
 		}
 	}
 }
+
+func TestSkipLine(t *testing.T) {
+	tests := []struct {
+		s1 string
+		s2 string
+	}{
+		{
+			s1: "",
+			s2: "",
+		},
+		{
+			s1: "Hello World!",
+			s2: "",
+		},
+		{
+			s1: "Hello\nWorld\n",
+			s2: "World\n",
+		},
+	}
+
+	for _, test := range tests {
+		if s := skipLine(test.s1); s != test.s2 {
+			t.Errorf("skipLine(%#v) => %#v != %#v", test.s1, test.s2, s)
+		}
+	}
+}

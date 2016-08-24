@@ -69,3 +69,10 @@ func skipSpaces(text string) string {
 	}
 	return ""
 }
+
+func skipLine(text string) string {
+	if i := strings.IndexByte(text, '\n'); i >= 0 {
+		return text[i+1:]
+	}
+	return ""
+}

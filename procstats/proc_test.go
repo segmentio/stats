@@ -1,6 +1,7 @@
 package procstats
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/segmentio/stats"
@@ -16,5 +17,11 @@ func TestProcMetrics(t *testing.T) {
 
 	if len(backend.Events) == 0 {
 		t.Errorf("no metrics reported by process metric collector")
+	}
+
+	for _, e := range backend.Events {
+		if !strings.HasPrefix(e.Name, "procstats.test.") {
+			t.Error("bad event name:", e.Name)
+		}
 	}
 }
