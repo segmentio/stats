@@ -126,6 +126,6 @@ func TestClient(t *testing.T) {
 }
 
 func TestClientClose(t *testing.T) {
-	client := NewClient("app", &EventBackend{})
+	client := NewClient(&EventBackend{})
 	client.Close()
 }

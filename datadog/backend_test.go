@@ -86,7 +86,7 @@ func TestBackend(t *testing.T) {
 	}()
 
 	a := addr.Network() + "://" + addr.String()
-	c := stats.NewClient("datadog", NewBackend(a),
+	c := stats.NewClient(NewBackend(a),
 		stats.Tag{Name: "hello:", Value: "world,"},
 		stats.Tag{Name: "answer", Value: "42"},
 	)
@@ -103,9 +103,9 @@ func TestBackend(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(packets, []string{
-		`datadog.events.level:1|g|#hello_:world_,answer:42
-datadog.events.count:1|c|#hello_:world_,answer:42
-datadog.events.seconds:1|h|#hello_:world_,answer:42
+		`datadog.test.events.level:1|g|#hello_:world_,answer:42
+datadog.test.events.count:1|c|#hello_:world_,answer:42
+datadog.test.events.seconds:1|h|#hello_:world_,answer:42
 `,
 	}) {
 		t.Errorf("invalid packets transmitted by the datadog client: %#v", packets)

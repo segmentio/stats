@@ -31,10 +31,10 @@ var (
 	DefaultScope string = defaultScope()
 )
 
-func NewClient(scope string, backend Backend, tags ...Tag) Client {
+func NewClient(backend Backend, tags ...Tag) Client {
 	return NewClientWith(Config{
 		Backend: backend,
-		Scope:   scope,
+		Scope:   DefaultScope,
 		Tags:    copyTags(tags),
 	})
 }

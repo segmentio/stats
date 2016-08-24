@@ -12,7 +12,7 @@ import (
 
 func TestHandler(t *testing.T) {
 	backend := &stats.EventBackend{}
-	client := stats.NewClient("", backend)
+	client := stats.NewClient(backend)
 	defer client.Close()
 
 	server := httptest.NewServer(NewHandler(client, http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
@@ -47,7 +47,7 @@ func TestHandler(t *testing.T) {
 
 func TestHandlerHijack(t *testing.T) {
 	backend := &stats.EventBackend{}
-	client := stats.NewClient("", backend)
+	client := stats.NewClient(backend)
 	defer client.Close()
 
 	server := httptest.NewServer(NewHandler(client, http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {

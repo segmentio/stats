@@ -12,7 +12,7 @@ import (
 
 func TestGoStats(t *testing.T) {
 	backend := &stats.EventBackend{}
-	client := stats.NewClient("test", backend)
+	client := stats.NewClient(backend)
 	defer client.Close()
 
 	gostats := NewGoStats(client)
@@ -24,8 +24,8 @@ func TestGoStats(t *testing.T) {
 
 	for i, e := range backend.Events {
 		switch {
-		case strings.HasPrefix(e.Name, "test.go.runtime."):
-		case strings.HasPrefix(e.Name, "test.go.memstats."):
+		case strings.HasPrefix(e.Name, "procstats.test.go.runtime."):
+		case strings.HasPrefix(e.Name, "procstats.test.go.memstats."):
 		default:
 			t.Errorf("invalid event name for event #%d: %s", i, e.Name)
 		}
@@ -36,7 +36,7 @@ func TestGoStatsMock(t *testing.T) {
 	now := time.Now()
 
 	backend := &stats.EventBackend{}
-	client := stats.NewClient("test", backend)
+	client := stats.NewClient(backend)
 	defer client.Close()
 
 	gostats := NewGoStats(client)
@@ -51,8 +51,8 @@ func TestGoStatsMock(t *testing.T) {
 
 	for i, e := range backend.Events {
 		switch {
-		case strings.HasPrefix(e.Name, "test.go.runtime."):
-		case strings.HasPrefix(e.Name, "test.go.memstats."):
+		case strings.HasPrefix(e.Name, "procstats.test.go.runtime."):
+		case strings.HasPrefix(e.Name, "procstats.test.go.memstats."):
 		default:
 			t.Errorf("invalid event name for event #%d: %s", i, e.Name)
 		}

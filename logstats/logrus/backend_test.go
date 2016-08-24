@@ -25,7 +25,6 @@ func TestBackend(t *testing.T) {
 	h := &hook{}
 	b := &bytes.Buffer{}
 	c := stats.NewClient(
-		"logrus",
 		NewBackend(&logrus.Logger{
 			Out:       b,
 			Hooks:     logrus.LevelHooks{logrus.InfoLevel: []logrus.Hook{h}},

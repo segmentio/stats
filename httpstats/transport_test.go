@@ -12,7 +12,7 @@ import (
 
 func TestTransport(t *testing.T) {
 	backend := &stats.EventBackend{}
-	client := stats.NewClient("", backend)
+	client := stats.NewClient(backend)
 	defer client.Close()
 
 	server := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
@@ -51,7 +51,7 @@ func TestTransport(t *testing.T) {
 
 func TestTransportError(t *testing.T) {
 	backend := &stats.EventBackend{}
-	client := stats.NewClient("", backend)
+	client := stats.NewClient(backend)
 	defer client.Close()
 
 	server := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {

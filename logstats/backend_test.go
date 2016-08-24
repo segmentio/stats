@@ -10,7 +10,7 @@ import (
 
 func TestBackend(t *testing.T) {
 	b := &bytes.Buffer{}
-	c := stats.NewClient("log", NewBackend(log.New(b, "", 0)), stats.Tag{
+	c := stats.NewClient(NewBackend(log.New(b, "", 0)), stats.Tag{
 		Name:  "hello",
 		Value: "world",
 	})
@@ -20,9 +20,9 @@ func TestBackend(t *testing.T) {
 	c.Histogram("events.seconds").Observe(1)
 	c.Close()
 
-	if s := b.String(); s != `gauge log.events.level [hello=world] 1/1
-counter log.events.count [hello=world] 1/1
-histogram log.events.seconds [hello=world] 1/1
+	if s := b.String(); s != `gauge logstats.test.events.level [hello=world] 1/1
+counter logstats.test.events.count [hello=world] 1/1
+histogram logstats.test.events.seconds [hello=world] 1/1
 ` {
 		t.Errorf("invalid logs: %s", s)
 	}

@@ -10,7 +10,7 @@ import (
 
 func TestBackend(t *testing.T) {
 	h := &memory.Handler{}
-	c := stats.NewClient("apex", NewBackend(&log.Logger{Handler: h}), stats.Tag{
+	c := stats.NewClient(NewBackend(&log.Logger{Handler: h}), stats.Tag{
 		Name:  "hello",
 		Value: "world",
 	})

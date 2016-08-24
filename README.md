@@ -33,7 +33,7 @@ import (
 
 func main() {
     // Create a stats client that sends data to a datadog agent and logs the events.
-    client := stats.NewClient("app", stats.MultiBackend(
+    client := stats.NewClient(stats.MultiBackend(
         datadog.NewBackend("localhost:8125"),
         logstats.NewBackend(log.New(os.Stderr, "stats: ", log.Lstdflags)),
     ))
@@ -61,7 +61,7 @@ import (
 )
 
 func main() {
-    client := stats.NewClient("app", datadog.NewBackend("localhost:8125"))
+    client := stats.NewClient(datadog.NewBackend("localhost:8125"))
     defer client.Close()
 
     // Define a couple of metrics.
@@ -100,7 +100,7 @@ import (
 
 
 func main() {
-    client := stats.NewClient("app", datadog.NewBackend("localhost:8125"))
+    client := stats.NewClient(datadog.NewBackend("localhost:8125"))
     defer client.Close()
 
     // Start a new collector for the current process, reporting Go metrics.
@@ -133,7 +133,7 @@ import (
 )
 
 func main() {
-    client := stats.NewClient("app", datadog.NewBackend("localhost:8125"))
+    client := stats.NewClient(datadog.NewBackend("localhost:8125"))
     defer client.Close()
 
     // ...
@@ -167,7 +167,7 @@ import (
 )
 
 func main() {
-    client := stats.NewClient("app", datadog.NewBackend("localhost:8125"))
+    client := stats.NewClient(datadog.NewBackend("localhost:8125"))
     defer client.Close()
 
     // Make a new HTTP client with a transport that will report HTTP metrics.
@@ -193,7 +193,7 @@ import (
 )
 
 func main() {
-    client := stats.NewClient("app", datadog.NewBackend("localhost:8125"))
+    client := stats.NewClient(datadog.NewBackend("localhost:8125"))
     defer client.Close()
 
     // Wraps the default HTTP client's transport.

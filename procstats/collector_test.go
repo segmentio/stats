@@ -9,7 +9,7 @@ import (
 
 func TestCollector(t *testing.T) {
 	backend := &stats.EventBackend{}
-	client := stats.NewClient("test", backend)
+	client := stats.NewClient(backend)
 	defer client.Close()
 
 	stop := StartWith(Config{
@@ -30,7 +30,7 @@ func TestCollector(t *testing.T) {
 
 func TestCollectorStop(t *testing.T) {
 	backend := &stats.EventBackend{}
-	client := stats.NewClient("test", backend)
+	client := stats.NewClient(backend)
 	defer client.Close()
 
 	stop := Start(nil)
