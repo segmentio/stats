@@ -104,7 +104,7 @@ func main() {
     defer client.Close()
 
     // Start a new collector for the current process, reporting Go metrics.
-    stop := procstats.Start(procstats.NewGoStats(client))
+    stop := procstats.Start(procstats.NewGoMetrics(client))
 
     // Gracefully stops stats collection.
     defer stop()

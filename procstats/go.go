@@ -9,7 +9,7 @@ import (
 	"github.com/segmentio/stats"
 )
 
-type GoStats struct {
+type GoMetrics struct {
 	// Runtime info.
 	NumCPU       stats.Gauge
 	NumGoroutine stats.Gauge
@@ -74,13 +74,13 @@ type GoStats struct {
 	gc debug.GCStats
 }
 
-func NewGoStats(client stats.Client, tags ...stats.Tag) *GoStats {
+func NewGoMetrics(client stats.Client, tags ...stats.Tag) *GoMetrics {
 	tags = append(tags,
 		stats.Tag{"runtime", "go"},
 		stats.Tag{"version", runtime.Version()},
 	)
 
-	g := &GoStats{
+	g := &GoMetrics{
 		NumCPU:       client.Gauge("go.runtime.cpu.num", tags...),
 		NumGoroutine: client.Gauge("go.runtime.goroutine.num", tags...),
 		NumCgoCall:   client.Counter("go.runtime.cgo.calls", tags...),
@@ -142,7 +142,7 @@ func NewGoStats(client stats.Client, tags ...stats.Tag) *GoStats {
 	return g
 }
 
-func (g *GoStats) Collect() {
+func (g *GoMetrics) Collect() {
 	numCgoCall := uint64(runtime.NumCgoCall())
 	g.NumCPU.Set(float64(runtime.NumCPU()))
 	g.NumGoroutine.Set(float64(runtime.NumGoroutine()))
@@ -153,7 +153,7 @@ func (g *GoStats) Collect() {
 	g.updateMemStats(time.Now(), msd, gcd)
 }
 
-func (g *GoStats) updateMemStats(now time.Time, msd time.Duration, gcd time.Duration) {
+func (g *GoMetrics) updateMemStats(now time.Time, msd time.Duration, gcd time.Duration) {
 	ms := &g.ms
 	gc := &g.gc
 

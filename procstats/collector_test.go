@@ -15,7 +15,7 @@ func TestCollector(t *testing.T) {
 	stop := StartWith(Config{
 		CollectInterval: 100 * time.Microsecond,
 		Collector: MultiCollector(
-			NewGoStats(client),
+			NewGoMetrics(client),
 		),
 	})
 

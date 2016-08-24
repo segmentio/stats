@@ -10,12 +10,12 @@ import (
 	"github.com/segmentio/stats"
 )
 
-func TestGoStats(t *testing.T) {
+func TestGoMetrics(t *testing.T) {
 	backend := &stats.EventBackend{}
 	client := stats.NewClient(backend)
 	defer client.Close()
 
-	gostats := NewGoStats(client)
+	gostats := NewGoMetrics(client)
 	gostats.Collect()
 
 	if len(backend.Events) == 0 {
@@ -32,14 +32,14 @@ func TestGoStats(t *testing.T) {
 	}
 }
 
-func TestGoStatsMock(t *testing.T) {
+func TestGoMetricsMock(t *testing.T) {
 	now := time.Now()
 
 	backend := &stats.EventBackend{}
 	client := stats.NewClient(backend)
 	defer client.Close()
 
-	gostats := NewGoStats(client)
+	gostats := NewGoMetrics(client)
 	gostats.gc.NumGC = 1
 	gostats.gc.Pause = []time.Duration{time.Microsecond}
 	gostats.gc.PauseEnd = []time.Time{now.Add(-time.Second)}
