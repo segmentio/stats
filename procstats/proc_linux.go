@@ -13,16 +13,17 @@ func collectProcMetrics(pid int) (m proc, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
 
 	clockTicks := uint64(C.sysconf(C._SC_CLK_TCK))
+
 	pagesize := uint64(syscall.Getpagesize())
+
+	memoryLimit, err := linux.GetMemoryLimit(pid)
+	check(err)
 
 	limits, err := linux.GetProcLimits(pid)
 	check(err)
 
 	stat, err := linux.GetProcStat(pid)
 	check(err)
-
-	sysinfo := syscall.Sysinfo_t{}
-	check(syscall.Sysinfo(&sysinfo))
 
 	statm, err := linux.GetProcStatm(pid)
 	check(err)
@@ -40,7 +41,7 @@ func collectProcMetrics(pid int) (m proc, err error) {
 		},
 
 		memory: memory{
-			available:       uint64(sysinfo.Unit) * sysinfo.Totalram,
+			available:       memoryLimit,
 			size:            pagesize * statm.Size,
 			resident:        pagesize * statm.Resident,
 			shared:          pagesize * statm.Share,

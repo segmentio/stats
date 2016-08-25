@@ -75,7 +75,7 @@ func TestForEachProperty(t *testing.T) {
 		},
 		{
 			text: "A: 1\nB: 2\nC: 3\nD",
-			kv:   []KV{{"A", "1"}, {"B", "2"}, {"C", "3"}, {"", "D"}},
+			kv:   []KV{{"A", "1"}, {"B", "2"}, {"C", "3"}, {"D", ""}},
 		},
 	}
 

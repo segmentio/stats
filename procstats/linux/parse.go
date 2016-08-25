@@ -1,6 +1,7 @@
 package linux
 
 import (
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -51,13 +52,17 @@ func forEachProperty(text string, call func(string, string)) {
 }
 
 func splitProperty(text string) (key string, val string) {
-	if i := strings.IndexByte(text, ':'); i >= 0 {
-		key, val = text[:i], text[i+1:]
+	return split(text, ':')
+}
+
+func split(text string, sep byte) (head string, tail string) {
+	if i := strings.IndexByte(text, sep); i >= 0 {
+		head, tail = text[:i], text[i+1:]
 	} else {
-		val = text
+		head = text
 	}
-	key = strings.TrimSpace(key)
-	val = strings.TrimSpace(val)
+	head = strings.TrimSpace(head)
+	tail = strings.TrimSpace(tail)
 	return
 }
 
@@ -75,4 +80,10 @@ func skipLine(text string) string {
 		return text[i+1:]
 	}
 	return ""
+}
+
+func atoi(s string) int {
+	v, e := strconv.Atoi(s)
+	check(e)
+	return v
 }
