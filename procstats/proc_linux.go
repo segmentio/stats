@@ -4,6 +4,7 @@ package procstats
 import "C"
 import (
 	"syscall"
+	"time"
 
 	"github.com/segmentio/stats/procstats/linux"
 )
@@ -34,8 +35,8 @@ func collectProcMetrics(pid int) (m proc, err error) {
 
 	m = proc{
 		cpu: cpu{
-			user: stat.Utime / clockTicks,
-			sys:  stat.Stime / clockTicks,
+			user: (time.Duration(stat.Utime) * time.Nanosecond) / time.Duration(clockTicks),
+			sys:  (time.Duration(stat.Stime) * time.Nanosecond) / time.Duration(clockTicks),
 		},
 
 		memory: memory{

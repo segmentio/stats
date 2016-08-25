@@ -2,6 +2,7 @@ package procstats
 
 import (
 	"os"
+	"time"
 
 	"github.com/segmentio/stats"
 )
@@ -20,8 +21,8 @@ type CPU struct {
 	Sys  stats.Counter // system cpu time used by the process
 
 	// last values seen to compute the delta and increment counters
-	lastUser uint64
-	lastSys  uint64
+	lastUser time.Duration
+	lastSys  time.Duration
 }
 
 type Memory struct {
@@ -46,14 +47,6 @@ type Files struct {
 	// File descriptors
 	Open stats.Gauge // fds opened by the process
 	Max  stats.Gauge // max number of fds the process can open
-
-	// Block I/O
-	BlockReads  stats.Counter
-	BlockWrites stats.Counter
-
-	// last values seen to compute the delta and increment counters
-	lastBlockReads  uint64
-	lastBlockWrites uint64
 }
 
 type Threads struct {
@@ -86,8 +79,8 @@ func NewProcMetricsFor(pid int, client stats.Client, tags ...stats.Tag) *ProcMet
 func (p *ProcMetrics) Collect() {
 	if m, err := collectProcMetrics(p.Pid); err == nil {
 		// CPU
-		p.CPU.User.Add(float64(m.cpu.user - p.CPU.lastUser))
-		p.CPU.Sys.Add(float64(m.cpu.sys - p.CPU.lastSys))
+		p.CPU.User.Add((m.cpu.user - p.CPU.lastUser).Seconds())
+		p.CPU.Sys.Add((m.cpu.sys - p.CPU.lastSys).Seconds())
 
 		p.CPU.lastUser = m.cpu.user
 		p.CPU.lastSys = m.cpu.sys
@@ -196,8 +189,8 @@ type proc struct {
 }
 
 type cpu struct {
-	user uint64
-	sys  uint64
+	user time.Duration
+	sys  time.Duration
 }
 
 type memory struct {
