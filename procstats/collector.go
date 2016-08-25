@@ -47,6 +47,7 @@ func StartCollectorWith(config Config) io.Closer {
 			case <-ticker.C:
 				config.Collector.Collect()
 			case <-stop:
+				config.Collector.Collect()
 				return
 			}
 		}
