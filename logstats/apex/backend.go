@@ -7,7 +7,7 @@ import (
 
 func NewBackend(logger log.Interface) stats.Backend {
 	return stats.BackendFunc(func(e stats.Event) {
-		logger.WithFields(fields(e)).Info(e.Name)
+		logger.WithFields(fields(e)).Debug(e.Name)
 	})
 }
 
