@@ -13,7 +13,7 @@ type hook struct {
 }
 
 func (h *hook) Levels() []logrus.Level {
-	return []logrus.Level{logrus.InfoLevel}
+	return []logrus.Level{logrus.DebugLevel}
 }
 
 func (h *hook) Fire(e *logrus.Entry) error {
@@ -27,7 +27,7 @@ func TestBackend(t *testing.T) {
 	c := stats.NewClient(
 		NewBackend(&logrus.Logger{
 			Out:       b,
-			Hooks:     logrus.LevelHooks{logrus.InfoLevel: []logrus.Hook{h}},
+			Hooks:     logrus.LevelHooks{logrus.DebugLevel: []logrus.Hook{h}},
 			Formatter: &logrus.JSONFormatter{},
 			Level:     logrus.DebugLevel,
 		}),
