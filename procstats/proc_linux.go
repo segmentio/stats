@@ -1,7 +1,5 @@
 package procstats
 
-// #include <unistd.h>
-import "C"
 import (
 	"syscall"
 	"time"
@@ -9,12 +7,10 @@ import (
 	"github.com/segmentio/stats/procstats/linux"
 )
 
+func getpagesize() uint64 { return uint64(syscall.Getpagesize()) }
+
 func collectProcMetrics(pid int) (m proc, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
-
-	clockTicks := uint64(C.sysconf(C._SC_CLK_TCK))
-
-	pagesize := uint64(syscall.Getpagesize())
 
 	memoryLimit, err := linux.GetMemoryLimit(pid)
 	check(err)
@@ -33,6 +29,9 @@ func collectProcMetrics(pid int) (m proc, err error) {
 
 	fds, err := linux.GetOpenFileCount(pid)
 	check(err)
+
+	pagesize := getpagesize()
+	clockTicks := getclktck()
 
 	m = proc{
 		cpu: cpu{
