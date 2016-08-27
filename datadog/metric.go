@@ -1,12 +1,14 @@
 package datadog
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"strconv"
 	"strings"
 
 	"github.com/segmentio/stats"
+	"github.com/segmentio/stats/iostats"
 )
 
 type MetricType string
@@ -22,8 +24,8 @@ type Metric struct {
 	Name       string
 	Value      float64
 	Type       MetricType
-	SampleRate SampleRate
-	Tags       Tags
+	SampleRate float64
+	Tags       stats.Tags
 }
 
 func ParseMetric(s string) (m Metric, err error) {
@@ -99,11 +101,11 @@ func ParseMetric(s string) (m Metric, err error) {
 		Name:       name,
 		Value:      value,
 		Type:       MetricType(typ),
-		SampleRate: SampleRate(sampleRate),
+		SampleRate: sampleRate,
 	}
 
 	if tags := strings.Split(tags, ","); len(tags) != 0 {
-		m.Tags = make(Tags, 0, len(tags))
+		m.Tags = make(stats.Tags, 0, len(tags))
 
 		for _, tag := range tags {
 			if tag = strings.TrimSpace(tag); len(tag) != 0 {
@@ -134,31 +136,67 @@ func split(s string, b byte) (head string, tail string) {
 	return
 }
 
-func (m Metric) Format(f fmt.State, _ rune) {
-	fmt.Fprintf(f, "%s:%g|%s%v%v\n", m.Name, m.Value, m.Type, m.SampleRate, m.Tags)
+func (m Metric) Write(w io.Writer) (err error) {
+	f := &iostats.Formatter{}
+	defer f.Release()
+	return m.write(w, f)
 }
 
-type Tags stats.Tags
+func (m Metric) write(w io.Writer, f *iostats.Formatter) (err error) {
+	defer func() { err = convertPanicToError(recover()) }()
 
-func (tags Tags) Format(f fmt.State, _ rune) {
-	if len(tags) != 0 {
-		io.WriteString(f, "|#")
+	write(w, f.FormatStringFunc(m.Name, sanitizeRune))
+	write(w, f.FormatByte(':'))
+	write(w, f.FormatFloat(m.Value, 'g', -1, 64))
+	write(w, f.FormatByte('|'))
+	write(w, f.FormatString(string(m.Type)))
 
-		for i, t := range tags {
+	if r := float64(m.SampleRate); r != 1 {
+		write(w, f.FormatString("|@"))
+		write(w, f.FormatFloat(r, 'g', -1, 64))
+	}
+
+	if len(m.Tags) != 0 {
+		write(w, f.FormatString("|#"))
+
+		for i, t := range m.Tags {
 			if i != 0 {
-				io.WriteString(f, ",")
+				write(w, f.FormatByte(','))
 			}
-			io.WriteString(f, sanitize(t.Name))
-			io.WriteString(f, ":")
-			io.WriteString(f, sanitize(t.Value))
+			write(w, f.FormatStringFunc(t.Name, sanitizeRune))
+			write(w, f.FormatByte(':'))
+			write(w, f.FormatStringFunc(t.Value, sanitizeRune))
 		}
 	}
+
+	write(w, f.FormatByte('\n'))
+	return
 }
 
-type SampleRate float64
+func (m Metric) String() string {
+	b := &bytes.Buffer{}
+	b.Grow(64)
+	m.Write(b)
+	return b.String()
+}
 
-func (r SampleRate) Format(f fmt.State, _ rune) {
-	if r != 0 && r != 1 {
-		fmt.Fprintf(f, "|@%g", float64(r))
+func sanitizeRune(r rune) rune {
+	switch r {
+	case ',', ':', '|', '@', '#':
+		return '_'
 	}
+	return r
+}
+
+func write(w io.Writer, b []byte) {
+	if _, err := w.Write(b); err != nil {
+		panic(err)
+	}
+}
+
+func convertPanicToError(v interface{}) error {
+	if v == nil {
+		return nil
+	}
+	return v.(error)
 }

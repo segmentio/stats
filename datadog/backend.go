@@ -1,13 +1,12 @@
 package datadog
 
 import (
-	"fmt"
 	"io"
 	"net"
-	"strings"
 	"time"
 
 	"github.com/segmentio/stats"
+	"github.com/segmentio/stats/iostats"
 	"github.com/segmentio/stats/netstats"
 )
 
@@ -36,7 +35,7 @@ func NewBackend(addr string) stats.Backend {
 func NewBackendWith(config Config) stats.Backend {
 	config = setConfigDefaults(config)
 	return netstats.NewBackendWith(netstats.Config{
-		Protocol:      protocol{},
+		Protocol:      &protocol{},
 		Network:       config.Network,
 		Address:       config.Address,
 		BufferSize:    config.BufferSize,
@@ -67,43 +66,26 @@ func setConfigDefaults(config Config) Config {
 	return config
 }
 
-type protocol struct{}
+type protocol struct{ iostats.Formatter }
 
-func (p protocol) WriteSet(w io.Writer, m stats.Metric, v float64, t time.Time) error {
+func (p *protocol) WriteSet(w io.Writer, m stats.Metric, v float64, t time.Time) error {
 	return p.write(Gauge, w, m, v)
 }
 
-func (p protocol) WriteAdd(w io.Writer, m stats.Metric, v float64, t time.Time) error {
+func (p *protocol) WriteAdd(w io.Writer, m stats.Metric, v float64, t time.Time) error {
 	return p.write(Counter, w, m, v)
 }
 
-func (p protocol) WriteObserve(w io.Writer, m stats.Metric, v float64, t time.Time) error {
+func (p *protocol) WriteObserve(w io.Writer, m stats.Metric, v float64, t time.Time) error {
 	return p.write(Histogram, w, m, v)
 }
 
-func (p protocol) write(t MetricType, w io.Writer, m stats.Metric, v float64) (err error) {
-	_, err = fmt.Fprint(w, Metric{
-		Name:       sanitize(m.Name()),
+func (p *protocol) write(t MetricType, w io.Writer, m stats.Metric, v float64) (err error) {
+	return (Metric{
+		Name:       m.Name(),
 		Value:      v,
 		Type:       t,
-		SampleRate: SampleRate(m.Sample()),
-		Tags:       Tags(m.Tags()),
-	})
-	return
-}
-
-func sanitize(s string) string {
-	s = replace(s, ",")
-	s = replace(s, ":")
-	s = replace(s, "|")
-	s = replace(s, "@")
-	s = replace(s, "#")
-	return s
-}
-
-func replace(s string, b string) string {
-	if strings.IndexByte(s, b[0]) >= 0 {
-		s = strings.Replace(s, b, "_", -1)
-	}
-	return s
+		SampleRate: m.Sample(),
+		Tags:       m.Tags(),
+	}).write(w, &p.Formatter)
 }
