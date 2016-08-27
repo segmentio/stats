@@ -117,7 +117,15 @@ func (g *gauge) Type() string { return "gauge" }
 func (g *gauge) Set(value float64, tags ...Tag) { g.SetAt(value, g.now(), tags...) }
 
 func (g *gauge) SetAt(value float64, time time.Time, tags ...Tag) {
-	g.backend.Set(&gauge{g.clone(tags...)}, value, time)
+	if len(tags) == 0 {
+		// fast path, this is the most common case (no tags).
+		g.backend.Set(g, value, time)
+	} else {
+		tmp := gaugePool.Get().(*gauge)
+		tmp.metric = g.clone(tags...)
+		g.backend.Set(tmp, value, time)
+		gaugePool.Put(tmp)
+	}
 }
 
 type counter struct{ metric }
@@ -129,7 +137,15 @@ func (c *counter) Type() string { return "counter" }
 func (c *counter) Add(value float64, tags ...Tag) { c.AddAt(value, c.now(), tags...) }
 
 func (c *counter) AddAt(value float64, time time.Time, tags ...Tag) {
-	c.backend.Add(&counter{metric: c.clone(tags...)}, value, time)
+	if len(tags) == 0 {
+		// fast path, this is the most common case (no tags).
+		c.backend.Add(c, value, time)
+	} else {
+		tmp := counterPool.Get().(*counter)
+		tmp.metric = c.clone(tags...)
+		c.backend.Add(tmp, value, time)
+		counterPool.Put(tmp)
+	}
 }
 
 type histogram struct{ metric }
@@ -141,14 +157,20 @@ func (h *histogram) Type() string { return "histogram" }
 func (h *histogram) Observe(value float64, tags ...Tag) { h.ObserveAt(value, h.now(), tags...) }
 
 func (h *histogram) ObserveAt(value float64, time time.Time, tags ...Tag) {
-	h.backend.Observe(&histogram{h.clone(tags...)}, value, time)
+	if len(tags) == 0 {
+		// fast path, this is the most common case (no tags).
+		h.backend.Observe(h, value, time)
+	} else {
+		tmp := histogramPool.Get().(*histogram)
+		tmp.metric = h.clone(tags...)
+		h.backend.Observe(tmp, value, time)
+		histogramPool.Put(tmp)
+	}
 }
 
 type timer struct{ metric }
 
-func NewTimer(opts Opts) Timer {
-	return &timer{metric: makeMetric(opts)}
-}
+func NewTimer(opts Opts) Timer { return &timer{metric: makeMetric(opts)} }
 
 func (t *timer) Type() string { return "timer" }
 
@@ -172,20 +194,20 @@ func (c *clock) StampAt(name string, time time.Time, tags ...Tag) {
 	d := time.Sub(c.last)
 	c.last = time
 	c.Unlock()
-	c.backend.Observe(c.histogram(name, tags...), d.Seconds(), time)
+	c.stamp(name, d.Seconds(), time, tags...)
 }
 
 func (c *clock) Stop(tags ...Tag) { c.StopAt(c.now(), tags...) }
 
 func (c *clock) StopAt(time time.Time, tags ...Tag) {
-	c.backend.Observe(c.histogram("total", tags...), time.Sub(c.start).Seconds(), time)
+	c.stamp("stop", time.Sub(c.start).Seconds(), time, tags...)
 }
 
-func (c *clock) histogram(name string, tags ...Tag) *histogram {
-	if len(name) != 0 {
-		tags = append(tags, Tag{"stamp", name})
-	}
-	return &histogram{c.clone(tags...)}
+func (c *clock) stamp(name string, duration float64, time time.Time, tags ...Tag) {
+	h := histogramPool.Get().(*histogram)
+	h.metric = c.clone(append(tags, Tag{"stamp", name})...)
+	h.backend.Observe(h, duration, time)
+	histogramPool.Put(h)
 }
 
 func JoinMetricName(elems ...string) string {
@@ -199,3 +221,17 @@ func JoinMetricName(elems ...string) string {
 
 	return strings.Join(parts, ".")
 }
+
+var (
+	gaugePool = sync.Pool{
+		New: func() interface{} { return &gauge{} },
+	}
+
+	counterPool = sync.Pool{
+		New: func() interface{} { return &counter{} },
+	}
+
+	histogramPool = sync.Pool{
+		New: func() interface{} { return &histogram{} },
+	}
+)
