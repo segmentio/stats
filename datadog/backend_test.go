@@ -28,34 +28,34 @@ func TestProtocol(t *testing.T) {
 		metric stats.Metric
 		value  float64
 		string string
-		method func(protocol, io.Writer, stats.Metric, float64, time.Time) error
+		method func(*protocol, io.Writer, stats.Metric, float64, time.Time) error
 	}{
 		{
 			metric: stats.NewGauge(stats.Opts{Name: "hello"}),
 			value:  1,
 			string: "hello:1|g\n",
-			method: protocol.WriteSet,
+			method: (*protocol).WriteSet,
 		},
 
 		{
 			metric: stats.NewCounter(stats.Opts{Name: "hello", Sample: 0.1}),
 			value:  1,
 			string: "hello:1|c|@0.1\n",
-			method: protocol.WriteAdd,
+			method: (*protocol).WriteAdd,
 		},
 
 		{
 			metric: stats.NewHistogram(stats.Opts{Name: "hello"}),
 			value:  1,
 			string: "hello:1|h\n",
-			method: protocol.WriteObserve,
+			method: (*protocol).WriteObserve,
 		},
 	}
 
 	for _, test := range tests {
 		now := time.Unix(1, 0)
 		b := &bytes.Buffer{}
-		p := protocol{}
+		p := &protocol{}
 
 		if err := test.method(p, b, test.metric, test.value, now); err != nil {
 			t.Error(err)
@@ -109,5 +109,33 @@ datadog.test.events.seconds:1|h|#hello_:world_,answer:42
 `,
 	}) {
 		t.Errorf("invalid packets transmitted by the datadog client: %#v", packets)
+	}
+}
+
+func BenchmarkBackend(b *testing.B) {
+	c := stats.NewClient(NewBackend("127.0.0.255:8125"),
+		stats.Tag{Name: "hello:", Value: "world,"},
+		stats.Tag{Name: "answer", Value: "42"},
+		stats.Tag{Name: "A", Value: "1"},
+		stats.Tag{Name: "B", Value: "2"},
+		stats.Tag{Name: "C", Value: "2"},
+		stats.Tag{Name: "D", Value: "4"},
+		stats.Tag{Name: "E", Value: "5"},
+		stats.Tag{Name: "F", Value: "6"},
+	)
+	defer c.Close()
+
+	m1 := c.Gauge("benchmark.events.level")
+	m2 := c.Counter("benchmark.events.count")
+	m3 := c.Histogram("benchmark.events.seconds")
+
+	b.ResetTimer()
+
+	for i := 0; i != b.N; i++ {
+		m1.Set(42)
+		m2.Add(1)
+		m3.Observe(1.234)
+
+		time.Sleep(250 * time.Microsecond)
 	}
 }

@@ -1,9 +1,12 @@
 package datadog
 
 import (
-	"fmt"
+	"io"
 	"reflect"
 	"testing"
+
+	"github.com/segmentio/stats"
+	"github.com/segmentio/stats/iostats"
 )
 
 func TestParseSuccess(t *testing.T) {
@@ -18,7 +21,7 @@ func TestParseSuccess(t *testing.T) {
 				Value:      1,
 				Type:       Counter,
 				SampleRate: 1,
-				Tags:       Tags{},
+				Tags:       stats.Tags{},
 			},
 		},
 
@@ -29,7 +32,7 @@ func TestParseSuccess(t *testing.T) {
 				Value:      0.5,
 				Type:       Gauge,
 				SampleRate: 1,
-				Tags:       Tags{},
+				Tags:       stats.Tags{},
 			},
 		},
 
@@ -40,7 +43,7 @@ func TestParseSuccess(t *testing.T) {
 				Value:      240,
 				Type:       Histogram,
 				SampleRate: 0.5,
-				Tags:       Tags{},
+				Tags:       stats.Tags{},
 			},
 		},
 
@@ -51,7 +54,7 @@ func TestParseSuccess(t *testing.T) {
 				Value:      1234,
 				Type:       Set,
 				SampleRate: 1,
-				Tags:       Tags{},
+				Tags:       stats.Tags{},
 			},
 		},
 
@@ -62,7 +65,7 @@ func TestParseSuccess(t *testing.T) {
 				Value:      1,
 				Type:       Counter,
 				SampleRate: 1,
-				Tags:       Tags{{"country", "china"}},
+				Tags:       stats.Tags{{"country", "china"}},
 			},
 		},
 
@@ -73,7 +76,7 @@ func TestParseSuccess(t *testing.T) {
 				Value:      1,
 				Type:       Counter,
 				SampleRate: 0.5,
-				Tags:       Tags{{"country", "china"}},
+				Tags:       stats.Tags{{"country", "china"}},
 			},
 		},
 	}
@@ -83,9 +86,18 @@ func TestParseSuccess(t *testing.T) {
 			t.Error(err)
 		} else if !reflect.DeepEqual(m, test.m) {
 			t.Errorf("%#v:\n- %#v\n- %#v", test.s, test.m, m)
-		} else if s := fmt.Sprint(m); s != test.s {
+		} else if s := m.String(); s != test.s {
 			t.Errorf("%#v\n%#v", test.s, s)
 		}
+	}
+}
+
+func TestMetricWriteError(t *testing.T) {
+	w := iostats.WriterFunc(func(b []byte) (int, error) { return 0, io.ErrUnexpectedEOF })
+	m := Metric{}
+
+	if e := m.Write(w); e != io.ErrUnexpectedEOF {
+		t.Error("invalid error returned when writing metric:", e)
 	}
 }
 
