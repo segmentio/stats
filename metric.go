@@ -200,7 +200,7 @@ func (c *clock) StampAt(name string, time time.Time, tags ...Tag) {
 func (c *clock) Stop(tags ...Tag) { c.StopAt(c.now(), tags...) }
 
 func (c *clock) StopAt(time time.Time, tags ...Tag) {
-	c.stamp("stop", time.Sub(c.start).Seconds(), time, tags...)
+	c.stamp("total", time.Sub(c.start).Seconds(), time, tags...)
 }
 
 func (c *clock) stamp(name string, duration float64, time time.Time, tags ...Tag) {

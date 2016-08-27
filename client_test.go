@@ -22,11 +22,11 @@ func TestClient(t *testing.T) {
 	m3 := c.Histogram("events.seconds")
 	m4 := c.Timer("events.seconds").Start()
 
-	m1.Set(1)
-	m1.Set(42)
-	m2.Add(10)
-	m1.Set(0)
-	m3.Observe(1)
+	m1.Set(1, Tag{"question", "answer"})
+	m1.Set(42, Tag{"question", "answer"})
+	m2.Add(10, Tag{"question", "answer"})
+	m1.Set(0, Tag{"question", "answer"})
+	m3.Observe(1, Tag{"question", "answer"})
 
 	m4.StampAt("a", now.Add(1*time.Second))
 	m4.StampAt("b", now.Add(2*time.Second))
@@ -44,7 +44,7 @@ func TestClient(t *testing.T) {
 			Name:   "test.events.quantity",
 			Value:  1,
 			Sample: 1,
-			Tags:   Tags{{"hello", "world"}},
+			Tags:   Tags{{"hello", "world"}, {"question", "answer"}},
 			Time:   now,
 		},
 		{
@@ -52,7 +52,7 @@ func TestClient(t *testing.T) {
 			Name:   "test.events.quantity",
 			Value:  42,
 			Sample: 1,
-			Tags:   Tags{{"hello", "world"}},
+			Tags:   Tags{{"hello", "world"}, {"question", "answer"}},
 			Time:   now,
 		},
 		{
@@ -60,7 +60,7 @@ func TestClient(t *testing.T) {
 			Name:   "test.events.count",
 			Value:  10,
 			Sample: 1,
-			Tags:   Tags{{"hello", "world"}, {"extra", "tag"}},
+			Tags:   Tags{{"hello", "world"}, {"extra", "tag"}, {"question", "answer"}},
 			Time:   now,
 		},
 		{
@@ -68,7 +68,7 @@ func TestClient(t *testing.T) {
 			Name:   "test.events.quantity",
 			Value:  0,
 			Sample: 1,
-			Tags:   Tags{{"hello", "world"}},
+			Tags:   Tags{{"hello", "world"}, {"question", "answer"}},
 			Time:   now,
 		},
 		{
@@ -76,7 +76,7 @@ func TestClient(t *testing.T) {
 			Name:   "test.events.seconds",
 			Value:  1,
 			Sample: 1,
-			Tags:   Tags{{"hello", "world"}},
+			Tags:   Tags{{"hello", "world"}, {"question", "answer"}},
 			Time:   now,
 		},
 		{
