@@ -11,40 +11,47 @@ import (
 )
 
 func TestTransport(t *testing.T) {
-	backend := &stats.EventBackend{}
-	client := stats.NewClient(backend)
-	defer client.Close()
+	for _, transport := range []http.RoundTripper{
+		nil,
+		&http.Transport{},
+		http.DefaultTransport,
+		http.DefaultClient.Transport,
+	} {
+		backend := &stats.EventBackend{}
+		client := stats.NewClient(backend)
+		defer client.Close()
 
-	server := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		ioutil.ReadAll(req.Body)
-		res.Write([]byte("Hello World!"))
-	}))
-	defer server.Close()
+		server := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+			ioutil.ReadAll(req.Body)
+			res.Write([]byte("Hello World!"))
+		}))
+		defer server.Close()
 
-	httpc := &http.Client{
-		Transport: NewTransport(client, &http.Transport{}),
-	}
+		httpc := &http.Client{
+			Transport: NewTransport(client, transport),
+		}
 
-	res, err := httpc.Post(server.URL, "text/plain", strings.NewReader("Hi"))
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	ioutil.ReadAll(res.Body)
-	res.Body.Close()
+		res, err := httpc.Post(server.URL, "text/plain", strings.NewReader("Hi"))
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		ioutil.ReadAll(res.Body)
+		res.Body.Close()
 
-	backend.RLock()
-	defer backend.RUnlock()
+		backend.RLock()
+		defer backend.RUnlock()
 
-	if len(backend.Events) == 0 {
-		t.Error("no metric events were produced by the http transport")
-	}
+		if len(backend.Events) == 0 {
+			t.Error("no metric events were produced by the http transport")
+		}
 
-	for _, e := range backend.Events {
-		switch s := e.Tags.Get("bucket"); s {
-		case "2xx", "":
-		default:
-			t.Errorf("invalid bucket in metric event tags: %s\n%v", s, e)
+		for _, e := range backend.Events {
+			switch s := e.Tags.Get("bucket"); s {
+			case "2xx", "":
+			default:
+				t.Errorf("invalid bucket in metric event tags: %s\n%v", s, e)
+			}
 		}
 	}
 }
