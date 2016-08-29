@@ -22,6 +22,10 @@ func (t httpTransport) RoundTrip(req *http.Request) (res *http.Response, err err
 	var clock = t.metrics.RTT.Start()
 	var tags stats.Tags
 
+	if t.transport == nil {
+		t.transport = http.DefaultTransport
+	}
+
 	req.Body, tags = t.metrics.ObserveRequest(req)
 	res, err = t.transport.RoundTrip(req)
 	req.Body.Close() // safe guard, the transport should have done it already
