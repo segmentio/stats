@@ -12,6 +12,7 @@ import (
 
 func TestTransport(t *testing.T) {
 	for _, transport := range []http.RoundTripper{
+		nil,
 		&http.Transport{},
 		http.DefaultTransport,
 		http.DefaultClient.Transport,
