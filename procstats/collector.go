@@ -2,6 +2,7 @@ package procstats
 
 import (
 	"io"
+	"runtime"
 	"sync"
 	"time"
 )
@@ -38,6 +39,13 @@ func StartCollectorWith(config Config) io.Closer {
 	join := make(chan struct{})
 
 	go func() {
+		// Locks the OS thread, stats collection heavily relies on blocking
+		// syscalls, letting other goroutines execute on the same thread
+		// increases the chance for the Go runtime to detected that the thread
+		// is blocked an schedule a new one.
+		runtime.LockOSThread()
+
+		defer runtime.UnlockOSThread()
 		defer close(join)
 
 		ticker := time.NewTicker(config.CollectInterval)
