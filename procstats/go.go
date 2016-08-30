@@ -3,7 +3,6 @@ package procstats
 import (
 	"runtime"
 	"runtime/debug"
-	"strconv"
 	"time"
 
 	"github.com/segmentio/stats"
@@ -16,12 +15,11 @@ type GoMetrics struct {
 	NumCgoCall   stats.Counter
 
 	// General statistics.
-	Alloc      stats.Gauge     // bytes allocated (even if freed)
-	TotalAlloc stats.Counter   // bytes allocated (even if freed)
-	Lookups    stats.Counter   // number of pointer lookups
-	Mallocs    stats.Counter   // number of mallocs
-	Frees      stats.Counter   // number of frees
-	Collects   stats.Histogram // time spent collecting memory stats
+	Alloc      stats.Gauge   // bytes allocated (even if freed)
+	TotalAlloc stats.Counter // bytes allocated (even if freed)
+	Lookups    stats.Counter // number of pointer lookups
+	Mallocs    stats.Counter // number of mallocs
+	Frees      stats.Counter // number of frees
 
 	// Main allocation heap statistics.
 	HeapAlloc    stats.Gauge   // bytes allocated and not yet freed
@@ -48,17 +46,6 @@ type GoMetrics struct {
 	LastGC        stats.Gauge   // end time of last collection (nanoseconds since 1970)
 	Pauses        stats.Histogram
 	GCCPUFraction stats.Gauge // fraction of CPU time used by GC
-
-	// Per-size allocation statistics.
-	// 61 is NumSizeClasses in the C code.Collector
-	bySize [len(((*runtime.MemStats)(nil)).BySize)]struct {
-		tags stats.Tags
-
-		// Last observed values, used to compute the difference and know how
-		// much should be added to the counters.
-		lastMallocs uint64
-		lastFrees   uint64
-	}
 
 	// Last observed values for high-level counters.
 	lastNumCgoCall   uint64
@@ -92,7 +79,6 @@ func NewGoMetrics(client stats.Client, tags ...stats.Tag) *GoMetrics {
 	g.Lookups = client.Counter("go.memstats.lookups.count", tagsTotal...)
 	g.Mallocs = client.Counter("go.memstats.mallocs.count", tagsTotal...)
 	g.Frees = client.Counter("go.memstats.frees.count", tagsTotal...)
-	g.Collects = client.Histogram("go.memstats.collects.seconds", tagsTotal...)
 
 	tagsHeap := append(tags, stats.Tag{"type", "heap"})
 	g.HeapAlloc = client.Gauge("go.memstats.alloc.bytes", tagsHeap...)
@@ -129,16 +115,6 @@ func NewGoMetrics(client stats.Client, tags ...stats.Tag) *GoMetrics {
 	g.Pauses = client.Histogram("go.memstats.gc_pause.seconds", tags...)
 	g.GCCPUFraction = client.Gauge("go.memstats.gc_cpu.fraction", tags...)
 
-	ms := &runtime.MemStats{}
-	runtime.ReadMemStats(ms)
-
-	for i := 0; i != len(g.bySize); i++ {
-		g.bySize[i].tags = stats.Tags{
-			{"type", "bucket"},
-			{"size", strconv.FormatUint(uint64(ms.BySize[i].Size), 10)},
-		}
-	}
-
 	return g
 }
 
@@ -162,8 +138,6 @@ func (g *GoMetrics) updateMemStats(now time.Time, msd time.Duration, gcd time.Du
 	g.Lookups.Add(float64(ms.Lookups - g.lastLookups))
 	g.Mallocs.Add(float64(ms.Mallocs - g.lastMallocs))
 	g.Frees.Add(float64(ms.Frees - g.lastFrees))
-	g.Collects.Observe(msd.Seconds(), stats.Tag{"step", "memstats"})
-	g.Collects.Observe(gcd.Seconds(), stats.Tag{"step", "gcstats"})
 
 	g.HeapAlloc.Set(float64(ms.HeapAlloc))
 	g.HeapSys.Set(float64(ms.HeapSys))
@@ -186,17 +160,6 @@ func (g *GoMetrics) updateMemStats(now time.Time, msd time.Duration, gcd time.Du
 	g.NextGC.Set(float64(ms.NextGC))
 	g.LastGC.Set(now.Sub(gc.LastGC).Seconds())
 	g.GCCPUFraction.Set(float64(ms.GCCPUFraction))
-
-	for i := 0; i != len(g.bySize); i++ {
-		a := &(ms.BySize[i])
-		b := &(g.bySize[i])
-
-		g.Mallocs.Add(float64(a.Mallocs-b.lastMallocs), b.tags...)
-		g.Frees.Add(float64(a.Frees-b.lastFrees), b.tags...)
-
-		b.lastMallocs = a.Mallocs
-		b.lastFrees = a.Frees
-	}
 
 	for i, pause := range gc.Pause {
 		g.Pauses.ObserveAt(pause.Seconds(), gc.PauseEnd[i])
