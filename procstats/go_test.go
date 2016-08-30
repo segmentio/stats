@@ -43,7 +43,7 @@ func TestGoMetricsMock(t *testing.T) {
 	gostats.gc.NumGC = 1
 	gostats.gc.Pause = []time.Duration{time.Microsecond}
 	gostats.gc.PauseEnd = []time.Time{now.Add(-time.Second)}
-	gostats.updateMemStats(time.Now(), time.Microsecond, time.Microsecond)
+	gostats.updateMemStats(time.Now())
 
 	if len(backend.Events) == 0 {
 		t.Error("no events were generated while collecting memory stats")

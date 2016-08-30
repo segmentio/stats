@@ -125,70 +125,63 @@ func (g *GoMetrics) Collect() {
 	g.NumCgoCall.Add(float64(numCgoCall - g.lastNumCgoCall))
 	g.lastNumCgoCall = numCgoCall
 
-	msd, gcd := collectMemoryStats(&g.ms, &g.gc, g.lastNumGC)
-	g.updateMemStats(time.Now(), msd, gcd)
+	collectMemoryStats(&g.ms, &g.gc, g.lastNumGC)
+	g.updateMemStats(time.Now())
 }
 
-func (g *GoMetrics) updateMemStats(now time.Time, msd time.Duration, gcd time.Duration) {
-	ms := &g.ms
-	gc := &g.gc
+func (g *GoMetrics) updateMemStats(now time.Time) {
+	g.Alloc.Set(float64(g.ms.Alloc))
+	g.TotalAlloc.Add(float64(g.ms.TotalAlloc - g.lastTotalAlloc))
+	g.Lookups.Add(float64(g.ms.Lookups - g.lastLookups))
+	g.Mallocs.Add(float64(g.ms.Mallocs - g.lastMallocs))
+	g.Frees.Add(float64(g.ms.Frees - g.lastFrees))
 
-	g.Alloc.Set(float64(ms.Alloc))
-	g.TotalAlloc.Add(float64(ms.TotalAlloc - g.lastTotalAlloc))
-	g.Lookups.Add(float64(ms.Lookups - g.lastLookups))
-	g.Mallocs.Add(float64(ms.Mallocs - g.lastMallocs))
-	g.Frees.Add(float64(ms.Frees - g.lastFrees))
+	g.HeapAlloc.Set(float64(g.ms.HeapAlloc))
+	g.HeapSys.Set(float64(g.ms.HeapSys))
+	g.HeapIdle.Set(float64(g.ms.HeapIdle))
+	g.HeapInuse.Set(float64(g.ms.HeapInuse))
+	g.HeapReleased.Add(float64(g.ms.HeapReleased - g.lastHeapReleased))
+	g.HeapObjects.Set(float64(g.ms.HeapObjects))
 
-	g.HeapAlloc.Set(float64(ms.HeapAlloc))
-	g.HeapSys.Set(float64(ms.HeapSys))
-	g.HeapIdle.Set(float64(ms.HeapIdle))
-	g.HeapInuse.Set(float64(ms.HeapInuse))
-	g.HeapReleased.Add(float64(ms.HeapReleased - g.lastHeapReleased))
-	g.HeapObjects.Set(float64(ms.HeapObjects))
+	g.StackInuse.Set(float64(g.ms.StackInuse))
+	g.StackSys.Set(float64(g.ms.StackSys))
+	g.MSpanInuse.Set(float64(g.ms.MSpanInuse))
+	g.MSpanSys.Set(float64(g.ms.MSpanSys))
+	g.MCacheInuse.Set(float64(g.ms.MCacheInuse))
+	g.MCacheSys.Set(float64(g.ms.MCacheSys))
+	g.BuckHashSys.Set(float64(g.ms.BuckHashSys))
+	g.GCSys.Set(float64(g.ms.GCSys))
+	g.OtherSys.Set(float64(g.ms.OtherSys))
 
-	g.StackInuse.Set(float64(ms.StackInuse))
-	g.StackSys.Set(float64(ms.StackSys))
-	g.MSpanInuse.Set(float64(ms.MSpanInuse))
-	g.MSpanSys.Set(float64(ms.MSpanSys))
-	g.MCacheInuse.Set(float64(ms.MCacheInuse))
-	g.MCacheSys.Set(float64(ms.MCacheSys))
-	g.BuckHashSys.Set(float64(ms.BuckHashSys))
-	g.GCSys.Set(float64(ms.GCSys))
-	g.OtherSys.Set(float64(ms.OtherSys))
+	g.NumGC.Add(float64(uint64(g.gc.NumGC) - g.lastNumGC))
+	g.NextGC.Set(float64(g.ms.NextGC))
+	g.LastGC.Set(now.Sub(g.gc.LastGC).Seconds())
+	g.GCCPUFraction.Set(float64(g.ms.GCCPUFraction))
 
-	g.NumGC.Add(float64(uint64(gc.NumGC) - g.lastNumGC))
-	g.NextGC.Set(float64(ms.NextGC))
-	g.LastGC.Set(now.Sub(gc.LastGC).Seconds())
-	g.GCCPUFraction.Set(float64(ms.GCCPUFraction))
-
-	for i, pause := range gc.Pause {
-		g.Pauses.ObserveAt(pause.Seconds(), gc.PauseEnd[i])
+	for i, pause := range g.gc.Pause {
+		g.Pauses.ObserveAt(pause.Seconds(), g.gc.PauseEnd[i])
 	}
 
-	g.lastTotalAlloc = ms.TotalAlloc
-	g.lastHeapReleased = ms.HeapReleased
-	g.lastLookups = ms.Lookups
-	g.lastMallocs = ms.Mallocs
-	g.lastFrees = ms.Frees
-	g.lastNumGC = uint64(gc.NumGC)
+	g.lastTotalAlloc = g.ms.TotalAlloc
+	g.lastHeapReleased = g.ms.HeapReleased
+	g.lastLookups = g.ms.Lookups
+	g.lastMallocs = g.ms.Mallocs
+	g.lastFrees = g.ms.Frees
+	g.lastNumGC = uint64(g.gc.NumGC)
 }
 
-func collectMemoryStats(ms *runtime.MemStats, gc *debug.GCStats, lastNumGC uint64) (time.Duration, time.Duration) {
-	return collectMemStats(ms), collectGCStats(gc, lastNumGC)
+func collectMemoryStats(ms *runtime.MemStats, gc *debug.GCStats, lastNumGC uint64) {
+	collectMemStats(ms)
+	collectGCStats(gc, lastNumGC)
 }
 
-func collectMemStats(ms *runtime.MemStats) time.Duration {
-	t := time.Now()
+func collectMemStats(ms *runtime.MemStats) {
 	runtime.ReadMemStats(ms)
-	return time.Now().Sub(t)
 }
 
-func collectGCStats(gc *debug.GCStats, lastNumGC uint64) time.Duration {
-	t := time.Now()
+func collectGCStats(gc *debug.GCStats, lastNumGC uint64) {
 	debug.ReadGCStats(gc)
-	d := time.Now().Sub(t)
 	stripOutdatedGCPauses(gc, lastNumGC)
-	return d
 }
 
 func stripOutdatedGCPauses(gc *debug.GCStats, lastNumGC uint64) {
