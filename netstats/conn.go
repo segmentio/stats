@@ -9,24 +9,53 @@ import (
 	"github.com/segmentio/stats"
 )
 
-func NewConn(c net.Conn, client stats.Client, tags ...stats.Tag) net.Conn {
+type ConnTag int
+
+const (
+	TagProtocol   ConnTag = 1 << 0
+	TagLocalAddr  ConnTag = 1 << 1
+	TagLocalPort  ConnTag = 1 << 2
+	TagRemoteAddr ConnTag = 1 << 3
+	TagRemotePort ConnTag = 1 << 4
+
+	TagAll = TagProtocol | TagLocalAddr | TagLocalPort | TagRemoteAddr | TagRemotePort
+)
+
+func NewConnTags(c net.Conn, t ConnTag) (tags stats.Tags) {
+	tags = make(stats.Tags, 0, 5)
+
 	laddr := c.LocalAddr()
 	raddr := c.RemoteAddr()
 
 	lhost, lport, _ := net.SplitHostPort(laddr.String())
 	rhost, rport, _ := net.SplitHostPort(raddr.String())
 
-	tags = append(tags,
-		stats.Tag{"protocol", laddr.Network()},
-		stats.Tag{"local_addr", lhost},
-		stats.Tag{"local_port", lport},
-		stats.Tag{"remote_addr", rhost},
-		stats.Tag{"remote_port", rport},
-	)
+	if (t & TagProtocol) != 0 {
+		tags = append(tags, stats.Tag{"protocol", laddr.Network()})
+	}
 
+	if (t & TagLocalAddr) != 0 {
+		tags = append(tags, stats.Tag{"local_addr", lhost})
+	}
+
+	if (t & TagLocalPort) != 0 {
+		tags = append(tags, stats.Tag{"local_port", lport})
+	}
+
+	if (t & TagRemoteAddr) != 0 {
+		tags = append(tags, stats.Tag{"remote_addr", rhost})
+	}
+
+	if (t & TagRemotePort) != 0 {
+		tags = append(tags, stats.Tag{"remote_port", rport})
+	}
+
+	return
+}
+
+func NewConn(c net.Conn, client stats.Client, tags ...stats.Tag) net.Conn {
 	m := NewMetrics(client, tags...)
 	m.Open.Add(1)
-
 	return &conn{Conn: c, metrics: m}
 }
 
