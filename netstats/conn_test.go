@@ -21,7 +21,8 @@ func TestConn(t *testing.T) {
 	})
 	defer client.Close()
 
-	conn := NewConn(&testConn{}, client)
+	c := &testConn{}
+	conn := NewConn(c, client, NewConnTags(c, TagAll)...)
 	conn.Write([]byte("Hello World!"))
 	conn.Read(make([]byte, 10))
 	conn.Read(make([]byte, 10))
@@ -119,7 +120,8 @@ func TestConnError(t *testing.T) {
 	})
 	defer client.Close()
 
-	conn := NewConn(&testConn{err: testError}, client)
+	c := &testConn{err: testError}
+	conn := NewConn(c, client, NewConnTags(c, TagAll)...)
 	conn.SetDeadline(now)
 	conn.SetReadDeadline(now)
 	conn.SetWriteDeadline(now)
