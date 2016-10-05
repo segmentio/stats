@@ -277,7 +277,7 @@ func sanitizeHttpPath(p string) string {
 	parts := strings.Split(path.Clean(p), "/")
 	for i, s := range parts {
 		if isID(s) {
-			parts[i] = "<ID>"
+			parts[i] = "<id>"
 		}
 	}
 	return strings.Join(parts, "/")
