@@ -9,6 +9,98 @@ import (
 	"testing"
 )
 
+func TestIsIDByte(t *testing.T) {
+	tests := []struct {
+		c  byte
+		is bool
+	}{
+		{'0', true},
+		{'1', true},
+		{'2', true},
+		{'3', true},
+		{'4', true},
+		{'5', true},
+		{'6', true},
+		{'7', true},
+		{'8', true},
+		{'9', true},
+
+		{'a', true},
+		{'b', true},
+		{'c', true},
+		{'d', true},
+		{'e', true},
+		{'f', true},
+
+		{'A', true},
+		{'B', true},
+		{'C', true},
+		{'D', true},
+		{'E', true},
+		{'F', true},
+
+		{'-', true},
+
+		{'g', false},
+		{'z', false},
+
+		{'G', false},
+		{'Z', false},
+
+		{' ', false},
+		{'!', false},
+	}
+
+	for _, test := range tests {
+		if is := isIDByte(test.c); is != test.is {
+			t.Errorf("isIDByte(%c) != %t", test.c, test.is)
+		}
+	}
+}
+
+func TestIsID(t *testing.T) {
+	tests := []struct {
+		s  string
+		is bool
+	}{
+		{"0", true},
+		{"1", true},
+		{"1234567890", true},
+		{"abcdef", true},
+		{"ABCDEF", true},
+		{"7CDACC74-F84B-4C2B-A4E0-7640A285F211", true},
+
+		{"", false},
+		{"Hello World!", false},
+	}
+
+	for _, test := range tests {
+		if is := isID(test.s); is != test.is {
+			t.Errorf("isID(%s) != %t", test.s, test.is)
+		}
+	}
+}
+
+func TestSanitizeHttpPath(t *testing.T) {
+	tests := []struct {
+		in  string
+		out string
+	}{
+		{"", ""},
+		{"/", "/"},
+		{"/hello", "/hello"},
+		{"/hello/world", "/hello/world"},
+		{"/hello/1", "/hello/<id>"},
+		{"/hello/7CDACC74-F84B-4C2B-A4E0-7640A285F211", "/hello/<id>"},
+	}
+
+	for _, test := range tests {
+		if out := sanitizeHttpPath(test.in); out != test.out {
+			t.Errorf("sanitizeHttpPath(%s) => %s != %s", test.in, test.out, out)
+		}
+	}
+}
+
 func TestCopyHeader(t *testing.T) {
 	h1 := http.Header{"Content-Type": {"text/plain"}, "Content-Length": {"11"}}
 	h2 := copyHeader(h1)
