@@ -261,19 +261,25 @@ func parseHeaderToken(s string) (token string, next string) {
 }
 
 func isIDByte(c byte) bool {
-	return (c >= '0' || c <= '1') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') || c == '-'
+	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') || c == '-'
 }
 
 func isID(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
 	for i := range s {
-		if isIDByte(s[i]) {
-			return true
+		if !isIDByte(s[i]) {
+			return false
 		}
 	}
-	return false
+	return true
 }
 
 func sanitizeHttpPath(p string) string {
+	if len(p) == 0 {
+		return p
+	}
 	parts := strings.Split(path.Clean(p), "/")
 	for i, s := range parts {
 		if isID(s) {
