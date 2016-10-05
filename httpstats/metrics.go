@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"path"
 	"strconv"
 	"strings"
 	"sync"
@@ -102,7 +103,7 @@ func makeRequestTags(req *http.Request, tags ...stats.Tag) stats.Tags {
 	ctype, charset := contentType(req.Header)
 	return append(stats.Tags{
 		{"http_req_method", req.Method},
-		{"http_req_path", req.URL.Path},
+		{"http_req_path", sanitizeHttpPath(req.URL.Path)},
 		{"http_req_protocol", req.Proto},
 		{"http_req_host", host},
 		{"http_req_content_type", ctype},
@@ -257,6 +258,29 @@ func parseHeaderToken(s string) (token string, next string) {
 		token = strings.TrimSpace(s)
 	}
 	return
+}
+
+func isIDByte(c byte) bool {
+	return (c >= '0' || c <= '1') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') || c == '-'
+}
+
+func isID(s string) bool {
+	for i := range s {
+		if isIDByte(s[i]) {
+			return true
+		}
+	}
+	return false
+}
+
+func sanitizeHttpPath(p string) string {
+	parts := strings.Split(path.Clean(p), "/")
+	for i, s := range parts {
+		if isID(s) {
+			parts[i] = "<ID>"
+		}
+	}
+	return strings.Join(parts, "/")
 }
 
 type readCloser struct {
