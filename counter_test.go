@@ -53,16 +53,17 @@ func TestMakeCounter(t *testing.T) {
 }
 
 func TestCounterIncr(t *testing.T) {
-	channel := make(chan metric, 1)
-	counter := makeCounter("M", []Tag{{"A", "1"}, {"B", "2"}}, channel)
+	metrics := make(chan Metric, 1)
+	counter := makeCounter("M", []Tag{{"A", "1"}, {"B", "2"}}, metrics)
 
 	counter.Incr()
 
-	if m := <-channel; !reflect.DeepEqual(m, metric{
-		key:   "M?A=1&B=2",
-		name:  "M",
-		tags:  []Tag{{"A", "1"}, {"B", "2"}},
-		value: 1,
+	if m := <-metrics; !reflect.DeepEqual(m, Metric{
+		Type:  CounterType,
+		Key:   "M?A=1&B=2",
+		Name:  "M",
+		Tags:  []Tag{{"A", "1"}, {"B", "2"}},
+		Value: 1,
 	}) {
 		t.Errorf("counter.Incr() => %#v (bad metric)", m)
 	}

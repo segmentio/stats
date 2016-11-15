@@ -6,7 +6,12 @@ type Counter struct {
 	key  string // cached metric key
 	name string // the name of the counter
 	tags []Tag  // the tags set on the counter
-	opch chan<- metric
+	opch chan<- Metric
+}
+
+// C returns a new counter that produces metrics on the default engine.
+func C(name string, tags ...Tag) Counter {
+	return DefaultEngine.Counter(name, tags...)
 }
 
 // Name returns the name of the counter.
@@ -40,15 +45,16 @@ func (c Counter) Add(value float64, tags ...Tag) {
 }
 
 func (c Counter) add(value float64) {
-	c.opch <- metric{
-		key:   c.key,
-		name:  c.name,
-		tags:  c.tags,
-		value: value,
+	c.opch <- Metric{
+		Type:  CounterType,
+		Key:   c.key,
+		Name:  c.name,
+		Tags:  c.tags,
+		Value: value,
 	}
 }
 
-func makeCounter(name string, tags []Tag, opch chan<- metric) Counter {
+func makeCounter(name string, tags []Tag, opch chan<- Metric) Counter {
 	return Counter{
 		key:  metricKey(name, tags),
 		name: name,
