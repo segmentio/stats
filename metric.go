@@ -42,9 +42,13 @@ type Metric struct {
 	// This field is only valid for counters and gauge.
 	Value float64
 
-	// Version is a counter of the number of operations that have been done on a
+	// Count is a counter of the number of operations that have been done on a
 	// metric.
-	Version uint64
+	//
+	// Note that for a single metric this value may not always increase. If a
+	// metric is idle for too long and times out then is produced again later
+	// on the count will be set back to one.
+	Count uint64
 }
 
 type metricsByKey []Metric
@@ -110,7 +114,7 @@ type metricState struct {
 	name    string
 	tags    []Tag
 	value   float64
-	version uint64
+	count   uint64
 	expTime time.Time
 }
 
@@ -135,12 +139,12 @@ func (s metricStore) state() []Metric {
 
 	for key, state := range s.metrics {
 		metrics = append(metrics, Metric{
-			Key:     key,
-			Type:    state.typ,
-			Name:    state.name,
-			Tags:    state.tags,
-			Value:   state.value,
-			Version: state.version,
+			Key:   key,
+			Type:  state.typ,
+			Name:  state.name,
+			Tags:  state.tags,
+			Value: state.value,
+			Count: state.count,
 		})
 	}
 
@@ -160,7 +164,7 @@ func (s metricStore) apply(op metricOp, now time.Time) {
 	}
 
 	op.apply(state, op.value)
-	state.version++
+	state.count++
 	state.expTime = now.Add(s.timeout)
 }
 

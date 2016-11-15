@@ -124,20 +124,20 @@ func TestMetricStore(t *testing.T) {
 
 	if !reflect.DeepEqual(state, []Metric{
 		Metric{
-			Type:    CounterType,
-			Key:     "M?A=1&B=2",
-			Name:    "M",
-			Tags:    []Tag{{"A", "1"}, {"B", "2"}},
-			Value:   2,
-			Version: 2,
+			Type:  CounterType,
+			Key:   "M?A=1&B=2",
+			Name:  "M",
+			Tags:  []Tag{{"A", "1"}, {"B", "2"}},
+			Value: 2,
+			Count: 2,
 		},
 		Metric{
-			Type:    CounterType,
-			Key:     "X?",
-			Name:    "X",
-			Tags:    nil,
-			Value:   10,
-			Version: 1,
+			Type:  CounterType,
+			Key:   "X?",
+			Name:  "X",
+			Tags:  nil,
+			Value: 10,
+			Count: 1,
 		},
 	}) {
 		t.Error("bad metric store state:", state)
@@ -152,12 +152,12 @@ func TestMetricStore(t *testing.T) {
 
 	if !reflect.DeepEqual(state, []Metric{
 		Metric{
-			Type:    CounterType,
-			Key:     "X?",
-			Name:    "X",
-			Tags:    nil,
-			Value:   10,
-			Version: 1,
+			Type:  CounterType,
+			Key:   "X?",
+			Name:  "X",
+			Tags:  nil,
+			Value: 10,
+			Count: 1,
 		},
 	}) {
 		t.Error("bad metric store state:", state)

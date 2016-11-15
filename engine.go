@@ -80,14 +80,14 @@ func NewEngine(config EngineConfig) *Engine {
 		reqch: reqch,
 	}
 
-	go (engine{
+	go runEngine(engine{
 		errch:  errch,
 		opch:   opch,
 		reqch:  reqch,
 		prefix: config.Prefix,
 		tags:   config.Tags,
 		store:  makeMetricStore(metricStoreConfig{timeout: config.MetricTimeout}),
-	}).run()
+	})
 
 	runtime.SetFinalizer(eng, (*Engine).Close)
 	return eng
@@ -158,17 +158,32 @@ type engine struct {
 	store  metricStore
 }
 
-func (e engine) run() {
+func runEngine(e engine) {
 	ticker := time.NewTicker(e.store.timeout / 2)
 	defer ticker.Stop()
 
 	for {
 		select {
+		case <-e.errch:
+			name := "stats.discarded"
+			tags := e.tags
+
+			if len(e.prefix) != 0 {
+				name = e.prefix + "." + name
+			}
+
+			e.store.apply(metricOp{
+				typ:   CounterType,
+				key:   metricKey(name, tags),
+				name:  name,
+				tags:  tags,
+				value: 1,
+			}, time.Now())
+
 		case op, ok := <-e.opch:
 			if !ok {
 				return // done
 			}
-
 			rekey := false
 
 			if len(e.tags) != 0 {
@@ -187,22 +202,6 @@ func (e engine) run() {
 			}
 
 			e.store.apply(op, time.Now())
-
-		case <-e.errch:
-			name := "stats.discarded"
-			tags := e.tags
-
-			if len(e.prefix) != 0 {
-				name = e.prefix + "." + name
-			}
-
-			e.store.apply(metricOp{
-				typ:   CounterType,
-				key:   metricKey(name, tags),
-				name:  name,
-				tags:  tags,
-				value: 1,
-			}, time.Now())
 
 		case req, ok := <-e.reqch:
 			if !ok {
