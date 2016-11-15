@@ -12,6 +12,7 @@ const (
 )
 
 type EngineConfig struct {
+	Prefix        string
 	MaxPending    int
 	MetricTimeout time.Duration
 }
@@ -47,7 +48,7 @@ func NewEngine(config EngineConfig) *Engine {
 		mqch: mqch,
 	}
 
-	go runEngine(opch, mqch, makeMetricStore(metricStoreConfig{
+	go runEngine(config.Prefix, opch, mqch, makeMetricStore(metricStoreConfig{
 		timeout: config.MetricTimeout,
 	}))
 
@@ -86,7 +87,7 @@ func (eng *Engine) push(op metricOp) {
 	eng.opch <- op
 }
 
-func runEngine(opch <-chan metricOp, mqch <-chan metricReq, store metricStore) {
+func runEngine(prefix string, opch <-chan metricOp, mqch <-chan metricReq, store metricStore) {
 	ticker := time.NewTicker(store.timeout / 2)
 	defer ticker.Stop()
 
@@ -96,6 +97,11 @@ func runEngine(opch <-chan metricOp, mqch <-chan metricReq, store metricStore) {
 			if !ok {
 				return // done
 			}
+
+			if len(prefix) != 0 {
+				op.name = prefix + "." + op.name
+			}
+
 			store.apply(op, time.Now())
 
 		case mq, ok := <-mqch:
