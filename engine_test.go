@@ -8,7 +8,7 @@ import (
 
 func TestEngine(t *testing.T) {
 	engine := NewEngine(EngineConfig{
-		Prefix: "test.",
+		Prefix: "test",
 		Tags:   []Tag{{"hello", "world"}},
 	})
 

@@ -39,8 +39,14 @@ type EngineConfig struct {
 // The goal of this type is to maintain aggregated metric values between scraps
 // from clients that expose those metrics to different collection systems.
 type Engine struct {
-	opch chan<- metricOp
-	mqch chan<- metricReq
+	// error channel used to report dropped metrics.
+	errch chan<- struct{}
+
+	// operation and query channels used to communicate with the engine.
+	opch  chan<- metricOp
+	reqch chan<- metricReq
+
+	// synchronization primitive to make Close idempotent.
 	once sync.Once
 }
 
@@ -64,17 +70,24 @@ func NewEngine(config EngineConfig) *Engine {
 		config.MetricTimeout = DefaultMetricTimeout
 	}
 
+	errch := make(chan struct{}, 1)
 	opch := make(chan metricOp, config.MaxPending)
-	mqch := make(chan metricReq)
+	reqch := make(chan metricReq)
 
 	eng := &Engine{
-		opch: opch,
-		mqch: mqch,
+		errch: errch,
+		opch:  opch,
+		reqch: reqch,
 	}
 
-	go runEngine(config.Prefix, config.Tags, opch, mqch, makeMetricStore(metricStoreConfig{
-		timeout: config.MetricTimeout,
-	}))
+	go (engine{
+		errch:  errch,
+		opch:   opch,
+		reqch:  reqch,
+		prefix: config.Prefix,
+		tags:   config.Tags,
+		store:  makeMetricStore(metricStoreConfig{timeout: config.MetricTimeout}),
+	}).run()
 
 	runtime.SetFinalizer(eng, (*Engine).Close)
 	return eng
@@ -102,60 +115,103 @@ func (eng *Engine) Close() error {
 // State returns the current state of the engine as a list of metrics.
 func (eng *Engine) State() []Metric {
 	res := make(chan []Metric, 1)
-	eng.mqch <- metricReq{res: res}
+	eng.reqch <- metricReq{res: res}
 	return <-res
 }
 
 func (eng *Engine) close() {
 	close(eng.opch)
-	close(eng.mqch)
+	close(eng.reqch)
 }
 
 func (eng *Engine) push(op metricOp) {
 	if eng == nil {
 		eng = DefaultEngine
 	}
-	eng.opch <- op
+
+	select {
+	case eng.opch <- op:
+		return
+	default:
+		// Never block, we'd rather discard the metric than block the program.
+	}
+
+	select {
+	case eng.errch <- struct{}{}:
+	default:
+		// Never block either, we may not report an accurate count of discarded
+		// metrics but it's OK, the important part is giving a signal that some
+		// metrics are getting discarded because of how loaded the metrics queue
+		// is.
+	}
 }
 
-func runEngine(prefix string, tags []Tag, opch <-chan metricOp, mqch <-chan metricReq, store metricStore) {
-	ticker := time.NewTicker(store.timeout / 2)
+// engine is the internal implementation of the Engine type, it carries the
+// other end of the diverse communication channels and the local state on which
+// the engine's goroutine works.
+type engine struct {
+	errch  <-chan struct{}
+	opch   <-chan metricOp
+	reqch  <-chan metricReq
+	prefix string
+	tags   []Tag
+	store  metricStore
+}
+
+func (e engine) run() {
+	ticker := time.NewTicker(e.store.timeout / 2)
 	defer ticker.Stop()
 
 	for {
 		select {
-		case op, ok := <-opch:
+		case op, ok := <-e.opch:
 			if !ok {
 				return // done
 			}
 
 			rekey := false
 
-			if len(tags) != 0 {
+			if len(e.tags) != 0 {
 				rekey = true
-				op.tags = append(op.tags, tags...)
+				op.tags = append(op.tags, e.tags...)
 				sortTags(op.tags)
 			}
 
-			if len(prefix) != 0 {
+			if len(e.prefix) != 0 {
 				rekey = true
-				op.name = prefix + op.name
+				op.name = e.prefix + "." + op.name
 			}
 
 			if rekey {
 				op.key = metricKey(op.name, op.tags)
 			}
 
-			store.apply(op, time.Now())
+			e.store.apply(op, time.Now())
 
-		case mq, ok := <-mqch:
+		case <-e.errch:
+			name := "stats.discarded"
+			tags := e.tags
+
+			if len(e.prefix) != 0 {
+				name = e.prefix + "." + name
+			}
+
+			e.store.apply(metricOp{
+				typ:   CounterType,
+				key:   metricKey(name, tags),
+				name:  name,
+				tags:  tags,
+				value: 1,
+			}, time.Now())
+
+		case req, ok := <-e.reqch:
 			if !ok {
 				return // done
 			}
-			mq.res <- store.state()
+			req.res <- e.store.state()
 
 		case now := <-ticker.C:
-			store.deleteExpiredMetrics(now)
+			e.store.deleteExpiredMetrics(now)
 		}
 	}
 }
