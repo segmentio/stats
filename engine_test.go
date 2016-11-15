@@ -10,17 +10,20 @@ func TestEngine(t *testing.T) {
 	engine := NewDefaultEngine()
 
 	a := engine.Counter("A")
-	b := engine.Counter("B")
-	c := engine.Counter("C", Tag{"context", "test"})
+	b := engine.Gauge("B")
+	c := engine.Gauge("C", Tag{"context", "test"})
 
 	a.Add(1)
-	b.Add(2)
-	c.Add(3)
+	b.Set(2)
+	c.Sub(3)
 
 	// Give a bit of time for the engine to update its state.
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 
-	if metrics := engine.Metrics(); !reflect.DeepEqual(metrics, []Metric{
+	metrics := engine.Metrics()
+	sortMetrics(metrics)
+
+	if !reflect.DeepEqual(metrics, []Metric{
 		Metric{
 			Type:    CounterType,
 			Key:     "A?",
@@ -30,7 +33,7 @@ func TestEngine(t *testing.T) {
 			Version: 1,
 		},
 		Metric{
-			Type:    CounterType,
+			Type:    GaugeType,
 			Key:     "B?",
 			Name:    "B",
 			Tags:    nil,
@@ -38,11 +41,11 @@ func TestEngine(t *testing.T) {
 			Version: 1,
 		},
 		Metric{
-			Type:    CounterType,
+			Type:    GaugeType,
 			Key:     "C?context=test",
 			Name:    "C",
 			Tags:    []Tag{{"context", "test"}},
-			Value:   3,
+			Value:   -3,
 			Version: 1,
 		},
 	}) {
