@@ -2,7 +2,6 @@ package stats
 
 import (
 	"sort"
-	"strconv"
 	"time"
 )
 
@@ -11,15 +10,6 @@ type MetricType int
 const (
 	CounterType MetricType = iota
 )
-
-func (t MetricType) GoString() string {
-	switch t {
-	case CounterType:
-		return "CounterType"
-	default:
-		return strconv.Itoa(int(t))
-	}
-}
 
 type Metric struct {
 	Type  MetricType
