@@ -2,6 +2,7 @@ package stats
 
 import (
 	"sort"
+	"strconv"
 	"time"
 )
 
@@ -10,6 +11,15 @@ type MetricType int
 const (
 	CounterType MetricType = iota
 )
+
+func (t MetricType) GoString() string {
+	switch t {
+	case CounterType:
+		return "CounterType"
+	default:
+		return strconv.Itoa(int(t))
+	}
+}
 
 type Metric struct {
 	Type  MetricType
@@ -46,6 +56,27 @@ func appendMetricKey(b []byte, name string, tags []Tag) []byte {
 	b = append(b, '?')
 	b = appendTags(b, tags)
 	return b
+}
+
+type metricOp struct {
+	Metric
+	op func(Metric, *metricState)
+}
+
+func metricOpAdd(m Metric, state *metricState) {
+	state.value += m.Value
+}
+
+func metricOpSub(m Metric, state *metricState) {
+	state.value -= m.Value
+}
+
+func metricOpSet(m Metric, state *metricState) {
+	state.value = m.Value
+}
+
+type metricReq struct {
+	res chan<- []Metric
 }
 
 type metricState struct {
@@ -89,7 +120,7 @@ func (s metricStore) state() []Metric {
 	return metrics
 }
 
-func (s metricStore) update(m Metric, now time.Time) {
+func (s metricStore) apply(m metricOp, now time.Time) {
 	state := s.metrics[m.Key]
 
 	if state == nil {
@@ -101,11 +132,7 @@ func (s metricStore) update(m Metric, now time.Time) {
 		s.metrics[m.Key] = state
 	}
 
-	switch m.Type {
-	case CounterType:
-		state.value += m.Value
-	}
-
+	m.op(m.Metric, state)
 	state.expTime = now.Add(s.timeout)
 }
 

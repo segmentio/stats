@@ -3,6 +3,7 @@ package stats
 import (
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestEngine(t *testing.T) {
@@ -15,6 +16,9 @@ func TestEngine(t *testing.T) {
 	a.Add(1)
 	b.Add(2)
 	c.Add(3, Tag{"context", "test"})
+
+	// Give a bit of time for the engine to update its state.
+	time.Sleep(10 * time.Millisecond)
 
 	if metrics := engine.Metrics(); !reflect.DeepEqual(metrics, []Metric{
 		Metric{

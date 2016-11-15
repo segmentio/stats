@@ -53,12 +53,12 @@ func TestMakeCounter(t *testing.T) {
 }
 
 func TestCounterIncr(t *testing.T) {
-	metrics := make(chan Metric, 1)
+	metrics := make(chan metricOp, 1)
 	counter := makeCounter("M", []Tag{{"A", "1"}, {"B", "2"}}, metrics)
 
 	counter.Incr()
 
-	if m := <-metrics; !reflect.DeepEqual(m, Metric{
+	if m := <-metrics; !reflect.DeepEqual(m.Metric, Metric{
 		Type:  CounterType,
 		Key:   "M?A=1&B=2",
 		Name:  "M",

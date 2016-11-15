@@ -92,28 +92,37 @@ func TestMetricStore(t *testing.T) {
 	})
 
 	// Push a couple of metrics to the store.
-	store.update(Metric{
-		Type:  CounterType,
-		Key:   "M?A=1&B=2",
-		Name:  "M",
-		Tags:  []Tag{{"A", "1"}, {"B", "2"}},
-		Value: 1,
+	store.apply(metricOp{
+		Metric: Metric{
+			Type:  CounterType,
+			Key:   "M?A=1&B=2",
+			Name:  "M",
+			Tags:  []Tag{{"A", "1"}, {"B", "2"}},
+			Value: 1,
+		},
+		op: metricOpAdd,
 	}, now)
 
-	store.update(Metric{
-		Type:  CounterType,
-		Key:   "M?A=1&B=2",
-		Name:  "M",
-		Tags:  []Tag{{"A", "1"}, {"B", "2"}},
-		Value: 1,
+	store.apply(metricOp{
+		Metric: Metric{
+			Type:  CounterType,
+			Key:   "M?A=1&B=2",
+			Name:  "M",
+			Tags:  []Tag{{"A", "1"}, {"B", "2"}},
+			Value: 1,
+		},
+		op: metricOpAdd,
 	}, now)
 
-	store.update(Metric{
-		Type:  CounterType,
-		Key:   "X?",
-		Name:  "X",
-		Tags:  nil,
-		Value: 10,
+	store.apply(metricOp{
+		Metric: Metric{
+			Type:  CounterType,
+			Key:   "X?",
+			Name:  "X",
+			Tags:  nil,
+			Value: 10,
+		},
+		op: metricOpAdd,
 	}, now.Add(5*time.Millisecond))
 
 	// Check the state of the store.

@@ -17,13 +17,9 @@ type EngineConfig struct {
 }
 
 type Engine struct {
-	opch chan<- Metric
-	mqch chan<- mquery
+	opch chan<- metricOp
+	mqch chan<- metricReq
 	once sync.Once
-}
-
-type mquery struct {
-	res chan<- []Metric
 }
 
 var (
@@ -43,8 +39,8 @@ func NewEngine(config EngineConfig) *Engine {
 		config.MetricTimeout = DefaultMetricTimeout
 	}
 
-	opch := make(chan Metric, config.MaxPending)
-	mqch := make(chan mquery)
+	opch := make(chan metricOp, config.MaxPending)
+	mqch := make(chan metricReq)
 
 	eng := &Engine{
 		opch: opch,
@@ -74,11 +70,11 @@ func (eng *Engine) stop() {
 
 func (eng *Engine) Metrics() []Metric {
 	res := make(chan []Metric, 1)
-	eng.mqch <- mquery{res: res}
+	eng.mqch <- metricReq{res: res}
 	return <-res
 }
 
-func runEngine(opch <-chan Metric, mqch <-chan mquery, store metricStore) {
+func runEngine(opch <-chan metricOp, mqch <-chan metricReq, store metricStore) {
 	ticker := time.NewTicker(store.timeout / 2)
 	defer ticker.Stop()
 
@@ -88,7 +84,7 @@ func runEngine(opch <-chan Metric, mqch <-chan mquery, store metricStore) {
 			if !ok {
 				return // done
 			}
-			store.update(op, time.Now())
+			store.apply(op, time.Now())
 
 		case mq, ok := <-mqch:
 			if !ok {
