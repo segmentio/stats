@@ -42,13 +42,39 @@ type Metric struct {
 	// This field is only valid for counters and gauge.
 	Value float64
 
-	// Count is a counter of the number of operations that have been done on a
+	// Version is a counter of the number of operations that have been done on a
 	// metric.
 	//
 	// Note that for a single metric this value may not always increase. If a
 	// metric is idle for too long and times out, then is produced again later,
-	// the count will be set back to one.
-	Count uint64
+	// the version will be set back to one.
+	Version uint64
+}
+
+// The Diff function takes an old and new engine state and computes the
+// differences between them, returing a list of metrics change have changed,
+// not changed, or expired.
+func Diff(old []Metric, new []Metric) (changed []Metric, unchanged []Metric, expired []Metric) {
+	cache := make(map[string]Metric, len(old))
+
+	for _, m := range old {
+		cache[m.Key] = m
+	}
+
+	for _, m := range new {
+		if n, ok := cache[m.Key]; !ok || m.Version != n.Version {
+			changed = append(changed, m)
+		} else {
+			unchanged = append(unchanged, m)
+		}
+		delete(cache, m.Key)
+	}
+
+	for _, m := range cache {
+		expired = append(expired, m)
+	}
+
+	return
 }
 
 type metricsByKey []Metric
@@ -114,7 +140,7 @@ type metricState struct {
 	name    string
 	tags    []Tag
 	value   float64
-	count   uint64
+	version uint64
 	expTime time.Time
 }
 
@@ -139,12 +165,12 @@ func (s metricStore) state() []Metric {
 
 	for key, state := range s.metrics {
 		metrics = append(metrics, Metric{
-			Key:   key,
-			Type:  state.typ,
-			Name:  state.name,
-			Tags:  state.tags,
-			Value: state.value,
-			Count: state.count,
+			Key:     key,
+			Type:    state.typ,
+			Name:    state.name,
+			Tags:    state.tags,
+			Value:   state.value,
+			Version: state.version,
 		})
 	}
 
@@ -164,7 +190,7 @@ func (s metricStore) apply(op metricOp, now time.Time) {
 	}
 
 	op.apply(state, op.value)
-	state.count++
+	state.version++
 	state.expTime = now.Add(s.timeout)
 }
 
