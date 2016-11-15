@@ -32,26 +32,8 @@ func (t tags) Len() int {
 	return len(t)
 }
 
-func sortTags(t []Tag) []Tag {
+func sortTags(t []Tag) {
 	sort.Sort(tags(t))
-	return t
-}
-
-func concatTags(t1 []Tag, t2 []Tag) []Tag {
-	if len(t1) == 0 {
-		return copyTags(t2)
-	}
-
-	if len(t2) == 0 {
-		return copyTags(t1)
-	}
-
-	n1 := len(t1)
-	n2 := len(t2)
-	t3 := make([]Tag, n1+n2)
-	copy(t3, t1)
-	copy(t3[n1:], t2)
-	return t3
 }
 
 func copyTags(tags []Tag) []Tag {

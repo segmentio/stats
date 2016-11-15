@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestMakeCounter(t *testing.T) {
+func TestMakeGauge(t *testing.T) {
 	tests := []struct {
 		key  string
 		name string
@@ -35,13 +35,13 @@ func TestMakeCounter(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run("", func(t *testing.T) {
-			if counter := makeCounter(nil, test.name, test.tags); !reflect.DeepEqual(counter, Counter{
+			if gauge := makeGauge(nil, test.name, test.tags); !reflect.DeepEqual(gauge, Gauge{
 				eng:  nil,
 				key:  test.key,
 				name: test.name,
 				tags: test.tags,
 			}) {
-				t.Errorf("makeCounter(nil, %#v, %#v) => %#v", test.name, test.tags, counter)
+				t.Errorf("makeGauge(nil, %#v, %#v) => %#v", test.name, test.tags, gauge)
 			}
 		})
 	}

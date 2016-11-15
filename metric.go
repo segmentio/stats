@@ -5,32 +5,64 @@ import (
 	"time"
 )
 
+// MetricType is an enumeration representing the type of a metric.
 type MetricType int
 
 const (
+	// CounterType is the constant representing counters.
 	CounterType MetricType = iota
+
+	// GaugeType is the constant representing gauges.
+	GaugeType
 )
 
+// Metric is a universal representation of the state of a metric.
+//
+// No operations are available on this data type, instead it carries the state
+// of a metric a single metric when querying the state of a stats engine.
 type Metric struct {
-	Type  MetricType
-	Key   string
-	Name  string
-	Tags  []Tag
+	// Type is a constant representing the type of the metric, which is one of
+	// the constants defined by the MetricType enumeration.
+	Type MetricType
+
+	// Key is a unique identifier for the metric.
+	//
+	// Application should not rely on the actual structure of the key and just
+	// assume that it will be uniquely representing a single metric.
+	Key string
+
+	// Name is the name of the metric as defined by the program.
+	Name string
+
+	// Tags is the list of tags set on the metric.
+	Tags []Tag
+
+	// Value is the current value of a metric.
+	//
+	// This field is only valid for counters and gauge.
 	Value float64
+
+	// Version is a counter of the number of operations that have been done on a
+	// metric.
+	Version uint64
 }
 
-type NaturalMetricOrder []Metric
+type metricsByKey []Metric
 
-func (m NaturalMetricOrder) Less(i int, j int) bool {
+func (m metricsByKey) Less(i int, j int) bool {
 	return m[i].Key < m[j].Key
 }
 
-func (m NaturalMetricOrder) Swap(i int, j int) {
+func (m metricsByKey) Swap(i int, j int) {
 	m[i], m[j] = m[j], m[i]
 }
 
-func (m NaturalMetricOrder) Len() int {
+func (m metricsByKey) Len() int {
 	return len(m)
+}
+
+func sortMetrics(metrics []Metric) {
+	sort.Sort(metricsByKey(metrics))
 }
 
 func metricKey(name string, tags []Tag) string {
@@ -49,20 +81,24 @@ func appendMetricKey(b []byte, name string, tags []Tag) []byte {
 }
 
 type metricOp struct {
-	Metric
-	op func(Metric, *metricState)
+	typ   MetricType
+	key   string
+	name  string
+	tags  []Tag
+	value float64
+	apply func(*metricState, float64)
 }
 
-func metricOpAdd(m Metric, state *metricState) {
-	state.value += m.Value
+func metricOpAdd(state *metricState, value float64) {
+	state.value += value
 }
 
-func metricOpSub(m Metric, state *metricState) {
-	state.value -= m.Value
+func metricOpSub(state *metricState, value float64) {
+	state.value -= value
 }
 
-func metricOpSet(m Metric, state *metricState) {
-	state.value = m.Value
+func metricOpSet(state *metricState, value float64) {
+	state.value = value
 }
 
 type metricReq struct {
@@ -74,6 +110,7 @@ type metricState struct {
 	name    string
 	tags    []Tag
 	value   float64
+	version uint64
 	expTime time.Time
 }
 
@@ -98,31 +135,32 @@ func (s metricStore) state() []Metric {
 
 	for key, state := range s.metrics {
 		metrics = append(metrics, Metric{
-			Key:   key,
-			Type:  state.typ,
-			Name:  state.name,
-			Tags:  state.tags,
-			Value: state.value,
+			Key:     key,
+			Type:    state.typ,
+			Name:    state.name,
+			Tags:    state.tags,
+			Value:   state.value,
+			Version: state.version,
 		})
 	}
 
-	sort.Sort(NaturalMetricOrder(metrics))
 	return metrics
 }
 
-func (s metricStore) apply(m metricOp, now time.Time) {
-	state := s.metrics[m.Key]
+func (s metricStore) apply(op metricOp, now time.Time) {
+	state := s.metrics[op.key]
 
 	if state == nil {
 		state = &metricState{
-			typ:  m.Type,
-			name: m.Name,
-			tags: m.Tags,
+			typ:  op.typ,
+			name: op.name,
+			tags: op.tags,
 		}
-		s.metrics[m.Key] = state
+		s.metrics[op.key] = state
 	}
 
-	m.op(m.Metric, state)
+	op.apply(state, op.value)
+	state.version++
 	state.expTime = now.Add(s.timeout)
 }
 

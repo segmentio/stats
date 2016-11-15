@@ -51,19 +51,24 @@ func NewEngine(config EngineConfig) *Engine {
 		timeout: config.MetricTimeout,
 	}))
 
-	runtime.SetFinalizer(eng, (*Engine).Stop)
+	runtime.SetFinalizer(eng, (*Engine).Close)
 	return eng
 }
 
 func (eng *Engine) Counter(name string, tags ...Tag) Counter {
-	return makeCounter(name, sortTags(copyTags(tags)), eng.opch)
+	return makeCounter(eng, name, copyTags(tags))
 }
 
-func (eng *Engine) Stop() {
-	eng.once.Do(eng.stop)
+func (eng *Engine) Gauge(name string, tags ...Tag) Gauge {
+	return makeGauge(eng, name, copyTags(tags))
 }
 
-func (eng *Engine) stop() {
+func (eng *Engine) Close() error {
+	eng.once.Do(eng.close)
+	return nil
+}
+
+func (eng *Engine) close() {
 	close(eng.opch)
 	close(eng.mqch)
 }
@@ -72,6 +77,13 @@ func (eng *Engine) Metrics() []Metric {
 	res := make(chan []Metric, 1)
 	eng.mqch <- metricReq{res: res}
 	return <-res
+}
+
+func (eng *Engine) push(op metricOp) {
+	if eng == nil {
+		eng = DefaultEngine
+	}
+	eng.opch <- op
 }
 
 func runEngine(opch <-chan metricOp, mqch <-chan metricReq, store metricStore) {

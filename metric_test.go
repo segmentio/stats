@@ -2,7 +2,6 @@ package stats
 
 import (
 	"reflect"
-	"sort"
 	"testing"
 	"time"
 )
@@ -71,7 +70,7 @@ func TestSortMetrics(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		sort.Sort(NaturalMetricOrder(test.metrics))
+		sortMetrics(test.metrics)
 		key := ""
 
 		for _, m := range test.metrics {
@@ -93,53 +92,52 @@ func TestMetricStore(t *testing.T) {
 
 	// Push a couple of metrics to the store.
 	store.apply(metricOp{
-		Metric: Metric{
-			Type:  CounterType,
-			Key:   "M?A=1&B=2",
-			Name:  "M",
-			Tags:  []Tag{{"A", "1"}, {"B", "2"}},
-			Value: 1,
-		},
-		op: metricOpAdd,
+		typ:   CounterType,
+		key:   "M?A=1&B=2",
+		name:  "M",
+		tags:  []Tag{{"A", "1"}, {"B", "2"}},
+		value: 1,
+		apply: metricOpAdd,
 	}, now)
 
 	store.apply(metricOp{
-		Metric: Metric{
-			Type:  CounterType,
-			Key:   "M?A=1&B=2",
-			Name:  "M",
-			Tags:  []Tag{{"A", "1"}, {"B", "2"}},
-			Value: 1,
-		},
-		op: metricOpAdd,
+		typ:   CounterType,
+		key:   "M?A=1&B=2",
+		name:  "M",
+		tags:  []Tag{{"A", "1"}, {"B", "2"}},
+		value: 1,
+		apply: metricOpAdd,
 	}, now)
 
 	store.apply(metricOp{
-		Metric: Metric{
-			Type:  CounterType,
-			Key:   "X?",
-			Name:  "X",
-			Tags:  nil,
-			Value: 10,
-		},
-		op: metricOpAdd,
+		typ:   CounterType,
+		key:   "X?",
+		name:  "X",
+		tags:  nil,
+		value: 10,
+		apply: metricOpAdd,
 	}, now.Add(5*time.Millisecond))
 
 	// Check the state of the store.
-	if state := store.state(); !reflect.DeepEqual(state, []Metric{
+	state := store.state()
+	sortMetrics(state)
+
+	if !reflect.DeepEqual(state, []Metric{
 		Metric{
-			Type:  CounterType,
-			Key:   "M?A=1&B=2",
-			Name:  "M",
-			Tags:  []Tag{{"A", "1"}, {"B", "2"}},
-			Value: 2,
+			Type:    CounterType,
+			Key:     "M?A=1&B=2",
+			Name:    "M",
+			Tags:    []Tag{{"A", "1"}, {"B", "2"}},
+			Value:   2,
+			Version: 2,
 		},
 		Metric{
-			Type:  CounterType,
-			Key:   "X?",
-			Name:  "X",
-			Tags:  nil,
-			Value: 10,
+			Type:    CounterType,
+			Key:     "X?",
+			Name:    "X",
+			Tags:    nil,
+			Value:   10,
+			Version: 1,
 		},
 	}) {
 		t.Error("bad metric store state:", state)
@@ -149,13 +147,17 @@ func TestMetricStore(t *testing.T) {
 	store.deleteExpiredMetrics(now.Add(12 * time.Millisecond))
 
 	// Check the state of the store after expiring metrics.
-	if state := store.state(); !reflect.DeepEqual(state, []Metric{
+	state = store.state()
+	sortMetrics(state)
+
+	if !reflect.DeepEqual(state, []Metric{
 		Metric{
-			Type:  CounterType,
-			Key:   "X?",
-			Name:  "X",
-			Tags:  nil,
-			Value: 10,
+			Type:    CounterType,
+			Key:     "X?",
+			Name:    "X",
+			Tags:    nil,
+			Value:   10,
+			Version: 1,
 		},
 	}) {
 		t.Error("bad metric store state:", state)
