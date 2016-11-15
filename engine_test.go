@@ -7,7 +7,10 @@ import (
 )
 
 func TestEngine(t *testing.T) {
-	engine := NewDefaultEngine()
+	engine := NewEngine(EngineConfig{
+		Prefix: "test.",
+		Tags:   []Tag{{"hello", "world"}},
+	})
 
 	a := engine.Counter("A")
 	b := engine.Gauge("B")
@@ -26,25 +29,25 @@ func TestEngine(t *testing.T) {
 	if !reflect.DeepEqual(metrics, []Metric{
 		Metric{
 			Type:    CounterType,
-			Key:     "A?",
-			Name:    "A",
-			Tags:    nil,
+			Key:     "test.A?hello=world",
+			Name:    "test.A",
+			Tags:    []Tag{{"hello", "world"}},
 			Value:   1,
 			Version: 1,
 		},
 		Metric{
 			Type:    GaugeType,
-			Key:     "B?",
-			Name:    "B",
-			Tags:    nil,
+			Key:     "test.B?hello=world",
+			Name:    "test.B",
+			Tags:    []Tag{{"hello", "world"}},
 			Value:   2,
 			Version: 1,
 		},
 		Metric{
 			Type:    GaugeType,
-			Key:     "C?context=test",
-			Name:    "C",
-			Tags:    []Tag{{"context", "test"}},
+			Key:     "test.C?context=test&hello=world",
+			Name:    "test.C",
+			Tags:    []Tag{{"context", "test"}, {"hello", "world"}},
 			Value:   -3,
 			Version: 1,
 		},
