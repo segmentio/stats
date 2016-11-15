@@ -20,7 +20,7 @@ func TestEngine(t *testing.T) {
 	// Give a bit of time for the engine to update its state.
 	time.Sleep(10 * time.Millisecond)
 
-	metrics := engine.Metrics()
+	metrics := engine.State()
 	sortMetrics(metrics)
 
 	if !reflect.DeepEqual(metrics, []Metric{

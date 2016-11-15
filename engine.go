@@ -73,7 +73,7 @@ func (eng *Engine) close() {
 	close(eng.mqch)
 }
 
-func (eng *Engine) Metrics() []Metric {
+func (eng *Engine) State() []Metric {
 	res := make(chan []Metric, 1)
 	eng.mqch <- metricReq{res: res}
 	return <-res
