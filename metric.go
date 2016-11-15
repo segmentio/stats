@@ -46,8 +46,8 @@ type Metric struct {
 	// metric.
 	//
 	// Note that for a single metric this value may not always increase. If a
-	// metric is idle for too long and times out then is produced again later
-	// on the count will be set back to one.
+	// metric is idle for too long and times out, then is produced again later,
+	// the count will be set back to one.
 	Count uint64
 }
 
