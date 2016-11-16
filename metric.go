@@ -2,6 +2,7 @@ package stats
 
 import (
 	"sort"
+	"strconv"
 	"time"
 )
 
@@ -9,11 +10,14 @@ import (
 type MetricType int
 
 const (
-	// CounterType is the constant representing counters.
+	// CounterType is the constant representing counter metrics.
 	CounterType MetricType = iota
 
-	// GaugeType is the constant representing gauges.
+	// GaugeType is the constant representing gauge metrics.
 	GaugeType
+
+	// HistogramType is the constant representing histogram metrics.
+	HistogramType
 )
 
 // Metric is a universal representation of the state of a metric.
@@ -88,19 +92,40 @@ type metricOp struct {
 	name  string
 	tags  []Tag
 	value float64
-	apply func(*metricState, float64)
+	apply func(*metricState, float64, time.Time)
 }
 
-func metricOpAdd(state *metricState, value float64) {
+func metricOpAdd(state *metricState, value float64, exp time.Time) {
 	state.value += value
+	state.sample++
+	state.expTime = exp
 }
 
-func metricOpSub(state *metricState, value float64) {
+func metricOpSub(state *metricState, value float64, exp time.Time) {
 	state.value -= value
+	state.sample++
+	state.expTime = exp
 }
 
-func metricOpSet(state *metricState, value float64) {
+func metricOpSet(state *metricState, value float64, exp time.Time) {
 	state.value = value
+	state.sample++
+	state.expTime = exp
+}
+
+func metricOpObserve(state *metricState, value float64, exp time.Time) {
+	key := state.key + "#" + strconv.FormatUint(state.sample, 10)
+	state.sample++
+	state.expTime = exp
+	state.metrics[key] = metricState{
+		key:     key,
+		typ:     state.typ,
+		name:    state.name,
+		tags:    state.tags,
+		value:   value,
+		sample:  1,
+		expTime: exp,
+	}
 }
 
 type metricReq struct {
@@ -109,11 +134,13 @@ type metricReq struct {
 
 type metricState struct {
 	typ     MetricType
+	key     string
 	name    string
 	tags    []Tag
 	value   float64
 	sample  uint64
 	expTime time.Time
+	metrics map[string]metricState // for distributions of observed values
 }
 
 type metricStore struct {
@@ -133,17 +160,30 @@ func makeMetricStore(config metricStoreConfig) metricStore {
 }
 
 func (s metricStore) state() []Metric {
-	metrics := make([]Metric, 0, len(s.metrics))
+	metrics := make([]Metric, 0, 2*len(s.metrics))
 
-	for key, state := range s.metrics {
-		metrics = append(metrics, Metric{
-			Key:    key,
-			Type:   state.typ,
-			Name:   state.name,
-			Tags:   state.tags,
-			Value:  state.value,
-			Sample: state.sample,
-		})
+	for _, state := range s.metrics {
+		if len(state.metrics) == 0 {
+			metrics = append(metrics, Metric{
+				Key:    state.key,
+				Type:   state.typ,
+				Name:   state.name,
+				Tags:   state.tags,
+				Value:  state.value,
+				Sample: state.sample,
+			})
+		} else {
+			for _, sub := range state.metrics {
+				metrics = append(metrics, Metric{
+					Key:    sub.key,
+					Type:   sub.typ,
+					Name:   sub.name,
+					Tags:   sub.tags,
+					Value:  sub.value,
+					Sample: sub.sample,
+				})
+			}
+		}
 	}
 
 	return metrics
@@ -155,21 +195,27 @@ func (s metricStore) apply(op metricOp, now time.Time) {
 	if state == nil || state.typ != op.typ {
 		state = &metricState{
 			typ:  op.typ,
+			key:  op.key,
 			name: op.name,
 			tags: op.tags,
 		}
 		s.metrics[op.key] = state
 	}
 
-	op.apply(state, op.value)
-	state.sample++
-	state.expTime = now.Add(s.timeout)
+	op.apply(state, op.value, now.Add(s.timeout))
 }
 
 func (s metricStore) deleteExpiredMetrics(now time.Time) {
 	for key, state := range s.metrics {
 		if now.After(state.expTime) {
 			delete(s.metrics, key)
+			continue
+		}
+
+		for key, sub := range state.metrics {
+			if now.After(sub.expTime) {
+				delete(state.metrics, key)
+			}
 		}
 	}
 }

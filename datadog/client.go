@@ -111,11 +111,8 @@ func run(c ClientConfig, tick *time.Ticker, done <-chan struct{}, join chan<- st
 	defer c.Output.Close()
 
 	var state []stats.Metric
-	var changes []stats.Metric
-	var cache = make(map[string]stats.Metric)
-
-	b1 := make([]byte, 0, 1024)
-	b2 := make([]byte, 0, c.BufferSize)
+	var b1 = make([]byte, 0, 1024)
+	var b2 = make([]byte, 0, c.BufferSize)
 
 	// On each tick, fetch the sttate of the engine and write the metrics that
 	// have changed since the last loop iteration.
@@ -126,7 +123,8 @@ mainLoop:
 			break mainLoop
 
 		case <-tick.C:
-			state, changes = diff(state, c.Engine.State(), cache, changes[:0])
+			var changes []stats.Metric
+			state, changes = diff(state, c.Engine.State())
 			write(c.Output, b1, b2, changes)
 		}
 	}
@@ -134,7 +132,7 @@ mainLoop:
 	// Flush the engine state one last time before exiting, this helps prevent
 	// data loss when the program is shutting down and the engine had a couple
 	// of pending changes.
-	state, changes = diff(state, c.Engine.State(), cache, changes[:0])
+	_, changes := diff(state, c.Engine.State())
 	write(c.Output, b1, b2, changes)
 }
 
@@ -171,36 +169,69 @@ func write(w io.Writer, b1 []byte, b2 []byte, changes []stats.Metric) {
 // The diff function takes an old and new engine state and computes the
 // differences between them, returing a list of metrics that have been
 // changed.
-func diff(old []stats.Metric, new []stats.Metric, cache map[string]stats.Metric, changed []stats.Metric) ([]stats.Metric, []stats.Metric) {
+func diff(old []stats.Metric, new []stats.Metric) (state []stats.Metric, changes []stats.Metric) {
+	changes = make([]stats.Metric, 0, len(new))
+
+	c1 := make(map[string]stats.Metric)   // metric diff cache
+	c2 := make(map[string][]stats.Metric) // histogram aggregation cache
+
 	// Populate the cache with all old metrics.
 	for _, m := range old {
-		cache[m.Key] = m
+		c1[m.Key] = m
 	}
 
 	// Look for metrics that have changed since the last tick.
 	for _, m := range new {
-		if n, ok := cache[m.Key]; !ok || m.Sample != n.Sample {
-			switch m.Type {
-			case stats.CounterType:
-				// For counters we need to report the difference since the last
-				// tick and discards rate sampling.
-				m.Value -= n.Value
-				m.Sample = 0
+		n, ok := c1[m.Key]
 
-			case stats.GaugeType:
-				// For gages we already have the correct value, no need to do
-				// rate sampling.
-				m.Sample = 0
-			}
-			changed = append(changed, m)
+		if ok && m.Sample == n.Sample {
+			// There were no changes on this metric, skipping.
+			continue
 		}
-		delete(cache, m.Key)
+
+		switch m.Type {
+		case stats.CounterType:
+			// For counters we need to report the difference since the last
+			// tick and discards rate sampling.
+			m.Value -= n.Value
+			m.Sample = 0
+			changes = append(changes, m)
+
+		case stats.GaugeType:
+			// For gages we already have the correct value, no need to do
+			// rate sampling.
+			m.Sample = 0
+			changes = append(changes, m)
+
+		case stats.HistogramType:
+			// Histograms are first grouped by name to be processed in the
+			// next step.
+			c2[m.Name] = append(c2[m.Name], m)
+		}
 	}
 
-	// Clear the cache so it can be reused.
-	for k := range cache {
-		delete(cache, k)
+	// Aggregate histograms, report the average value and the number of samples
+	// it represents.
+	for _, h := range c2 {
+		var avg stats.Metric
+
+		for _, m := range h {
+			avg = m // for metadata (name, tags, etc...)
+			avg.Key = ""
+			avg.Value = 0
+			avg.Sample = 0
+			break
+		}
+
+		for _, m := range h {
+			avg.Value += m.Value
+			avg.Sample += m.Sample
+		}
+
+		avg.Value /= float64(avg.Sample)
+		changes = append(changes, avg)
 	}
 
-	return new, changed
+	state = new
+	return
 }

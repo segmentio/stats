@@ -13,7 +13,7 @@ const (
 
 	// DefaultMetricTimeout is the amount of time idle metrics are kept in the
 	// default engine before being evicted.
-	DefaultMetricTimeout = 1 * time.Minute
+	DefaultMetricTimeout = 10 * time.Second
 )
 
 // EngineConfig carries the different configuration values that can be set when
