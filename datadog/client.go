@@ -131,7 +131,7 @@ mainLoop:
 		}
 	}
 
-	// Flush the engine state one last time before existing, this helps prevent
+	// Flush the engine state one last time before exiting, this helps prevent
 	// data loss when the program is shutting down and the engine had a couple
 	// of pending changes.
 	state, changes = diff(state, c.Engine.State(), cache, changes[:0])
