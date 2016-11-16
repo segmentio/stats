@@ -1,7 +1,6 @@
 package stats
 
 import (
-	"sort"
 	"strconv"
 	"time"
 )
@@ -59,24 +58,6 @@ type Metric struct {
 	// metric is idle for too long and times out, then is produced again later,
 	// the sample will be set back to one.
 	Sample uint64
-}
-
-type metricsByKey []Metric
-
-func (m metricsByKey) Less(i int, j int) bool {
-	return m[i].Key < m[j].Key
-}
-
-func (m metricsByKey) Swap(i int, j int) {
-	m[i], m[j] = m[j], m[i]
-}
-
-func (m metricsByKey) Len() int {
-	return len(m)
-}
-
-func sortMetrics(metrics []Metric) {
-	sort.Sort(metricsByKey(metrics))
 }
 
 func metricKey(name string, tags []Tag) string {
