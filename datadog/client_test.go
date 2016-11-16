@@ -11,13 +11,13 @@ var diffs = []struct {
 	name    string
 	old     []stats.Metric
 	new     []stats.Metric
-	changed []stats.Metric
+	changes []stats.Metric
 }{
 	{
 		name:    "empty",
 		old:     nil,
 		new:     nil,
-		changed: []stats.Metric{},
+		changes: []stats.Metric{},
 	},
 	{
 		name: "small",
@@ -26,28 +26,28 @@ var diffs = []struct {
 			stats.Metric{Type: stats.CounterType, Key: "A?hello=world", Sample: 2}, // expired
 			stats.Metric{Type: stats.CounterType, Key: "B?", Sample: 1},            // changed
 			stats.Metric{Type: stats.GaugeType, Key: "C?", Sample: 1},              // changed
-			stats.Metric{Type: stats.HistogramType, Key: "H1?#0", Name: "H1", Value: 0.1, Sample: 1},
-			stats.Metric{Type: stats.HistogramType, Key: "H2?#1", Name: "H2", Value: 0.0, Sample: 1},
-			stats.Metric{Type: stats.HistogramType, Key: "H1?#1", Name: "H1", Value: 0.5, Sample: 1},
-			stats.Metric{Type: stats.HistogramType, Key: "H1?#2", Name: "H1", Value: 0.5, Sample: 1},
-			stats.Metric{Type: stats.HistogramType, Key: "H1?#3", Name: "H1", Value: 1.0, Sample: 1},
+			stats.Metric{Type: stats.HistogramType, Group: "H1?", Key: "H1?#0", Value: 0.1, Sample: 1},
+			stats.Metric{Type: stats.HistogramType, Group: "H2?", Key: "H2?#1", Value: 0.0, Sample: 1},
+			stats.Metric{Type: stats.HistogramType, Group: "H1?", Key: "H1?#1", Value: 0.5, Sample: 1},
+			stats.Metric{Type: stats.HistogramType, Group: "H1?", Key: "H1?#2", Value: 0.5, Sample: 1},
+			stats.Metric{Type: stats.HistogramType, Group: "H1?", Key: "H1?#3", Value: 1.0, Sample: 1},
 		},
 		new: []stats.Metric{
 			stats.Metric{Type: stats.CounterType, Key: "A?", Sample: 1},
 			stats.Metric{Type: stats.CounterType, Key: "B?", Sample: 2},
 			stats.Metric{Type: stats.GaugeType, Key: "C?", Sample: 3},
-			stats.Metric{Type: stats.HistogramType, Key: "H1?#0", Name: "H1", Value: 0.1, Sample: 1},
-			stats.Metric{Type: stats.HistogramType, Key: "H2?#1", Name: "H2", Value: 0.0, Sample: 1},
-			stats.Metric{Type: stats.HistogramType, Key: "H1?#1", Name: "H1", Value: 0.5, Sample: 1},
-			stats.Metric{Type: stats.HistogramType, Key: "H1?#2", Name: "H1", Value: 0.5, Sample: 1},
-			stats.Metric{Type: stats.HistogramType, Key: "H1?#3", Name: "H1", Value: 1.0, Sample: 1},
-			stats.Metric{Type: stats.HistogramType, Key: "H1?#4", Name: "H1", Value: 0.5, Sample: 1},
-			stats.Metric{Type: stats.HistogramType, Key: "H1?#5", Name: "H1", Value: 1.0, Sample: 1},
+			stats.Metric{Type: stats.HistogramType, Group: "H1?", Key: "H1?#0", Value: 0.1, Sample: 1},
+			stats.Metric{Type: stats.HistogramType, Group: "H2?", Key: "H2?#1", Value: 0.0, Sample: 1},
+			stats.Metric{Type: stats.HistogramType, Group: "H1?", Key: "H1?#1", Value: 0.5, Sample: 1},
+			stats.Metric{Type: stats.HistogramType, Group: "H1?", Key: "H1?#2", Value: 0.5, Sample: 1},
+			stats.Metric{Type: stats.HistogramType, Group: "H1?", Key: "H1?#3", Value: 1.0, Sample: 1},
+			stats.Metric{Type: stats.HistogramType, Group: "H1?", Key: "H1?#4", Value: 0.5, Sample: 1},
+			stats.Metric{Type: stats.HistogramType, Group: "H1?", Key: "H1?#5", Value: 1.0, Sample: 1},
 		},
-		changed: []stats.Metric{
+		changes: []stats.Metric{
 			stats.Metric{Type: stats.CounterType, Key: "B?", Sample: 0},
 			stats.Metric{Type: stats.GaugeType, Key: "C?", Sample: 0},
-			stats.Metric{Type: stats.HistogramType, Name: "H1", Value: 0.75, Sample: 2},
+			stats.Metric{Type: stats.HistogramType, Key: "H1?", Value: 0.75, Sample: 2},
 		},
 	},
 }
@@ -55,10 +55,10 @@ var diffs = []struct {
 func TestDiff(t *testing.T) {
 	for _, test := range diffs {
 		t.Run(test.name, func(t *testing.T) {
-			_, changed := diff(test.old, test.new)
+			_, changes := diff(test.old, test.new)
 
-			if !reflect.DeepEqual(changed, test.changed) {
-				t.Errorf("changed: %#v != %#v", changed, test.changed)
+			if !reflect.DeepEqual(changes, test.changes) {
+				t.Errorf("\n<<< %#v\n>>> %#v", test.changes, changes)
 			}
 		})
 	}

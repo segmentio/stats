@@ -29,6 +29,14 @@ type Metric struct {
 	// the constants defined by the MetricType enumeration.
 	Type MetricType
 
+	// Group is a unique identifier of the group this metric belongs to.
+	//
+	// Not all metrics belong to groups, most of the time the group is an empty
+	// string. Some metrics however are aggregates of submetrics, in that case
+	// all submetrics will have the same group value which is the key of the
+	// parent metric.
+	Group string
+
 	// Key is a unique identifier for the metric.
 	//
 	// Application should not rely on the actual structure of the key and just
@@ -118,8 +126,9 @@ func metricOpObserve(state *metricState, value float64, exp time.Time) {
 	state.sample++
 	state.expTime = exp
 	state.metrics[key] = metricState{
-		key:     key,
 		typ:     state.typ,
+		group:   state.key,
+		key:     key,
 		name:    state.name,
 		tags:    state.tags,
 		value:   value,
@@ -134,13 +143,14 @@ type metricReq struct {
 
 type metricState struct {
 	typ     MetricType
+	group   string
 	key     string
 	name    string
 	tags    []Tag
 	value   float64
 	sample  uint64
 	expTime time.Time
-	metrics map[string]metricState // for distributions of observed values
+	metrics map[string]metricState // observed values
 }
 
 type metricStore struct {
@@ -165,24 +175,27 @@ func (s metricStore) state() []Metric {
 	for _, state := range s.metrics {
 		if len(state.metrics) == 0 {
 			metrics = append(metrics, Metric{
-				Key:    state.key,
 				Type:   state.typ,
+				Group:  state.group,
+				Key:    state.key,
 				Name:   state.name,
 				Tags:   state.tags,
 				Value:  state.value,
 				Sample: state.sample,
 			})
-		} else {
-			for _, sub := range state.metrics {
-				metrics = append(metrics, Metric{
-					Key:    sub.key,
-					Type:   sub.typ,
-					Name:   sub.name,
-					Tags:   sub.tags,
-					Value:  sub.value,
-					Sample: sub.sample,
-				})
-			}
+			continue
+		}
+
+		for _, sub := range state.metrics {
+			metrics = append(metrics, Metric{
+				Type:   sub.typ,
+				Group:  sub.group,
+				Key:    sub.key,
+				Name:   sub.name,
+				Tags:   sub.tags,
+				Value:  sub.value,
+				Sample: sub.sample,
+			})
 		}
 	}
 

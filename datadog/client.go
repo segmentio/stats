@@ -204,9 +204,9 @@ func diff(old []stats.Metric, new []stats.Metric) (state []stats.Metric, changes
 			changes = append(changes, m)
 
 		case stats.HistogramType:
-			// Histograms are first grouped by name to be processed in the
+			// Histograms are first grouped by group to be processed in the
 			// next step.
-			c2[m.Name] = append(c2[m.Name], m)
+			c2[m.Group] = append(c2[m.Group], m)
 		}
 	}
 
@@ -216,10 +216,12 @@ func diff(old []stats.Metric, new []stats.Metric) (state []stats.Metric, changes
 		var avg stats.Metric
 
 		for _, m := range h {
-			avg = m // for metadata (name, tags, etc...)
-			avg.Key = ""
-			avg.Value = 0
-			avg.Sample = 0
+			avg = stats.Metric{
+				Type: m.Type,
+				Key:  m.Group,
+				Name: m.Name,
+				Tags: m.Tags,
+			}
 			break
 		}
 
