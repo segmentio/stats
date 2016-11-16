@@ -211,7 +211,7 @@ func diff(old []stats.Metric, new []stats.Metric) (state []stats.Metric, changes
 	}
 
 	// Aggregate histograms, report the average value and the number of samples
-	// it represents.
+	// they represent.
 	for _, h := range c2 {
 		var avg stats.Metric
 
