@@ -55,6 +55,24 @@ var (
 	DefaultEngine = NewDefaultEngine()
 )
 
+// Incr increments by one the metric identified by name and tags, a new counter
+// is created in the default engine if none existed.
+func Incr(name string, tags ...Tag) {
+	DefaultEngine.Incr(name, tags...)
+}
+
+// Add adds value to the metric identified by name and tags, a new counter is
+// created in the default engine if none existed.
+func Add(name string, value float64, tags ...Tag) {
+	DefaultEngine.Add(name, value, tags...)
+}
+
+// Set sets the value of the metric identified by name and tags, a new gauge is
+// created in the default engine if none existed.
+func Set(name string, value float64, tags ...Tag) {
+	DefaultEngine.Set(name, value, tags...)
+}
+
 // NewDefaultEngine creates and returns an engine configured with default settings.
 func NewDefaultEngine() *Engine {
 	return NewEngine(EngineConfig{})
@@ -91,6 +109,24 @@ func NewEngine(config EngineConfig) *Engine {
 
 	runtime.SetFinalizer(eng, (*Engine).Close)
 	return eng
+}
+
+// Incr increments by one the counter identified by name and tags, a new counter
+// is created in the engine if none existed.
+func (eng *Engine) Incr(name string, tags ...Tag) {
+	eng.Counter(name, tags...).Incr()
+}
+
+// Add adds value to the counter identified by name and tags, a new counter is
+// created in the engine if none existed.
+func (eng *Engine) Add(name string, value float64, tags ...Tag) {
+	eng.Counter(name, tags...).Add(value)
+}
+
+// Set sets the value of the gauge identified by name and tags, a new gauge is
+// created in the engine if none existed.
+func (eng *Engine) Set(name string, value float64, tags ...Tag) {
+	eng.Gauge(name, tags...).Set(value)
 }
 
 // Counter creates and returns a counter with name and tags that produces

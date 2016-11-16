@@ -37,44 +37,16 @@ type Metric struct {
 	// Tags is the list of tags set on the metric.
 	Tags []Tag
 
-	// Value is the current value of a metric.
-	//
-	// This field is only valid for counters and gauge.
+	// Value is the current value of the metric.
 	Value float64
 
-	// Version is a counter of the number of operations that have been done on a
+	// Sample is a counter of the number of operations that have been done on a
 	// metric.
 	//
 	// Note that for a single metric this value may not always increase. If a
 	// metric is idle for too long and times out, then is produced again later,
-	// the version will be set back to one.
-	Version uint64
-}
-
-// The Diff function takes an old and new engine state and computes the
-// differences between them, returing a list of metrics change have changed,
-// not changed, or expired.
-func Diff(old []Metric, new []Metric) (changed []Metric, unchanged []Metric, expired []Metric) {
-	cache := make(map[string]Metric, len(old))
-
-	for _, m := range old {
-		cache[m.Key] = m
-	}
-
-	for _, m := range new {
-		if n, ok := cache[m.Key]; !ok || m.Version != n.Version {
-			changed = append(changed, m)
-		} else {
-			unchanged = append(unchanged, m)
-		}
-		delete(cache, m.Key)
-	}
-
-	for _, m := range cache {
-		expired = append(expired, m)
-	}
-
-	return
+	// the sample will be set back to one.
+	Sample uint64
 }
 
 type metricsByKey []Metric
@@ -140,7 +112,7 @@ type metricState struct {
 	name    string
 	tags    []Tag
 	value   float64
-	version uint64
+	sample  uint64
 	expTime time.Time
 }
 
@@ -165,12 +137,12 @@ func (s metricStore) state() []Metric {
 
 	for key, state := range s.metrics {
 		metrics = append(metrics, Metric{
-			Key:     key,
-			Type:    state.typ,
-			Name:    state.name,
-			Tags:    state.tags,
-			Value:   state.value,
-			Version: state.version,
+			Key:    key,
+			Type:   state.typ,
+			Name:   state.name,
+			Tags:   state.tags,
+			Value:  state.value,
+			Sample: state.sample,
 		})
 	}
 
@@ -180,7 +152,7 @@ func (s metricStore) state() []Metric {
 func (s metricStore) apply(op metricOp, now time.Time) {
 	state := s.metrics[op.key]
 
-	if state == nil {
+	if state == nil || state.typ != op.typ {
 		state = &metricState{
 			typ:  op.typ,
 			name: op.name,
@@ -190,7 +162,7 @@ func (s metricStore) apply(op metricOp, now time.Time) {
 	}
 
 	op.apply(state, op.value)
-	state.version++
+	state.sample++
 	state.expTime = now.Add(s.timeout)
 }
 
