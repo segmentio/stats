@@ -39,6 +39,9 @@ func (c Counter) Incr() {
 }
 
 // Add adds a value to the counter.
+//
+// Note that most data collection systems expect counters to be monotonically
+// increasing so the program should not call this method with negative values.
 func (c Counter) Add(value float64) {
 	c.eng.push(metricOp{
 		typ:   CounterType,
@@ -47,6 +50,25 @@ func (c Counter) Add(value float64) {
 		tags:  c.tags,
 		value: value,
 		apply: metricOpAdd,
+	})
+}
+
+// Set sets the value of the counter.
+//
+// Note that most data collection systems expect counters to be monotonically
+// increasing. Calling Set may break this contract, it is the responsibility of
+// the application to make sure it's not lowering the counter value.
+//
+// This method is useful for reporting values of counters that aren't managed
+// by the application itself, like CPU ticks for example.
+func (c Counter) Set(value float64) {
+	c.eng.push(metricOp{
+		typ:   CounterType,
+		key:   c.key,
+		name:  c.name,
+		tags:  c.tags,
+		value: value,
+		apply: metricOpSet,
 	})
 }
 
