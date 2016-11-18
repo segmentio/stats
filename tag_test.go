@@ -41,7 +41,7 @@ func TestSortTags(t *testing.T) {
 			sortTags(test.t1)
 
 			if !reflect.DeepEqual(test.t1, test.t2) {
-				t.Errorf("sortTags(%#v) => %#v != %#v", test.t1, test.t2)
+				t.Errorf("sortTags => %#v != %#v", test.t1, test.t2)
 			}
 		})
 	}

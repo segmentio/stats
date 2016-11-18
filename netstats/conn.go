@@ -11,16 +11,16 @@ import (
 
 // NewConn returns a net.Conn object that wraps c and produces metrics on eng.
 func NewConn(c net.Conn, eng *stats.Engine, tags ...stats.Tag) net.Conn {
-	tags = append(tags, stats.Tag{"protocol", c.LocalAddr().Network()})
+	tags = append(tags, stats.Tag{Name: "protocol", Value: c.LocalAddr().Network()})
 	nc := &conn{
 		Conn: c,
 		metrics: metrics{
 			open:     eng.Counter("conn.open.count", tags...),
 			close:    eng.Counter("conn.close.count", tags...),
-			reads:    eng.Histogram("conn.iops", append(tags, stats.Tag{"operation", "read"})...),
-			writes:   eng.Histogram("conn.iops", append(tags, stats.Tag{"operation", "write"})...),
-			bytesIn:  eng.Counter("conn.bytes.count", append(tags, stats.Tag{"operation", "read"})...),
-			bytesOut: eng.Counter("conn.bytes.count", append(tags, stats.Tag{"operation", "write"})...),
+			reads:    eng.Histogram("conn.iops", append(tags, stats.Tag{Name: "operation", Value: "read"})...),
+			writes:   eng.Histogram("conn.iops", append(tags, stats.Tag{Name: "operation", Value: "write"})...),
+			bytesIn:  eng.Counter("conn.bytes.count", append(tags, stats.Tag{Name: "operation", Value: "read"})...),
+			bytesOut: eng.Counter("conn.bytes.count", append(tags, stats.Tag{Name: "operation", Value: "write"})...),
 			errors:   eng.Counter("conn.errors.count", tags...),
 		},
 	}
@@ -113,7 +113,7 @@ func (c *conn) error(op string, err error) {
 	default:
 		// only report serious errors, others should be handled gracefully
 		if e, ok := err.(net.Error); !ok || !(e.Temporary() || e.Timeout()) {
-			c.metrics.errors.Clone(stats.Tag{"operation", op}).Incr()
+			c.metrics.errors.Clone(stats.Tag{Name: "operation", Value: op}).Incr()
 		}
 	}
 }
