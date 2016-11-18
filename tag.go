@@ -2,6 +2,7 @@ package stats
 
 import "sort"
 
+// Tag represents a single tag that can be set on a metric.
 type Tag struct {
 	Name  string
 	Value string

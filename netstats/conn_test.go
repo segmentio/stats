@@ -103,7 +103,7 @@ func TestConnError(t *testing.T) {
 
 	now := time.Now()
 
-	c := &testConn{err: testError}
+	c := &testConn{err: errTest}
 	conn := NewConn(c, engine)
 	conn.SetDeadline(now)
 	conn.SetReadDeadline(now)
@@ -240,5 +240,5 @@ func (c *testConn) SetWriteDeadline(_ time.Time) error { return c.err }
 var (
 	testLocalAddr  = &net.TCPAddr{IP: net.IP{127, 0, 0, 1}, Port: 2121}
 	testRemoteAddr = &net.TCPAddr{IP: net.IP{127, 0, 0, 1}, Port: 4242}
-	testError      = errors.New("test")
+	errTest        = errors.New("test")
 )

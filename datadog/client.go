@@ -18,7 +18,7 @@ const (
 	// DefaultBufferSize is the default size of the client buffer.
 	DefaultBufferSize = 65507
 
-	// DefaultFlushTimeout is the default interval at which clients flush
+	// DefaultFlushInterval is the default interval at which clients flush
 	// metrics from their stats engine.
 	DefaultFlushInterval = 1 * time.Second
 )

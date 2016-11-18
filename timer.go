@@ -41,7 +41,7 @@ func (t Timer) Start() *Clock {
 	return t.StartAt(time.Now())
 }
 
-// Start the timer with a predefined start time, returning a clock object that
+// StartAt the timer with a predefined start time, returning a clock object that
 // should be used to publish the timer metrics.
 func (t Timer) StartAt(now time.Time) *Clock {
 	return &Clock{

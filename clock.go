@@ -19,7 +19,7 @@ func (c *Clock) Stamp(name string) {
 	c.StampAt(name, time.Now())
 }
 
-// Stamp reports the time difference between now and the last time the method
+// StampAt reports the time difference between now and the last time the method
 // was called (or since the clock was created).
 //
 // The metric produced by this method call will have a "stamp" tag set to name.
@@ -27,7 +27,7 @@ func (c *Clock) StampAt(name string, now time.Time) {
 	c.observe(name, now)
 }
 
-// Stamp reports the time difference between now and the last time the Stamp
+// Stop reports the time difference between now and the last time the Stamp
 // method was called (or since the clock was created).
 //
 // The metric produced by this method call will have a "stamp" tag set to
@@ -36,7 +36,7 @@ func (c *Clock) Stop() {
 	c.StopAt(time.Now())
 }
 
-// Stamp reports the time difference between now and the last time the Stamp
+// StopAt reports the time difference between now and the last time the Stamp
 // method was called (or since the clock was created).
 //
 // The metric produced by this method call will have a "stamp" tag set to

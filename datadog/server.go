@@ -10,16 +10,25 @@ import (
 	"github.com/segmentio/stats"
 )
 
+// Handler defines the interface that types must satisfy to process metrics
+// received by a dogstatsd server.
 type Handler interface {
+	// HandleMetric is called when a dogstatsd server receives a metric.
+	// The method receives the metric and the address from which it was sent.
 	HandleMetric(stats.Metric, net.Addr)
 }
 
+// HandlerFunc makes it possible for function types to be used as metric
+// handlers on dogstatsd servers.
 type HandlerFunc func(stats.Metric, net.Addr)
 
+// HandleMetric calls f(m, a).
 func (f HandlerFunc) HandleMetric(m stats.Metric, a net.Addr) {
 	f(m, a)
 }
 
+// ListenAndServe starts a new dogstatsd server, listening for UDP datagrams on
+// addr and forwarding the metrics to handler.
 func ListenAndServe(addr string, handler Handler) (err error) {
 	var conn net.PacketConn
 
@@ -31,6 +40,8 @@ func ListenAndServe(addr string, handler Handler) (err error) {
 	return
 }
 
+// Serve runs a dogstatsd server, listening for datagrams on conn and forwarding
+// the metrics to handler.
 func Serve(conn net.PacketConn, handler Handler) (err error) {
 	defer conn.Close()
 
