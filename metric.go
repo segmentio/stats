@@ -58,6 +58,9 @@ type Metric struct {
 	// metric is idle for too long and times out, then is produced again later,
 	// the sample will be set back to one.
 	Sample uint64
+
+	// Time is set to the time at which the metric was produced.
+	Time time.Time
 }
 
 func metricKey(name string, tags []Tag) string {
@@ -101,27 +104,31 @@ type metricOp struct {
 	name  string
 	tags  []Tag
 	value float64
-	apply func(*metricState, float64, time.Time)
+	time  time.Time
+	apply func(*metricState, float64, time.Time, time.Time)
 }
 
-func metricOpAdd(state *metricState, value float64, exp time.Time) {
+func metricOpAdd(state *metricState, value float64, mod time.Time, exp time.Time) {
 	state.value += value
 	state.sample++
+	state.modTime = mod
 	state.expTime = exp
 }
 
-func metricOpSet(state *metricState, value float64, exp time.Time) {
+func metricOpSet(state *metricState, value float64, mod time.Time, exp time.Time) {
 	state.value = value
 	state.sample++
+	state.modTime = mod
 	state.expTime = exp
 }
 
-func metricOpObserve(state *metricState, value float64, exp time.Time) {
+func metricOpObserve(state *metricState, value float64, mod time.Time, exp time.Time) {
 	if state.metrics == nil {
 		state.metrics = make(map[string]metricState)
 	}
 	key := state.key + "#" + strconv.FormatUint(state.sample, 10)
 	state.sample++
+	state.modTime = mod
 	state.expTime = exp
 	state.metrics[key] = metricState{
 		typ:     state.typ,
@@ -131,6 +138,7 @@ func metricOpObserve(state *metricState, value float64, exp time.Time) {
 		tags:    state.tags,
 		value:   value,
 		sample:  1,
+		modTime: mod,
 		expTime: exp,
 	}
 }
@@ -147,6 +155,7 @@ type metricState struct {
 	tags    []Tag
 	value   float64
 	sample  uint64
+	modTime time.Time
 	expTime time.Time
 	metrics map[string]metricState // observed values
 }
@@ -213,7 +222,11 @@ func (s metricStore) apply(op metricOp, now time.Time) {
 		s.metrics[op.key] = state
 	}
 
-	op.apply(state, op.value, now.Add(s.timeout))
+	if op.time == (time.Time{}) {
+		op.time = now
+	}
+
+	op.apply(state, op.value, op.time, now.Add(s.timeout))
 }
 
 func (s metricStore) deleteExpiredMetrics(now time.Time) {
