@@ -12,16 +12,7 @@ type tags []Tag
 func (t tags) Less(i int, j int) bool {
 	t1 := t[i]
 	t2 := t[j]
-
-	if t1.Name < t2.Name {
-		return true
-	}
-
-	if t1.Name > t2.Name {
-		return false
-	}
-
-	return t1.Value < t2.Value
+	return t1.Name < t2.Name || (t1.Name == t2.Name && t1.Value < t2.Value)
 }
 
 func (t tags) Swap(i int, j int) {

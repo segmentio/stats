@@ -75,6 +75,26 @@ func appendMetricKey(b []byte, name string, tags []Tag) []byte {
 	return b
 }
 
+// The MetricsByKey type implements sort.Interface and can be used to sort a
+// slice of metrics by key.
+type MetricsByKey []Metric
+
+// Less returns true if the metric key at index i is ordered before the metric
+// key at index j.
+func (m MetricsByKey) Less(i int, j int) bool {
+	return m[i].Key < m[j].Key
+}
+
+// Swap swaps the metrics at index i and j.
+func (m MetricsByKey) Swap(i int, j int) {
+	m[i], m[j] = m[j], m[i]
+}
+
+// Len returns the lengths of the metric slice.
+func (m MetricsByKey) Len() int {
+	return len(m)
+}
+
 type metricOp struct {
 	typ   MetricType
 	key   string

@@ -11,6 +11,7 @@ func TestEngine(t *testing.T) {
 		Prefix: "test",
 		Tags:   []Tag{{"hello", "world"}},
 	})
+	defer engine.Close()
 
 	now := time.Now()
 
@@ -95,6 +96,4 @@ func TestEngine(t *testing.T) {
 			}
 		}
 	}
-
-	engine.Close()
 }

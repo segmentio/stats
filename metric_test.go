@@ -165,21 +165,6 @@ func TestMetricStore(t *testing.T) {
 	}
 }
 
-// Ordering is required for some tests to pass.
-type metricsByKey []Metric
-
-func (m metricsByKey) Less(i int, j int) bool {
-	return m[i].Key < m[j].Key
-}
-
-func (m metricsByKey) Swap(i int, j int) {
-	m[i], m[j] = m[j], m[i]
-}
-
-func (m metricsByKey) Len() int {
-	return len(m)
-}
-
 func sortMetrics(metrics []Metric) {
-	sort.Sort(metricsByKey(metrics))
+	sort.Sort(MetricsByKey(metrics))
 }
