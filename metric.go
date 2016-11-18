@@ -59,7 +59,7 @@ type Metric struct {
 	// the sample will be set back to one.
 	Sample uint64
 
-	// Time is set to the time at which the metric was produced.
+	// Time is set to the time at which the metric was last modified.
 	Time time.Time
 }
 
