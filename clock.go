@@ -11,6 +11,28 @@ type Clock struct {
 	last   time.Time
 }
 
+// Name returns the name of the clock.
+func (c *Clock) Name() string {
+	return c.metric.Name()
+}
+
+// Tags returns the list of tags set on the clock.
+//
+// The returned slice is a copy of the internal slice maintained by the clock,
+// the program owns it and can safely modify it without affecting the clock.
+func (c *Clock) Tags() []Tag {
+	return c.metric.Tags()
+}
+
+// Clone returns a copy of the clock, potentially setting tags on the returned
+// object.
+func (c *Clock) Clone(tags ...Tag) *Clock {
+	return &Clock{
+		metric: c.metric.Clone(tags...),
+		last:   c.last,
+	}
+}
+
 // Stamp reports the time difference between now and the last time the method
 // was called (or since the clock was created).
 //
