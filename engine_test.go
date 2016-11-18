@@ -12,13 +12,16 @@ func TestEngine(t *testing.T) {
 		Tags:   []Tag{{"hello", "world"}},
 	})
 
-	a := engine.Counter("A")
-	b := engine.Gauge("B")
-	c := engine.Gauge("C", Tag{"context", "test"})
+	now := time.Now()
 
-	a.Add(1)
-	b.Set(2)
-	c.Sub(3)
+	engine.Incr("A")
+	engine.Set("B", 2)
+	engine.Add("C", 3, Tag{"context", "test"})
+
+	clock := engine.Time("D", now)
+	clock.StampAt("lap", now.Add(1*time.Second))
+	clock.StampAt("lap", now.Add(2*time.Second))
+	clock.StopAt(now.Add(3 * time.Second))
 
 	// Give a bit of time for the engine to update its state.
 	time.Sleep(10 * time.Millisecond)
@@ -26,7 +29,7 @@ func TestEngine(t *testing.T) {
 	metrics := engine.State()
 	sortMetrics(metrics)
 
-	if !reflect.DeepEqual(metrics, []Metric{
+	expects := []Metric{
 		Metric{
 			Type:   CounterType,
 			Key:    "test.A?hello=world",
@@ -44,15 +47,53 @@ func TestEngine(t *testing.T) {
 			Sample: 1,
 		},
 		Metric{
-			Type:   GaugeType,
+			Type:   CounterType,
 			Key:    "test.C?context=test&hello=world",
 			Name:   "test.C",
 			Tags:   []Tag{{"context", "test"}, {"hello", "world"}},
-			Value:  -3,
+			Value:  3,
 			Sample: 1,
 		},
-	}) {
-		t.Errorf("bad engine state: %#v", metrics)
+		Metric{
+			Type:   HistogramType,
+			Group:  "test.D?hello=world&stamp=lap",
+			Key:    "test.D?hello=world&stamp=lap#0",
+			Name:   "test.D",
+			Tags:   []Tag{{"hello", "world"}, {"stamp", "lap"}},
+			Value:  1,
+			Sample: 1,
+		},
+		Metric{
+			Type:   HistogramType,
+			Group:  "test.D?hello=world&stamp=lap",
+			Key:    "test.D?hello=world&stamp=lap#1",
+			Name:   "test.D",
+			Tags:   []Tag{{"hello", "world"}, {"stamp", "lap"}},
+			Value:  1,
+			Sample: 1,
+		},
+		Metric{
+			Type:   HistogramType,
+			Group:  "test.D?hello=world&stamp=total",
+			Key:    "test.D?hello=world&stamp=total#0",
+			Name:   "test.D",
+			Tags:   []Tag{{"hello", "world"}, {"stamp", "total"}},
+			Value:  1,
+			Sample: 1,
+		},
+	}
+
+	if !reflect.DeepEqual(metrics, expects) {
+		t.Error("bad engine state:")
+
+		for i := range metrics {
+			m := metrics[i]
+			e := expects[i]
+
+			if !reflect.DeepEqual(m, e) {
+				t.Logf("unexpected metric at index %d:\n<<< %#v\n>>> %#v", i, m, e)
+			}
+		}
 	}
 
 	engine.Close()

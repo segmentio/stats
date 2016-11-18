@@ -38,6 +38,9 @@ type EngineConfig struct {
 //
 // The goal of this type is to maintain aggregated metric values between scraps
 // from clients that expose those metrics to different collection systems.
+//
+// Most applications don't need to create a stats engine and can simply use the
+// default one which is implicitly used by metrics when no engine is specified.
 type Engine struct {
 	// error channel used to report dropped metrics.
 	errch chan<- struct{}
@@ -71,6 +74,12 @@ func Add(name string, value float64, tags ...Tag) {
 // created in the default engine if none existed.
 func Set(name string, value float64, tags ...Tag) {
 	DefaultEngine.Set(name, value, tags...)
+}
+
+// Time returns a clock that produces metrics with name and tags and can be used
+// to report durations.
+func Time(name string, start time.Time, tags ...Tag) *Clock {
+	return DefaultEngine.Time(name, start, tags...)
 }
 
 // NewDefaultEngine creates and returns an engine configured with default settings.
@@ -129,6 +138,12 @@ func (eng *Engine) Set(name string, value float64, tags ...Tag) {
 	eng.Gauge(name, tags...).Set(value)
 }
 
+// Time returns a clock that produces metrics with name and tags and can be used
+// to report durations.
+func (eng *Engine) Time(name string, start time.Time, tags ...Tag) *Clock {
+	return eng.Timer(name, tags...).StartAt(start)
+}
+
 // Counter creates and returns a counter with name and tags that produces
 // metrics on eng.
 func (eng *Engine) Counter(name string, tags ...Tag) Counter {
@@ -139,6 +154,18 @@ func (eng *Engine) Counter(name string, tags ...Tag) Counter {
 // metrics on eng.
 func (eng *Engine) Gauge(name string, tags ...Tag) Gauge {
 	return makeGauge(eng, name, copyTags(tags))
+}
+
+// Histogram creates and returns a histogram with name and tags that produces
+// metrics on eng.
+func (eng *Engine) Histogram(name string, tags ...Tag) Histogram {
+	return makeHistogram(eng, name, copyTags(tags))
+}
+
+// Timer creates and returns a timer with name and tags that produces metrics on
+// eng.
+func (eng *Engine) Timer(name string, tags ...Tag) Timer {
+	return makeTimer(eng, name, copyTags(tags))
 }
 
 // Close stops eng and releases all its allocated resources. After calling this

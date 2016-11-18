@@ -90,12 +90,6 @@ func metricOpAdd(state *metricState, value float64, exp time.Time) {
 	state.expTime = exp
 }
 
-func metricOpSub(state *metricState, value float64, exp time.Time) {
-	state.value -= value
-	state.sample++
-	state.expTime = exp
-}
-
 func metricOpSet(state *metricState, value float64, exp time.Time) {
 	state.value = value
 	state.sample++
@@ -103,6 +97,9 @@ func metricOpSet(state *metricState, value float64, exp time.Time) {
 }
 
 func metricOpObserve(state *metricState, value float64, exp time.Time) {
+	if state.metrics == nil {
+		state.metrics = make(map[string]metricState)
+	}
 	key := state.key + "#" + strconv.FormatUint(state.sample, 10)
 	state.sample++
 	state.expTime = exp

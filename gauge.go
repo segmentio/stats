@@ -40,7 +40,7 @@ func (g Gauge) Incr() {
 
 // Decr decrements the gauge by a value of 1.
 func (g Gauge) Decr() {
-	g.Sub(1)
+	g.Add(-1)
 }
 
 // Add adds a value to the gauge.
@@ -52,18 +52,6 @@ func (g Gauge) Add(value float64) {
 		tags:  g.tags,
 		value: value,
 		apply: metricOpAdd,
-	})
-}
-
-// Sub subtracts a value from the gauge.
-func (g Gauge) Sub(value float64) {
-	g.eng.push(metricOp{
-		typ:   GaugeType,
-		key:   g.key,
-		name:  g.name,
-		tags:  g.tags,
-		value: value,
-		apply: metricOpSub,
 	})
 }
 
