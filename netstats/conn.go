@@ -9,6 +9,7 @@ import (
 	"github.com/segmentio/stats"
 )
 
+// NewConn returns a net.Conn object that wraps c and produces metrics on eng.
 func NewConn(c net.Conn, eng *stats.Engine, tags ...stats.Tag) net.Conn {
 	tags = append(tags, stats.Tag{"protocol", c.LocalAddr().Network()})
 	nc := &conn{
