@@ -83,6 +83,10 @@ func TestConn(t *testing.T) {
 		},
 	}
 
+	for i := range metrics {
+		metrics[i].Time = time.Time{} // reset because we can't predict that value
+	}
+
 	if !reflect.DeepEqual(metrics, expects) {
 		t.Error("bad engine state:")
 
@@ -186,6 +190,10 @@ func TestConnError(t *testing.T) {
 			Value:  1,
 			Sample: 1,
 		},
+	}
+
+	for i := range metrics {
+		metrics[i].Time = time.Time{} // reset because we can't predict that value
 	}
 
 	if !reflect.DeepEqual(metrics, expects) {

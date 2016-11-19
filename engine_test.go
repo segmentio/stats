@@ -84,6 +84,10 @@ func TestEngine(t *testing.T) {
 		},
 	}
 
+	for i := range metrics {
+		metrics[i].Time = time.Time{} // reset because we can't predict that value
+	}
+
 	if !reflect.DeepEqual(metrics, expects) {
 		t.Error("bad engine state:")
 

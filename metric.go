@@ -189,6 +189,7 @@ func (s metricStore) state() []Metric {
 				Tags:   state.tags,
 				Value:  state.value,
 				Sample: state.sample,
+				Time:   state.modTime,
 			})
 			continue
 		}
@@ -202,6 +203,7 @@ func (s metricStore) state() []Metric {
 				Tags:   sub.tags,
 				Value:  sub.value,
 				Sample: sub.sample,
+				Time:   sub.modTime,
 			})
 		}
 	}

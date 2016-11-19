@@ -131,6 +131,7 @@ func TestMetricStore(t *testing.T) {
 			Tags:   []Tag{{"A", "1"}, {"B", "2"}},
 			Value:  2,
 			Sample: 2,
+			Time:   now,
 		},
 		Metric{
 			Type:   CounterType,
@@ -139,6 +140,7 @@ func TestMetricStore(t *testing.T) {
 			Tags:   nil,
 			Value:  10,
 			Sample: 1,
+			Time:   now.Add(5 * time.Millisecond),
 		},
 	}) {
 		t.Error("bad metric store state:", state)
@@ -159,6 +161,7 @@ func TestMetricStore(t *testing.T) {
 			Tags:   nil,
 			Value:  10,
 			Sample: 1,
+			Time:   now.Add(5 * time.Millisecond),
 		},
 	}) {
 		t.Error("bad metric store state:", state)
