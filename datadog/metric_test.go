@@ -73,9 +73,9 @@ var metrics = []struct {
 	},
 
 	{
-		s: "song.length:240|?|@0.5\n", // replace '?' with 'h' when histograms are supported
+		s: "song.length:240|h|@0.5\n",
 		m: stats.Metric{
-			Type:   stats.MetricType(-1),
+			Type:   stats.HistogramType,
 			Name:   "song.length",
 			Value:  240,
 			Sample: 2,
@@ -84,9 +84,9 @@ var metrics = []struct {
 	},
 
 	{
-		s: "users.uniques:1234|?\n", // replace '?' with 's' when sets are supported
+		s: "users.uniques:1234|h\n",
 		m: stats.Metric{
-			Type:   stats.MetricType(-1),
+			Type:   stats.HistogramType,
 			Name:   "users.uniques",
 			Value:  1234,
 			Sample: 1,
