@@ -19,6 +19,9 @@ func appendMetric(b []byte, m stats.Metric) []byte {
 	case stats.GaugeType:
 		b = append(b, 'g')
 
+	case stats.HistogramType:
+		b = append(b, 'h')
+
 	default:
 		b = append(b, '?') // unsupported
 	}

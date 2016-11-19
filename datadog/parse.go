@@ -85,6 +85,9 @@ func parseMetric(s string) (m stats.Metric, err error) {
 	case "g":
 		mtype = stats.GaugeType
 
+	case "h":
+		mtype = stats.HistogramType
+
 	default:
 		mtype = stats.MetricType(-1)
 	}
