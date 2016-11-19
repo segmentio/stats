@@ -114,7 +114,7 @@ func run(c ClientConfig, tick *time.Ticker, done <-chan struct{}, join chan<- st
 	var b1 = make([]byte, 0, 1024)
 	var b2 = make([]byte, 0, c.BufferSize)
 
-	// On each tick, fetch the sttate of the engine and write the metrics that
+	// On each tick, fetch the state of the engine and write the metrics that
 	// have changed since the last loop iteration.
 mainLoop:
 	for {
