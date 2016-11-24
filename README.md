@@ -14,7 +14,7 @@ Quick Start
 
 ### Engine
 
-A core concept exposed of the `stats` is the `Engine`. Every program importing
+A core concept of the `stats` package is the `Engine`. Every program importing
 the package gets a default engine where all metrics produced are aggregated.  
 The program then has to instantiate clients that will consume from the engine
 at regular time intervals and report the state of the engine to metrics
