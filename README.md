@@ -44,9 +44,6 @@ func main() {
 
 ### Metrics
 
-The `Client` interface makes it easy to declare metrics, common metric types are
-supported:
-
 - [Gauges](https://godoc.org/github.com/segmentio/stats#Gauge)
 - [Counters](https://godoc.org/github.com/segmentio/stats#Counter)
 - [Histograms](https://godoc.org/github.com/segmentio/stats#Histogram)
