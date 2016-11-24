@@ -50,7 +50,7 @@ supported:
 - [Gauges](https://godoc.org/github.com/segmentio/stats#Gauge)
 - [Counters](https://godoc.org/github.com/segmentio/stats#Counter)
 - [Histograms](https://godoc.org/github.com/segmentio/stats#Histogram)
-- [Timer](https://godoc.org/github.com/segmentio/stats#Timer)
+- [Timers](https://godoc.org/github.com/segmentio/stats#Timer)
 
 ```go
 package main
