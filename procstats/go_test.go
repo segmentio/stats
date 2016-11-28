@@ -17,6 +17,9 @@ func TestGoMetrics(t *testing.T) {
 	gostats := NewGoMetrics(engine)
 	gostats.Collect()
 
+	// Wait for metrics to be reported.
+	time.Sleep(10 * time.Millisecond)
+
 	metrics := engine.State()
 
 	if len(metrics) == 0 {
@@ -44,6 +47,9 @@ func TestGoMetricsMock(t *testing.T) {
 	gostats.gc.Pause = []time.Duration{time.Microsecond}
 	gostats.gc.PauseEnd = []time.Time{now.Add(-time.Second)}
 	gostats.updateMemStats(time.Now())
+
+	// Wait for metrics to be reported.
+	time.Sleep(10 * time.Millisecond)
 
 	metrics := engine.State()
 
