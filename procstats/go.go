@@ -47,74 +47,67 @@ type GoMetrics struct {
 	Pauses        stats.Histogram
 	GCCPUFraction stats.Gauge // fraction of CPU time used by GC
 
-	// Last observed values for high-level counters.
-	lastNumCgoCall   uint64
-	lastTotalAlloc   uint64
-	lastHeapReleased uint64
-	lastLookups      uint64
-	lastMallocs      uint64
-	lastFrees        uint64
-	lastNumGC        uint64
-
 	// cache
-	ms runtime.MemStats
-	gc debug.GCStats
+	ms        runtime.MemStats
+	gc        debug.GCStats
+	lastNumGC uint64
 }
 
-func NewGoMetrics(client stats.Client, tags ...stats.Tag) *GoMetrics {
+func NewGoMetrics(eng *stats.Engine, tags ...stats.Tag) *GoMetrics {
 	tags = append(tags,
 		stats.Tag{"runtime", "go"},
 		stats.Tag{"version", runtime.Version()},
 	)
 
 	g := &GoMetrics{
-		NumCPU:       client.Gauge("go.runtime.cpu.num", tags...),
-		NumGoroutine: client.Gauge("go.runtime.goroutine.num", tags...),
-		NumCgoCall:   client.Counter("go.runtime.cgo.calls", tags...),
+		NumCPU:       eng.Gauge("go.runtime.cpu.num", tags...),
+		NumGoroutine: eng.Gauge("go.runtime.goroutine.num", tags...),
+		NumCgoCall:   eng.Counter("go.runtime.cgo.calls", tags...),
 	}
 
 	tagsTotal := append(tags, stats.Tag{"type", "total"})
-	g.Alloc = client.Gauge("go.memstats.alloc.bytes", tagsTotal...)
-	g.TotalAlloc = client.Counter("go.memstats.total_alloc.bytes", tagsTotal...)
-	g.Lookups = client.Counter("go.memstats.lookups.count", tagsTotal...)
-	g.Mallocs = client.Counter("go.memstats.mallocs.count", tagsTotal...)
-	g.Frees = client.Counter("go.memstats.frees.count", tagsTotal...)
+	g.Alloc = eng.Gauge("go.memstats.alloc.bytes", tagsTotal...)
+	g.TotalAlloc = eng.Counter("go.memstats.total_alloc.bytes", tagsTotal...)
+	g.Lookups = eng.Counter("go.memstats.lookups.count", tagsTotal...)
+	g.Mallocs = eng.Counter("go.memstats.mallocs.count", tagsTotal...)
+	g.Frees = eng.Counter("go.memstats.frees.count", tagsTotal...)
 
 	tagsHeap := append(tags, stats.Tag{"type", "heap"})
-	g.HeapAlloc = client.Gauge("go.memstats.alloc.bytes", tagsHeap...)
-	g.HeapSys = client.Gauge("go.memstats.sys.bytes", tagsHeap...)
-	g.HeapIdle = client.Gauge("go.memstats.idle.bytes", tagsHeap...)
-	g.HeapInuse = client.Gauge("go.memstats.inuse.bytes", tagsHeap...)
-	g.HeapReleased = client.Counter("go.memstats.released.bytes", tagsHeap...)
-	g.HeapObjects = client.Gauge("go.memstats.objects.count", tagsHeap...)
+	g.HeapAlloc = eng.Gauge("go.memstats.alloc.bytes", tagsHeap...)
+	g.HeapSys = eng.Gauge("go.memstats.sys.bytes", tagsHeap...)
+	g.HeapIdle = eng.Gauge("go.memstats.idle.bytes", tagsHeap...)
+	g.HeapInuse = eng.Gauge("go.memstats.inuse.bytes", tagsHeap...)
+	g.HeapReleased = eng.Counter("go.memstats.released.bytes", tagsHeap...)
+	g.HeapObjects = eng.Gauge("go.memstats.objects.count", tagsHeap...)
 
 	tagsStack := append(tags, stats.Tag{"type", "stack"})
-	g.StackInuse = client.Gauge("go.memstats.inuse.bytes", tagsStack...)
-	g.StackSys = client.Gauge("go.memstats.sys.bytes", tagsStack...)
+	g.StackInuse = eng.Gauge("go.memstats.inuse.bytes", tagsStack...)
+	g.StackSys = eng.Gauge("go.memstats.sys.bytes", tagsStack...)
 
 	tagsMSpan := append(tags, stats.Tag{"type", "mspan"})
-	g.MSpanInuse = client.Gauge("go.memstats.inuse.bytes", tagsMSpan...)
-	g.MSpanSys = client.Gauge("go.memstats.sys.bytes", tagsMSpan...)
+	g.MSpanInuse = eng.Gauge("go.memstats.inuse.bytes", tagsMSpan...)
+	g.MSpanSys = eng.Gauge("go.memstats.sys.bytes", tagsMSpan...)
 
 	tagsMCache := append(tags, stats.Tag{"type", "mcache"})
-	g.MCacheInuse = client.Gauge("go.memstats.inuse.bytes", tagsMCache...)
-	g.MCacheSys = client.Gauge("go.memstats.sys.bytes", tagsMCache...)
+	g.MCacheInuse = eng.Gauge("go.memstats.inuse.bytes", tagsMCache...)
+	g.MCacheSys = eng.Gauge("go.memstats.sys.bytes", tagsMCache...)
 
 	tagsBuckHash := append(tags, stats.Tag{"type", "bucket_hash_table"})
-	g.BuckHashSys = client.Gauge("go.memstats.sys.bytes", tagsBuckHash...)
+	g.BuckHashSys = eng.Gauge("go.memstats.sys.bytes", tagsBuckHash...)
 
 	tagsGC := append(tags, stats.Tag{"type", "gc"})
-	g.GCSys = client.Gauge("go.memstats.sys.bytes", tagsGC...)
+	g.GCSys = eng.Gauge("go.memstats.sys.bytes", tagsGC...)
 
 	otherTags := append(tags, stats.Tag{"type", "other"})
-	g.OtherSys = client.Gauge("go.memstats.sys.bytes", otherTags...)
+	g.OtherSys = eng.Gauge("go.memstats.sys.bytes", otherTags...)
 
-	g.NumGC = client.Counter("go.memstats.gc.count", tags...)
-	g.NextGC = client.Gauge("go.memstats.gc_next.bytes", tags...)
-	g.LastGC = client.Gauge("go.memstats.gc_last.seconds", tags...)
-	g.Pauses = client.Histogram("go.memstats.gc_pause.seconds", tags...)
-	g.GCCPUFraction = client.Gauge("go.memstats.gc_cpu.fraction", tags...)
+	g.NumGC = eng.Counter("go.memstats.gc.count", tags...)
+	g.NextGC = eng.Gauge("go.memstats.gc_next.bytes", tags...)
+	g.LastGC = eng.Gauge("go.memstats.gc_last.seconds", tags...)
+	g.Pauses = eng.Histogram("go.memstats.gc_pause.seconds", tags...)
+	g.GCCPUFraction = eng.Gauge("go.memstats.gc_cpu.fraction", tags...)
 
+	g.lastNumGC = uint64(g.gc.NumGC)
 	return g
 }
 
@@ -122,8 +115,7 @@ func (g *GoMetrics) Collect() {
 	numCgoCall := uint64(runtime.NumCgoCall())
 	g.NumCPU.Set(float64(runtime.NumCPU()))
 	g.NumGoroutine.Set(float64(runtime.NumGoroutine()))
-	g.NumCgoCall.Add(float64(numCgoCall - g.lastNumCgoCall))
-	g.lastNumCgoCall = numCgoCall
+	g.NumCgoCall.Set(float64(numCgoCall))
 
 	collectMemoryStats(&g.ms, &g.gc, g.lastNumGC)
 	g.updateMemStats(time.Now())
@@ -131,16 +123,16 @@ func (g *GoMetrics) Collect() {
 
 func (g *GoMetrics) updateMemStats(now time.Time) {
 	g.Alloc.Set(float64(g.ms.Alloc))
-	g.TotalAlloc.Add(float64(g.ms.TotalAlloc - g.lastTotalAlloc))
-	g.Lookups.Add(float64(g.ms.Lookups - g.lastLookups))
-	g.Mallocs.Add(float64(g.ms.Mallocs - g.lastMallocs))
-	g.Frees.Add(float64(g.ms.Frees - g.lastFrees))
+	g.TotalAlloc.Set(float64(g.ms.TotalAlloc))
+	g.Lookups.Set(float64(g.ms.Lookups))
+	g.Mallocs.Set(float64(g.ms.Mallocs))
+	g.Frees.Set(float64(g.ms.Frees))
 
 	g.HeapAlloc.Set(float64(g.ms.HeapAlloc))
 	g.HeapSys.Set(float64(g.ms.HeapSys))
 	g.HeapIdle.Set(float64(g.ms.HeapIdle))
 	g.HeapInuse.Set(float64(g.ms.HeapInuse))
-	g.HeapReleased.Add(float64(g.ms.HeapReleased - g.lastHeapReleased))
+	g.HeapReleased.Set(float64(g.ms.HeapReleased))
 	g.HeapObjects.Set(float64(g.ms.HeapObjects))
 
 	g.StackInuse.Set(float64(g.ms.StackInuse))
@@ -153,21 +145,19 @@ func (g *GoMetrics) updateMemStats(now time.Time) {
 	g.GCSys.Set(float64(g.ms.GCSys))
 	g.OtherSys.Set(float64(g.ms.OtherSys))
 
-	g.NumGC.Add(float64(uint64(g.gc.NumGC) - g.lastNumGC))
+	g.NumGC.Set(float64(g.gc.NumGC))
 	g.NextGC.Set(float64(g.ms.NextGC))
 	g.LastGC.Set(now.Sub(g.gc.LastGC).Seconds())
 	g.GCCPUFraction.Set(float64(g.ms.GCCPUFraction))
 
-	for i, pause := range g.gc.Pause {
-		g.Pauses.ObserveAt(pause.Seconds(), g.gc.PauseEnd[i])
+	for _, pause := range g.gc.Pause {
+		g.Pauses.Observe(pause.Seconds())
+		// TODO: support reporting metrics at a specific time (in the past), not
+		// all collection systems support it (datadog doesn't for example) but it
+		// could help get a more accurate view on those that do.
+		//
+		// g.Pauses.ObserveAt(pause.Seconds(), g.gc.PauseEnd[i])
 	}
-
-	g.lastTotalAlloc = g.ms.TotalAlloc
-	g.lastHeapReleased = g.ms.HeapReleased
-	g.lastLookups = g.ms.Lookups
-	g.lastMallocs = g.ms.Mallocs
-	g.lastFrees = g.ms.Frees
-	g.lastNumGC = uint64(g.gc.NumGC)
 }
 
 func collectMemoryStats(ms *runtime.MemStats, gc *debug.GCStats, lastNumGC uint64) {

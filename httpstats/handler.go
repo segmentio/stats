@@ -8,19 +8,19 @@ import (
 	"github.com/segmentio/stats"
 )
 
-func NewHandler(client stats.Client, handler http.Handler) http.Handler {
-	return httpHandler{
+func NewHandler(handler http.Handler, eng *stats.Engine, tags ...stats.Tag) http.Handler {
+	return &httpHandler{
 		handler: handler,
-		metrics: NewServerMetrics(client),
+		metrics: MakeServerMetrics(eng, tags...),
 	}
 }
 
 type httpHandler struct {
 	handler http.Handler
-	metrics *Metrics
+	metrics Metrics
 }
 
-func (h httpHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
+func (h *httpHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	clock := h.metrics.RTT.Start()
 
 	req.Body, _ = h.metrics.ObserveRequest(req)
@@ -46,8 +46,8 @@ type httpResponseWriter struct {
 	header  http.Header
 	bytes   int
 	status  int
-	clock   stats.Clock
-	metrics *Metrics
+	metrics Metrics
+	clock   *stats.Clock
 	req     *http.Request
 }
 
@@ -70,7 +70,7 @@ func (w *httpResponseWriter) Write(b []byte) (n int, err error) {
 }
 
 func (w *httpResponseWriter) complete() {
-	if w.metrics != nil {
+	if w.header != nil {
 		// make sure the request body was closed
 		w.req.Body.Close()
 
@@ -85,14 +85,13 @@ func (w *httpResponseWriter) complete() {
 		}
 
 		tags := makeResponseTags(res)
-		w.metrics.Responses.Count.Add(1, tags...)
-		w.metrics.Responses.HeaderSizes.Observe(float64(len(res.Header)), tags...)
-		w.metrics.Responses.HeaderBytes.Observe(float64(responseHeaderLength(res)), tags...)
-		w.metrics.Responses.BodyBytes.Observe(float64(w.bytes), tags...)
-		w.clock.Stop(tags...)
+		w.metrics.Responses.Count.Clone(tags...).Incr()
+		w.metrics.Responses.HeaderSizes.Clone(tags...).Observe(float64(len(res.Header)))
+		w.metrics.Responses.HeaderBytes.Clone(tags...).Observe(float64(responseHeaderLength(res)))
+		w.metrics.Responses.BodyBytes.Clone(tags...).Observe(float64(w.bytes))
+		w.clock.Clone(tags...).Stop()
 
 		// release resources
-		w.metrics = nil
 		w.header = nil
 		w.clock = nil
 		w.req = nil

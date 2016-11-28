@@ -9,68 +9,58 @@ import (
 	"github.com/segmentio/stats"
 )
 
-type ConnTag int
-
-const (
-	TagProtocol   ConnTag = 1 << 0
-	TagLocalAddr  ConnTag = 1 << 1
-	TagLocalPort  ConnTag = 1 << 2
-	TagRemoteAddr ConnTag = 1 << 3
-	TagRemotePort ConnTag = 1 << 4
-
-	TagAll = TagProtocol | TagLocalAddr | TagLocalPort | TagRemoteAddr | TagRemotePort
-)
-
-func NewConnTags(c net.Conn, t ConnTag) (tags stats.Tags) {
-	tags = make(stats.Tags, 0, 5)
-
-	laddr := c.LocalAddr()
-	raddr := c.RemoteAddr()
-
-	lhost, lport, _ := net.SplitHostPort(laddr.String())
-	rhost, rport, _ := net.SplitHostPort(raddr.String())
-
-	if (t & TagProtocol) != 0 {
-		tags = append(tags, stats.Tag{"protocol", laddr.Network()})
+// NewConn returns a net.Conn object that wraps c and produces metrics on eng.
+func NewConn(c net.Conn, eng *stats.Engine, tags ...stats.Tag) net.Conn {
+	tags = append(tags, stats.Tag{Name: "protocol", Value: c.LocalAddr().Network()})
+	nc := &conn{
+		Conn: c,
+		metrics: metrics{
+			open:     eng.Counter("conn.open.count", tags...),
+			close:    eng.Counter("conn.close.count", tags...),
+			reads:    eng.Histogram("conn.iops", append(tags, stats.Tag{Name: "operation", Value: "read"})...),
+			writes:   eng.Histogram("conn.iops", append(tags, stats.Tag{Name: "operation", Value: "write"})...),
+			bytesIn:  eng.Counter("conn.bytes.count", append(tags, stats.Tag{Name: "operation", Value: "read"})...),
+			bytesOut: eng.Counter("conn.bytes.count", append(tags, stats.Tag{Name: "operation", Value: "write"})...),
+			errors:   eng.Counter("conn.errors.count", tags...),
+		},
 	}
-
-	if (t & TagLocalAddr) != 0 {
-		tags = append(tags, stats.Tag{"local_addr", lhost})
-	}
-
-	if (t & TagLocalPort) != 0 {
-		tags = append(tags, stats.Tag{"local_port", lport})
-	}
-
-	if (t & TagRemoteAddr) != 0 {
-		tags = append(tags, stats.Tag{"remote_addr", rhost})
-	}
-
-	if (t & TagRemotePort) != 0 {
-		tags = append(tags, stats.Tag{"remote_port", rport})
-	}
-
-	return
+	nc.metrics.open.Incr()
+	return nc
 }
 
-func NewConn(c net.Conn, client stats.Client, tags ...stats.Tag) net.Conn {
-	m := NewMetrics(client, tags...)
-	m.Open.Add(1)
-	return &conn{Conn: c, metrics: m}
+type metrics struct {
+	open     stats.Counter
+	close    stats.Counter
+	reads    stats.Histogram
+	writes   stats.Histogram
+	bytesIn  stats.Counter
+	bytesOut stats.Counter
+	errors   stats.Counter
 }
 
 type conn struct {
 	net.Conn
-	metrics *Metrics
-	once    sync.Once
+	metrics
+	once sync.Once
+}
+
+func (c *conn) Close() (err error) {
+	err = c.Conn.Close()
+	c.once.Do(func() {
+		if err != nil {
+			c.error("close", err)
+		}
+		c.metrics.close.Incr()
+	})
+	return
 }
 
 func (c *conn) Read(b []byte) (n int, err error) {
 	n, err = c.Conn.Read(b)
 
 	if n > 0 {
-		c.metrics.Reads.Observe(float64(n))
-		c.metrics.BytesIn.Add(float64(n))
+		c.metrics.reads.Observe(float64(n))
+		c.metrics.bytesIn.Add(float64(n))
 	}
 
 	if err != nil && err != io.EOF {
@@ -84,25 +74,14 @@ func (c *conn) Write(b []byte) (n int, err error) {
 	n, err = c.Conn.Write(b)
 
 	if n > 0 {
-		c.metrics.Writes.Observe(float64(n))
-		c.metrics.BytesOut.Add(float64(n))
+		c.metrics.writes.Observe(float64(n))
+		c.metrics.bytesOut.Add(float64(n))
 	}
 
 	if err != nil {
 		c.error("write", err)
 	}
 
-	return
-}
-
-func (c *conn) Close() (err error) {
-	err = c.Conn.Close()
-	c.once.Do(func() {
-		if err != nil {
-			c.error("close", err)
-		}
-		c.metrics.Close.Add(1)
-	})
 	return
 }
 
@@ -134,7 +113,7 @@ func (c *conn) error(op string, err error) {
 	default:
 		// only report serious errors, others should be handled gracefully
 		if e, ok := err.(net.Error); !ok || !(e.Temporary() || e.Timeout()) {
-			c.metrics.Errors.Add(1, stats.Tag{"operation", op})
+			c.metrics.errors.Clone(stats.Tag{Name: "operation", Value: op}).Incr()
 		}
 	}
 }

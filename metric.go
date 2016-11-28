@@ -1,237 +1,247 @@
 package stats
 
 import (
-	"strings"
-	"sync"
+	"strconv"
 	"time"
 )
 
-type Metric interface {
-	Name() string
+// MetricType is an enumeration representing the type of a metric.
+type MetricType int
 
-	Type() string
+const (
+	// CounterType is the constant representing counter metrics.
+	CounterType MetricType = iota
 
-	Tags() Tags
+	// GaugeType is the constant representing gauge metrics.
+	GaugeType
 
-	Sample() float64
+	// HistogramType is the constant representing histogram metrics.
+	HistogramType
+)
+
+// Metric is a universal representation of the state of a metric.
+//
+// No operations are available on this data type, instead it carries the state
+// of a metric a single metric when querying the state of a stats engine.
+type Metric struct {
+	// Type is a constant representing the type of the metric, which is one of
+	// the constants defined by the MetricType enumeration.
+	Type MetricType
+
+	// Group is a unique identifier of the group this metric belongs to.
+	//
+	// Not all metrics belong to groups, most of the time the group is an empty
+	// string. Some metrics however are aggregates of submetrics, in that case
+	// all submetrics will have the same group value which is the key of the
+	// parent metric.
+	Group string
+
+	// Key is a unique identifier for the metric.
+	//
+	// Application should not rely on the actual structure of the key and just
+	// assume that it will be uniquely representing a single metric.
+	Key string
+
+	// Name is the name of the metric as defined by the program.
+	Name string
+
+	// Tags is the list of tags set on the metric.
+	Tags []Tag
+
+	// Value is the current value of the metric.
+	Value float64
+
+	// Sample is a counter of the number of operations that have been done on a
+	// metric.
+	//
+	// Note that for a single metric this value may not always increase. If a
+	// metric is idle for too long and times out, then is produced again later,
+	// the sample will be set back to one.
+	Sample uint64
+
+	// Time is set to the time at which the metric was last modified.
+	Time time.Time
 }
 
-type Gauge interface {
-	Metric
-
-	Set(value float64, tags ...Tag)
-
-	SetAt(value float64, time time.Time, tags ...Tag)
+func metricKey(name string, tags []Tag) string {
+	return string(appendMetricKey(make([]byte, 0, metricKeyLen(name, tags)), name, tags))
 }
 
-type Counter interface {
-	Metric
-
-	Add(value float64, tags ...Tag)
-
-	AddAt(value float64, time time.Time, tags ...Tag)
+func metricKeyLen(name string, tags []Tag) int {
+	return len(name) + 1 + tagsLen(tags)
 }
 
-type Histogram interface {
-	Metric
-
-	Observe(value float64, tags ...Tag)
-
-	ObserveAt(value float64, time time.Time, tags ...Tag)
+func appendMetricKey(b []byte, name string, tags []Tag) []byte {
+	b = append(b, name...)
+	b = append(b, '?')
+	b = appendTags(b, tags)
+	return b
 }
 
-type Timer interface {
-	Metric
+// The MetricsByKey type implements sort.Interface and can be used to sort a
+// slice of metrics by key.
+type MetricsByKey []Metric
 
-	Start(tags ...Tag) Clock
-
-	StartAt(time time.Time, tags ...Tag) Clock
+// Less returns true if the metric key at index i is ordered before the metric
+// key at index j.
+func (m MetricsByKey) Less(i int, j int) bool {
+	return m[i].Key < m[j].Key
 }
 
-type Clock interface {
-	Stamp(name string, tags ...Tag)
-
-	StampAt(name string, time time.Time, tags ...Tag)
-
-	Stop(tags ...Tag)
-
-	StopAt(time time.Time, tags ...Tag)
+// Swap swaps the metrics at index i and j.
+func (m MetricsByKey) Swap(i int, j int) {
+	m[i], m[j] = m[j], m[i]
 }
 
-type Opts struct {
-	Backend Backend
-	Scope   string
-	Name    string
-	Unit    string
-	Tags    Tags
-	Sample  float64
-	Now     func() time.Time
+// Len returns the lengths of the metric slice.
+func (m MetricsByKey) Len() int {
+	return len(m)
 }
 
-func MakeOpts(name string, tags ...Tag) Opts { return Opts{Name: name, Tags: Tags(tags)} }
+type metricOp struct {
+	typ   MetricType
+	key   string
+	name  string
+	tags  []Tag
+	value float64
+	time  time.Time
+	apply func(*metricState, float64, time.Time, time.Time)
+}
 
-type metric struct {
+func metricOpAdd(state *metricState, value float64, mod time.Time, exp time.Time) {
+	state.value += value
+	state.sample++
+	state.modTime = mod
+	state.expTime = exp
+}
+
+func metricOpSet(state *metricState, value float64, mod time.Time, exp time.Time) {
+	state.value = value
+	state.sample++
+	state.modTime = mod
+	state.expTime = exp
+}
+
+func metricOpObserve(state *metricState, value float64, mod time.Time, exp time.Time) {
+	if state.metrics == nil {
+		state.metrics = make(map[string]metricState)
+	}
+	key := state.key + "#" + strconv.FormatUint(state.sample, 10)
+	state.sample++
+	state.modTime = mod
+	state.expTime = exp
+	state.metrics[key] = metricState{
+		typ:     state.typ,
+		group:   state.key,
+		key:     key,
+		name:    state.name,
+		tags:    state.tags,
+		value:   value,
+		sample:  1,
+		modTime: mod,
+		expTime: exp,
+	}
+}
+
+type metricReq struct {
+	res chan<- []Metric
+}
+
+type metricState struct {
+	typ     MetricType
+	group   string
+	key     string
 	name    string
-	tags    Tags
-	backend Backend
-	sample  float64
-	now     func() time.Time
+	tags    []Tag
+	value   float64
+	sample  uint64
+	modTime time.Time
+	expTime time.Time
+	metrics map[string]metricState // observed values
 }
 
-func makeMetric(opts Opts) metric {
-	if opts.Now == nil {
-		opts.Now = time.Now
-	}
-
-	if opts.Sample == 0 {
-		opts.Sample = 1
-	}
-
-	return metric{
-		name:    JoinMetricName(opts.Scope, opts.Name, opts.Unit),
-		tags:    opts.Tags,
-		backend: opts.Backend,
-		sample:  opts.Sample,
-		now:     opts.Now,
-	}
+type metricStore struct {
+	metrics map[string]*metricState
+	timeout time.Duration
 }
 
-func (m *metric) Name() string { return m.name }
-
-func (m *metric) Tags() Tags { return m.tags }
-
-func (m *metric) Sample() float64 { return m.sample }
-
-func (m *metric) clone(tags ...Tag) metric {
-	c := *m
-	c.tags = concatTags(c.tags, copyTags(Tags(tags)))
-	return c
+type metricStoreConfig struct {
+	timeout time.Duration
 }
 
-type gauge struct{ metric }
-
-func NewGauge(opts Opts) Gauge { return &gauge{makeMetric(opts)} }
-
-func (g *gauge) Type() string { return "gauge" }
-
-func (g *gauge) Set(value float64, tags ...Tag) { g.SetAt(value, g.now(), tags...) }
-
-func (g *gauge) SetAt(value float64, time time.Time, tags ...Tag) {
-	if len(tags) == 0 {
-		// fast path, this is the most common case (no tags).
-		g.backend.Set(g, value, time)
-	} else {
-		tmp := gaugePool.Get().(*gauge)
-		tmp.metric = g.clone(tags...)
-		g.backend.Set(tmp, value, time)
-		gaugePool.Put(tmp)
+func makeMetricStore(config metricStoreConfig) metricStore {
+	return metricStore{
+		metrics: make(map[string]*metricState),
+		timeout: config.timeout,
 	}
 }
 
-type counter struct{ metric }
+func (s metricStore) state() []Metric {
+	metrics := make([]Metric, 0, 2*len(s.metrics))
 
-func NewCounter(opts Opts) Counter { return &counter{metric: makeMetric(opts)} }
+	for _, state := range s.metrics {
+		if len(state.metrics) == 0 {
+			metrics = append(metrics, Metric{
+				Type:   state.typ,
+				Group:  state.group,
+				Key:    state.key,
+				Name:   state.name,
+				Tags:   state.tags,
+				Value:  state.value,
+				Sample: state.sample,
+				Time:   state.modTime,
+			})
+			continue
+		}
 
-func (c *counter) Type() string { return "counter" }
-
-func (c *counter) Add(value float64, tags ...Tag) { c.AddAt(value, c.now(), tags...) }
-
-func (c *counter) AddAt(value float64, time time.Time, tags ...Tag) {
-	if len(tags) == 0 {
-		// fast path, this is the most common case (no tags).
-		c.backend.Add(c, value, time)
-	} else {
-		tmp := counterPool.Get().(*counter)
-		tmp.metric = c.clone(tags...)
-		c.backend.Add(tmp, value, time)
-		counterPool.Put(tmp)
-	}
-}
-
-type histogram struct{ metric }
-
-func NewHistogram(opts Opts) Histogram { return &histogram{makeMetric(opts)} }
-
-func (h *histogram) Type() string { return "histogram" }
-
-func (h *histogram) Observe(value float64, tags ...Tag) { h.ObserveAt(value, h.now(), tags...) }
-
-func (h *histogram) ObserveAt(value float64, time time.Time, tags ...Tag) {
-	if len(tags) == 0 {
-		// fast path, this is the most common case (no tags).
-		h.backend.Observe(h, value, time)
-	} else {
-		tmp := histogramPool.Get().(*histogram)
-		tmp.metric = h.clone(tags...)
-		h.backend.Observe(tmp, value, time)
-		histogramPool.Put(tmp)
-	}
-}
-
-type timer struct{ metric }
-
-func NewTimer(opts Opts) Timer { return &timer{metric: makeMetric(opts)} }
-
-func (t *timer) Type() string { return "timer" }
-
-func (t *timer) Start(tags ...Tag) Clock { return t.StartAt(t.now(), tags...) }
-
-func (t *timer) StartAt(time time.Time, tags ...Tag) Clock {
-	return &clock{metric: t.clone(tags...), start: time, last: time}
-}
-
-type clock struct {
-	sync.Mutex
-	metric
-	start time.Time
-	last  time.Time
-}
-
-func (c *clock) Stamp(name string, tags ...Tag) { c.StampAt(name, c.now(), tags...) }
-
-func (c *clock) StampAt(name string, time time.Time, tags ...Tag) {
-	c.Lock()
-	d := time.Sub(c.last)
-	c.last = time
-	c.Unlock()
-	c.stamp(name, d.Seconds(), time, tags...)
-}
-
-func (c *clock) Stop(tags ...Tag) { c.StopAt(c.now(), tags...) }
-
-func (c *clock) StopAt(time time.Time, tags ...Tag) {
-	c.stamp("total", time.Sub(c.start).Seconds(), time, tags...)
-}
-
-func (c *clock) stamp(name string, duration float64, time time.Time, tags ...Tag) {
-	h := histogramPool.Get().(*histogram)
-	h.metric = c.clone(append(tags, Tag{"stamp", name})...)
-	h.backend.Observe(h, duration, time)
-	histogramPool.Put(h)
-}
-
-func JoinMetricName(elems ...string) string {
-	parts := make([]string, 0, len(elems))
-
-	for _, elem := range elems {
-		if len(elem) != 0 {
-			parts = append(parts, elem)
+		for _, sub := range state.metrics {
+			metrics = append(metrics, Metric{
+				Type:   sub.typ,
+				Group:  sub.group,
+				Key:    sub.key,
+				Name:   sub.name,
+				Tags:   sub.tags,
+				Value:  sub.value,
+				Sample: sub.sample,
+				Time:   sub.modTime,
+			})
 		}
 	}
 
-	return strings.Join(parts, ".")
+	return metrics
 }
 
-var (
-	gaugePool = sync.Pool{
-		New: func() interface{} { return &gauge{} },
+func (s metricStore) apply(op metricOp, now time.Time) {
+	state := s.metrics[op.key]
+
+	if state == nil || state.typ != op.typ {
+		state = &metricState{
+			typ:  op.typ,
+			key:  op.key,
+			name: op.name,
+			tags: op.tags,
+		}
+		s.metrics[op.key] = state
 	}
 
-	counterPool = sync.Pool{
-		New: func() interface{} { return &counter{} },
+	if op.time == (time.Time{}) {
+		op.time = now
 	}
 
-	histogramPool = sync.Pool{
-		New: func() interface{} { return &histogram{} },
+	op.apply(state, op.value, op.time, now.Add(s.timeout))
+}
+
+func (s metricStore) deleteExpiredMetrics(now time.Time) {
+	for key, state := range s.metrics {
+		if now.After(state.expTime) {
+			delete(s.metrics, key)
+			continue
+		}
+
+		for key, sub := range state.metrics {
+			if now.After(sub.expTime) {
+				delete(state.metrics, key)
+			}
+		}
 	}
-)
+}

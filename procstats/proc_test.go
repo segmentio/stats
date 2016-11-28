@@ -3,25 +3,35 @@ package procstats
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/segmentio/stats"
 )
 
 func TestProcMetrics(t *testing.T) {
-	backend := &stats.EventBackend{}
-	client := stats.NewClient(backend)
-	defer client.Close()
+	engine := stats.NewDefaultEngine()
+	defer engine.Close()
 
-	proc := NewProcMetrics(client)
+	proc := NewProcMetrics(engine)
 	proc.Collect()
 
-	if len(backend.Events) == 0 {
-		t.Errorf("no metrics reported by process metric collector")
+	// Let the engine process the metrics.
+	time.Sleep(10 * time.Millisecond)
+
+	metrics := engine.State()
+
+	if len(metrics) == 0 {
+		t.Error("no metrics were reported by the stats collector")
 	}
 
-	for _, e := range backend.Events {
-		if !strings.HasPrefix(e.Name, "procstats.test.") {
-			t.Error("bad event name:", e.Name)
+	for _, m := range metrics {
+		switch {
+		case strings.HasPrefix(m.Name, "cpu."):
+		case strings.HasPrefix(m.Name, "memory."):
+		case strings.HasPrefix(m.Name, "files."):
+		case strings.HasPrefix(m.Name, "thread."):
+		default:
+			t.Error("invalid metric name:", m.Name)
 		}
 	}
 }

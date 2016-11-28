@@ -19,10 +19,6 @@ type CPU struct {
 	// CPU time
 	User stats.Counter // user cpu time used by the process
 	Sys  stats.Counter // system cpu time used by the process
-
-	// last values seen to compute the delta and increment counters
-	lastUser time.Duration
-	lastSys  time.Duration
 }
 
 type Memory struct {
@@ -37,10 +33,6 @@ type Memory struct {
 	// Page faults
 	MajorPageFaults stats.Counter
 	MinorPageFaults stats.Counter
-
-	// last values seen to compute the delta and increment counters
-	lastMajorPageFaults uint64
-	lastMinorPageFaults uint64
 }
 
 type Files struct {
@@ -56,34 +48,27 @@ type Threads struct {
 	// Context switches
 	VoluntaryContextSwitches   stats.Counter
 	InvoluntaryContextSwitches stats.Counter
-
-	// last values seen to compute the delta and increment counters
-	lastVoluntaryContextSwitches   uint64
-	lastInvoluntaryContextSwitches uint64
 }
 
-func NewProcMetrics(client stats.Client, tags ...stats.Tag) *ProcMetrics {
-	return NewProcMetricsFor(os.Getpid(), client, tags...)
+func NewProcMetrics(eng *stats.Engine, tags ...stats.Tag) *ProcMetrics {
+	return NewProcMetricsFor(os.Getpid(), eng, tags...)
 }
 
-func NewProcMetricsFor(pid int, client stats.Client, tags ...stats.Tag) *ProcMetrics {
+func NewProcMetricsFor(pid int, eng *stats.Engine, tags ...stats.Tag) *ProcMetrics {
 	return &ProcMetrics{
 		Pid:     pid,
-		CPU:     makeCPU(client, tags...),
-		Memory:  makeMemory(client, tags...),
-		Files:   makeFiles(client, tags...),
-		Threads: makeThreads(client, tags...),
+		CPU:     makeCPU(eng, tags...),
+		Memory:  makeMemory(eng, tags...),
+		Files:   makeFiles(eng, tags...),
+		Threads: makeThreads(eng, tags...),
 	}
 }
 
 func (p *ProcMetrics) Collect() {
 	if m, err := collectProcMetrics(p.Pid); err == nil {
 		// CPU
-		p.CPU.User.Add((m.cpu.user - p.CPU.lastUser).Seconds())
-		p.CPU.Sys.Add((m.cpu.sys - p.CPU.lastSys).Seconds())
-
-		p.CPU.lastUser = m.cpu.user
-		p.CPU.lastSys = m.cpu.sys
+		p.CPU.User.Set(m.cpu.user.Seconds())
+		p.CPU.Sys.Set(m.cpu.sys.Seconds())
 
 		// Memory
 		p.Memory.Available.Set(float64(m.memory.available))
@@ -92,12 +77,8 @@ func (p *ProcMetrics) Collect() {
 		p.Memory.Shared.Set(float64(m.memory.shared))
 		p.Memory.Text.Set(float64(m.memory.text))
 		p.Memory.Data.Set(float64(m.memory.data))
-
-		p.Memory.MajorPageFaults.Add(float64(m.memory.majorPageFaults - p.Memory.lastMajorPageFaults))
-		p.Memory.MinorPageFaults.Add(float64(m.memory.minorPageFaults - p.Memory.lastMinorPageFaults))
-
-		p.Memory.lastMajorPageFaults = m.memory.majorPageFaults
-		p.Memory.lastMinorPageFaults = m.memory.minorPageFaults
+		p.Memory.MajorPageFaults.Set(float64(m.memory.majorPageFaults))
+		p.Memory.MinorPageFaults.Set(float64(m.memory.minorPageFaults))
 
 		// Files
 		p.Files.Open.Set(float64(m.files.open))
@@ -105,78 +86,74 @@ func (p *ProcMetrics) Collect() {
 
 		// Threads
 		p.Threads.Num.Set(float64(m.threads.num))
-
-		p.Threads.VoluntaryContextSwitches.Add(float64(m.threads.voluntaryContextSwitches - p.Threads.lastVoluntaryContextSwitches))
-		p.Threads.InvoluntaryContextSwitches.Add(float64(m.threads.involuntaryContextSwitches - p.Threads.lastInvoluntaryContextSwitches))
-
-		p.Threads.lastVoluntaryContextSwitches = m.threads.voluntaryContextSwitches
-		p.Threads.lastInvoluntaryContextSwitches = m.threads.involuntaryContextSwitches
+		p.Threads.VoluntaryContextSwitches.Set(float64(m.threads.voluntaryContextSwitches))
+		p.Threads.InvoluntaryContextSwitches.Set(float64(m.threads.involuntaryContextSwitches))
 	}
 }
 
-func makeCPU(client stats.Client, tags ...stats.Tag) (cpu CPU) {
+func makeCPU(eng *stats.Engine, tags ...stats.Tag) (cpu CPU) {
 	n := len(tags)
 	tags = append(tags, stats.Tag{})
 
 	tags[n] = stats.Tag{"type", "user"}
-	cpu.User = client.Counter("cpu.usage.seconds", tags...)
+	cpu.User = eng.Counter("cpu.usage.seconds", tags...)
 
 	tags[n] = stats.Tag{"type", "sys"}
-	cpu.Sys = client.Counter("cpu.usage.seconds", tags...)
+	cpu.Sys = eng.Counter("cpu.usage.seconds", tags...)
 
 	return cpu
 }
 
-func makeMemory(client stats.Client, tags ...stats.Tag) Memory {
+func makeMemory(eng *stats.Engine, tags ...stats.Tag) Memory {
 	mem := Memory{
-		Available: client.Gauge("memory.available.bytes", tags...),
-		Size:      client.Gauge("memory.total.bytes", tags...),
+		Available: eng.Gauge("memory.available.bytes", tags...),
+		Size:      eng.Gauge("memory.total.bytes", tags...),
 	}
 
 	n := len(tags)
 	tags = append(tags, stats.Tag{})
 
 	tags[n] = stats.Tag{"type", "resident"}
-	mem.Resident = client.Gauge("memory.usage.bytes", tags...)
+	mem.Resident = eng.Gauge("memory.usage.bytes", tags...)
 
 	tags[n] = stats.Tag{"type", "shared"}
-	mem.Shared = client.Gauge("memory.usage.bytes", tags...)
+	mem.Shared = eng.Gauge("memory.usage.bytes", tags...)
 
 	tags[n] = stats.Tag{"type", "text"}
-	mem.Text = client.Gauge("memory.usage.bytes", tags...)
+	mem.Text = eng.Gauge("memory.usage.bytes", tags...)
 
 	tags[n] = stats.Tag{"type", "data"}
-	mem.Data = client.Gauge("memory.usage.bytes", tags...)
+	mem.Data = eng.Gauge("memory.usage.bytes", tags...)
 
 	tags[n] = stats.Tag{"type", "major"}
-	mem.MajorPageFaults = client.Counter("memory.pagefault.count", tags...)
+	mem.MajorPageFaults = eng.Counter("memory.pagefault.count", tags...)
 
 	tags[n] = stats.Tag{"type", "minor"}
-	mem.MinorPageFaults = client.Counter("memory.pagefault.count", tags...)
+	mem.MinorPageFaults = eng.Counter("memory.pagefault.count", tags...)
 
 	return mem
 }
 
-func makeFiles(client stats.Client, tags ...stats.Tag) Files {
+func makeFiles(eng *stats.Engine, tags ...stats.Tag) Files {
 	return Files{
-		Open: client.Gauge("files.open.count", tags...),
-		Max:  client.Gauge("files.open.max", tags...),
+		Open: eng.Gauge("files.open.count", tags...),
+		Max:  eng.Gauge("files.open.max", tags...),
 	}
 }
 
-func makeThreads(client stats.Client, tags ...stats.Tag) Threads {
+func makeThreads(eng *stats.Engine, tags ...stats.Tag) Threads {
 	threads := Threads{
-		Num: client.Gauge("thread.count", tags...),
+		Num: eng.Gauge("thread.count", tags...),
 	}
 
 	n := len(tags)
 	tags = append(tags, stats.Tag{})
 
 	tags[n] = stats.Tag{"type", "voluntary"}
-	threads.VoluntaryContextSwitches = client.Counter("thread.switch.count", tags...)
+	threads.VoluntaryContextSwitches = eng.Counter("thread.switch.count", tags...)
 
 	tags[n] = stats.Tag{"type", "involuntary"}
-	threads.InvoluntaryContextSwitches = client.Counter("thread.switch.count", tags...)
+	threads.InvoluntaryContextSwitches = eng.Counter("thread.switch.count", tags...)
 
 	return threads
 }

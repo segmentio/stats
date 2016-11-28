@@ -12,45 +12,42 @@ go get github.com/segmentio/stats
 Quick Start
 -----------
 
-### Backends
+### Engine
 
-The package's design allow for plugging one or more backends to the high-level
-`Client` interface. It makes it possible to send metrics to different locations,
-or easily change where to send metrics without having to make changes to the code.
+A core concept of the `stats` package is the `Engine`. Every program importing
+the package gets a default engine where all metrics produced are aggregated.  
+The program then has to instantiate clients that will consume from the engine
+at regular time intervals and report the state of the engine to metrics
+collection platforms.
 
-Here's an example of how to create a stats client with multiple backends:
 ```go
 package main
 
 import (
-    "log"
-    "os"
-
     "github.com/segmentio/stats"
     "github.com/segmentio/stats/datadog"
-    "github.com/segmentio/stats/logstats"
 )
 
 func main() {
-    // Create a stats client that sends data to a datadog agent and logs the events.
-    client := stats.NewClient(stats.MultiBackend(
-        datadog.NewBackend("localhost:8125"),
-        logstats.NewBackend(log.New(os.Stderr, "stats: ", log.Lstdflags)),
-    ))
-    defer client.Close()
+    // Creates a new datadog client reporting the state of the default stats
+    // engine to localhost:8125.
+    dd := datadog.NewDefaultClient()
 
+    // Close the client before the application terminates to ensure the latest
+    // state of the stats engine was reported.
+    defer dd.Close()
+
+    // That's it! Metrics produced by the application will now be reported!
     // ...
-
 }
 ```
 
 ### Metrics
 
-The `Client` interface makes it easy to declare metrics, common metric types are supported:
-
 - [Gauges](https://godoc.org/github.com/segmentio/stats#Gauge)
 - [Counters](https://godoc.org/github.com/segmentio/stats#Counter)
 - [Histograms](https://godoc.org/github.com/segmentio/stats#Histogram)
+- [Timers](https://godoc.org/github.com/segmentio/stats#Timer)
 
 ```go
 package main
@@ -61,19 +58,15 @@ import (
 )
 
 func main() {
-    client := stats.NewClient(datadog.NewBackend("localhost:8125"))
-    defer client.Close()
+    dd := datadog.NewDefaultClient()
+    defer dd.Close()
 
-    // Define a couple of metrics.
-    userLogin := client.Counter("users.login")
-    userLogout := client.Counter("users.logout")
+    // Increment counters.
+    stats.Incr("user.login")
+    defer stats.Incr("user.logout")
 
-    // Bump the counters.
-    userLogin.Add(1)
-    defer userLogout.Add(1)
-
-    // We can add some tags to the metrics as well.
-    userLogin.Add(1, stats.Tag{"user", "luke"})
+    // Set a tag on a counter increment.
+    stats.Incr("user.login", stats.Tag{"user", "luke"})
 
     // ...
 }
@@ -85,8 +78,9 @@ Monitoring
 ### Processes
 
 The [github.com/segmentio/stats/httpstats](https://godoc.org/github.com/segmentio/stats/procstats)
-exposes an API for creating stats collector on local processes. Stats are collected for current
-the process and metrics like goroutines count or memory usage are reported.
+exposes an API for creating stats collector on local processes. Stats are
+collected for current the process and metrics like goroutines count or memory
+usage are reported.
 
 Here's an example of how to use the collector:
 ```go
@@ -100,11 +94,11 @@ import (
 
 
 func main() {
-    client := stats.NewClient(datadog.NewBackend("localhost:8125"))
-    defer client.Close()
+     dd := datadog.NewDefaultClient()
+     defer dd.Close()
 
     // Start a new collector for the current process, reporting Go metrics.
-    c := procstats.StartCollector(procstats.NewGoMetrics(client))
+    c := procstats.StartCollector(procstats.NewGoMetrics(nil))
 
     // Gracefully stops stats collection.
     defer c.Close()
@@ -133,17 +127,18 @@ import (
 )
 
 func main() {
-    client := stats.NewClient(datadog.NewBackend("localhost:8125"))
-    defer client.Close()
+     dd := datadog.NewDefaultClient()
+     defer dd.Close()
 
     // ...
 
-    http.ListenAndServe(":8080", httpstats.NewHandler(client,
+    http.ListenAndServe(":8080", httpstats.NewHandler(
         http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
             // This HTTP handler is automatically reporting metrics for all
             // requests it handles.
             // ...
         }),
+        nil, // use the default stats engine
     ))
 }
 ```
@@ -167,12 +162,13 @@ import (
 )
 
 func main() {
-    client := stats.NewClient(datadog.NewBackend("localhost:8125"))
-    defer client.Close()
+     dd := datadog.NewDefaultClient()
+     defer dd.Close()
 
-    // Make a new HTTP client with a transport that will report HTTP metrics.
+    // Make a new HTTP client with a transport that will report HTTP metrics,
+    // set the engine to nil to use the default.
     httpc := &http.Client{
-        Transport: httpstats.NewTransport(client, &http.Transport{}),
+        Transport: httpstats.NewTransport(&http.Transport{}, nil),
     }
 
     // ...
@@ -193,11 +189,12 @@ import (
 )
 
 func main() {
-    client := stats.NewClient(datadog.NewBackend("localhost:8125"))
-    defer client.Close()
+     dd := datadog.NewDefaultClient()
+     defer dd.Close()
 
-    // Wraps the default HTTP client's transport.
-    http.DefaultClient.Transport = httpstats.NewTransport(client, http.DefaultClient.Transport)
+    // Wraps the default HTTP client's transport, set the engine to nil to use
+    // the default.
+    http.DefaultClient.Transport = httpstats.NewTransport(http.DefaultClient.Transport, nil)
 
     // ...
 }

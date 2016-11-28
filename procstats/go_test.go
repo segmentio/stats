@@ -11,23 +11,24 @@ import (
 )
 
 func TestGoMetrics(t *testing.T) {
-	backend := &stats.EventBackend{}
-	client := stats.NewClient(backend)
-	defer client.Close()
+	engine := stats.NewDefaultEngine()
+	defer engine.Close()
 
-	gostats := NewGoMetrics(client)
+	gostats := NewGoMetrics(engine)
 	gostats.Collect()
 
-	if len(backend.Events) == 0 {
-		t.Error("no events were generated while collecting memory stats")
+	metrics := engine.State()
+
+	if len(metrics) == 0 {
+		t.Error("no metrics were reported by the stats collector")
 	}
 
-	for i, e := range backend.Events {
+	for _, m := range metrics {
 		switch {
-		case strings.HasPrefix(e.Name, "procstats.test.go.runtime."):
-		case strings.HasPrefix(e.Name, "procstats.test.go.memstats."):
+		case strings.HasPrefix(m.Name, "go.runtime."):
+		case strings.HasPrefix(m.Name, "go.memstats."):
 		default:
-			t.Errorf("invalid event name for event #%d: %s", i, e.Name)
+			t.Error("invalid metric name:", m.Name)
 		}
 	}
 }
@@ -35,26 +36,27 @@ func TestGoMetrics(t *testing.T) {
 func TestGoMetricsMock(t *testing.T) {
 	now := time.Now()
 
-	backend := &stats.EventBackend{}
-	client := stats.NewClient(backend)
-	defer client.Close()
+	engine := stats.NewDefaultEngine()
+	defer engine.Close()
 
-	gostats := NewGoMetrics(client)
+	gostats := NewGoMetrics(engine)
 	gostats.gc.NumGC = 1
 	gostats.gc.Pause = []time.Duration{time.Microsecond}
 	gostats.gc.PauseEnd = []time.Time{now.Add(-time.Second)}
 	gostats.updateMemStats(time.Now())
 
-	if len(backend.Events) == 0 {
-		t.Error("no events were generated while collecting memory stats")
+	metrics := engine.State()
+
+	if len(metrics) == 0 {
+		t.Error("no metrics were reported by the stats collector")
 	}
 
-	for i, e := range backend.Events {
+	for _, m := range metrics {
 		switch {
-		case strings.HasPrefix(e.Name, "procstats.test.go.runtime."):
-		case strings.HasPrefix(e.Name, "procstats.test.go.memstats."):
+		case strings.HasPrefix(m.Name, "go.runtime."):
+		case strings.HasPrefix(m.Name, "go.memstats."):
 		default:
-			t.Errorf("invalid event name for event #%d: %s", i, e.Name)
+			t.Error("invalid metric name:", m.Name)
 		}
 	}
 }

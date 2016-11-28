@@ -28,56 +28,56 @@ type MessageMetrics struct {
 	BodyBytes   stats.Histogram
 }
 
-func NewClientMetrics(client stats.Client, tags ...stats.Tag) *Metrics {
-	return newMetrics(client, "write", "read", tags...)
+func MakeClientMetrics(eng *stats.Engine, tags ...stats.Tag) Metrics {
+	return makeMetrics(eng, "write", "read", tags...)
 }
 
-func NewServerMetrics(client stats.Client, tags ...stats.Tag) *Metrics {
-	return newMetrics(client, "read", "write", tags...)
+func MakeServerMetrics(eng *stats.Engine, tags ...stats.Tag) Metrics {
+	return makeMetrics(eng, "read", "write", tags...)
 }
 
-func newMetrics(client stats.Client, reqOp string, resOp string, tags ...stats.Tag) *Metrics {
-	return &Metrics{
-		Requests:  makeMessageMetrics(client, "request", reqOp, tags...),
-		Responses: makeMessageMetrics(client, "response", resOp, tags...),
-		Errors:    client.Counter("http.errors.count", tags...),
-		RTT:       client.Timer("http.rtt.seconds", tags...),
+func makeMetrics(eng *stats.Engine, reqOp string, resOp string, tags ...stats.Tag) Metrics {
+	return Metrics{
+		Requests:  makeMessageMetrics(eng, "request", reqOp, tags...),
+		Responses: makeMessageMetrics(eng, "response", resOp, tags...),
+		Errors:    eng.Counter("http.errors.count", tags...),
+		RTT:       eng.Timer("http.rtt.seconds", tags...),
 	}
 }
 
-func makeMessageMetrics(client stats.Client, typ string, op string, tags ...stats.Tag) MessageMetrics {
+func makeMessageMetrics(eng *stats.Engine, typ string, op string, tags ...stats.Tag) MessageMetrics {
 	tags = append(tags, stats.Tag{"type", typ}, stats.Tag{"operation", op})
 	return MessageMetrics{
-		Count:       client.Counter("http.message.count", tags...),
-		HeaderSizes: client.Histogram("http.message.header.sizes", tags...),
-		HeaderBytes: client.Histogram("http.message.header.bytes", tags...),
-		BodyBytes:   client.Histogram("http.message.body.bytes", tags...),
+		Count:       eng.Counter("http.message.count", tags...),
+		HeaderSizes: eng.Histogram("http.message.header.sizes", tags...),
+		HeaderBytes: eng.Histogram("http.message.header.bytes", tags...),
+		BodyBytes:   eng.Histogram("http.message.body.bytes", tags...),
 	}
 }
 
-func (m *Metrics) ObserveRequest(req *http.Request, tags ...stats.Tag) (body io.ReadCloser, reqtags stats.Tags) {
-	tags = makeRequestTags(req, tags...)
+func (m *Metrics) ObserveRequest(req *http.Request) (body io.ReadCloser, tags []stats.Tag) {
+	tags = makeRequestTags(req)
 
-	m.Requests.Count.Add(1, tags...)
-	m.Requests.HeaderSizes.Observe(float64(len(req.Header)), tags...)
-	m.Requests.HeaderBytes.Observe(float64(requestHeaderLength(req)), tags...)
+	m.Requests.Count.Clone(tags...).Incr()
+	m.Requests.HeaderSizes.Clone(tags...).Observe(float64(len(req.Header)))
+	m.Requests.HeaderBytes.Clone(tags...).Observe(float64(requestHeaderLength(req)))
 
-	body, reqtags = m.makeMessageBody(req.Body, nil, tags...), stats.Tags(tags)
+	body = m.makeMessageBody(req.Body, nil)
 	return
 }
 
-func (m *Metrics) ObserveResponse(res *http.Response, time stats.Clock, tags ...stats.Tag) (body io.ReadCloser, restags stats.Tags) {
-	tags = makeResponseTags(res, tags...)
+func (m *Metrics) ObserveResponse(res *http.Response, clock *stats.Clock) (body io.ReadCloser, tags []stats.Tag) {
+	tags = makeResponseTags(res)
 
-	m.Responses.Count.Add(1, tags...)
-	m.Responses.HeaderSizes.Observe(float64(len(res.Header)), tags...)
-	m.Responses.HeaderBytes.Observe(float64(responseHeaderLength(res)), tags...)
+	m.Responses.Count.Clone(tags...).Incr()
+	m.Responses.HeaderSizes.Clone(tags...).Observe(float64(len(res.Header)))
+	m.Responses.HeaderBytes.Clone(tags...).Observe(float64(responseHeaderLength(res)))
 
-	body, restags = m.makeMessageBody(res.Body, time, tags...), stats.Tags(tags)
+	body = m.makeMessageBody(res.Body, clock, tags...)
 	return
 }
 
-func (m *Metrics) makeMessageBody(body io.ReadCloser, time stats.Clock, tags ...stats.Tag) io.ReadCloser {
+func (m *Metrics) makeMessageBody(body io.ReadCloser, clock *stats.Clock, tags ...stats.Tag) io.ReadCloser {
 	once := &sync.Once{}
 	read := &iostats.CountReader{R: body}
 	return struct {
@@ -88,9 +88,9 @@ func (m *Metrics) makeMessageBody(body io.ReadCloser, time stats.Clock, tags ...
 		Closer: iostats.CloserFunc(func() (err error) {
 			err = body.Close()
 			once.Do(func() {
-				m.Responses.BodyBytes.Observe(float64(read.N), tags...)
-				if time != nil {
-					time.Stop(tags...)
+				m.Responses.BodyBytes.Clone(tags...).Observe(float64(read.N))
+				if clock != nil {
+					clock.Clone(tags...).Stop()
 				}
 			})
 			return
@@ -98,10 +98,10 @@ func (m *Metrics) makeMessageBody(body io.ReadCloser, time stats.Clock, tags ...
 	}
 }
 
-func makeRequestTags(req *http.Request, tags ...stats.Tag) stats.Tags {
+func makeRequestTags(req *http.Request, tags ...stats.Tag) []stats.Tag {
 	host, _ := requestHost(req)
 	ctype, charset := contentType(req.Header)
-	return append(stats.Tags{
+	return append([]stats.Tag{
 		{"http_req_method", req.Method},
 		{"http_req_path", sanitizeHttpPath(req.URL.Path)},
 		{"http_req_protocol", req.Proto},
@@ -110,12 +110,12 @@ func makeRequestTags(req *http.Request, tags ...stats.Tag) stats.Tags {
 		{"http_req_content_charset", charset},
 		{"http_req_content_encoding", contentEncoding(req.Header)},
 		{"http_req_transfer_encoding", transferEncoding(req.TransferEncoding)},
-	}, tags...)
+	})
 }
 
-func makeResponseTags(res *http.Response, tags ...stats.Tag) stats.Tags {
+func makeResponseTags(res *http.Response, tags ...stats.Tag) []stats.Tag {
 	ctype, charset := contentType(res.Header)
-	tags = append(stats.Tags{
+	tags = append([]stats.Tag{
 		{"http_res_status_bucket", responseStatusBucket(res.StatusCode)},
 		{"http_res_status", strconv.Itoa(res.StatusCode)},
 		{"http_res_protocol", res.Proto},
@@ -125,7 +125,7 @@ func makeResponseTags(res *http.Response, tags ...stats.Tag) stats.Tags {
 		{"http_res_content_charset", charset},
 		{"http_res_content_encoding", contentEncoding(res.Header)},
 		{"http_res_transfer_encoding", transferEncoding(res.TransferEncoding)},
-	}, tags...)
+	})
 
 	if req := res.Request; req != nil {
 		tags = append(tags, makeRequestTags(req)...)

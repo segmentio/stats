@@ -1,122 +1,118 @@
 package datadog
 
-import (
-	"io"
-	"reflect"
-	"testing"
+import "github.com/segmentio/stats"
 
-	"github.com/segmentio/stats"
-	"github.com/segmentio/stats/iostats"
-)
-
-func TestParseSuccess(t *testing.T) {
-	tests := []struct {
-		s string
-		m Metric
-	}{
-		{
-			s: "page.views:1|c\n",
-			m: Metric{
-				Name:       "page.views",
-				Value:      1,
-				Type:       Counter,
-				SampleRate: 1,
-				Tags:       stats.Tags{},
-			},
+var metrics = []struct {
+	s string
+	m stats.Metric
+}{
+	{
+		s: "test.metric.small:0|c\n",
+		m: stats.Metric{
+			Type:   stats.CounterType,
+			Name:   "test.metric.small",
+			Tags:   nil,
+			Value:  0,
+			Sample: 1,
 		},
+	},
 
-		{
-			s: "fuel.level:0.5|g\n",
-			m: Metric{
-				Name:       "fuel.level",
-				Value:      0.5,
-				Type:       Gauge,
-				SampleRate: 1,
-				Tags:       stats.Tags{},
-			},
+	{
+		s: "test.metric.common:1|c|#hello:world,answer:42\n",
+		m: stats.Metric{
+			Type:   stats.CounterType,
+			Name:   "test.metric.common",
+			Tags:   []stats.Tag{{"hello", "world"}, {"answer", "42"}},
+			Value:  1,
+			Sample: 1,
 		},
+	},
 
-		{
-			s: "song.length:240|h|@0.5\n",
-			m: Metric{
-				Name:       "song.length",
-				Value:      240,
-				Type:       Histogram,
-				SampleRate: 0.5,
-				Tags:       stats.Tags{},
+	{
+		s: "test.metric.large:1.234|c|@0.1|#hello:world,hello:world,hello:world,hello:world,hello:world,hello:world,hello:world,hello:world,hello:world,hello:world\n",
+		m: stats.Metric{
+			Type: stats.CounterType,
+			Name: "test.metric.large",
+			Tags: []stats.Tag{
+				{"hello", "world"},
+				{"hello", "world"},
+				{"hello", "world"},
+				{"hello", "world"},
+				{"hello", "world"},
+				{"hello", "world"},
+				{"hello", "world"},
+				{"hello", "world"},
+				{"hello", "world"},
+				{"hello", "world"},
 			},
+			Value:  1.234,
+			Sample: 10,
 		},
+	},
 
-		{
-			s: "users.uniques:1234|s\n",
-			m: Metric{
-				Name:       "users.uniques",
-				Value:      1234,
-				Type:       Set,
-				SampleRate: 1,
-				Tags:       stats.Tags{},
-			},
+	{
+		s: "page.views:1|c\n",
+		m: stats.Metric{
+			Type:   stats.CounterType,
+			Name:   "page.views",
+			Value:  1,
+			Sample: 1,
+			Tags:   nil,
 		},
+	},
 
-		{
-			s: "users.online:1|c|#country:china\n",
-			m: Metric{
-				Name:       "users.online",
-				Value:      1,
-				Type:       Counter,
-				SampleRate: 1,
-				Tags:       stats.Tags{{"country", "china"}},
-			},
+	{
+		s: "fuel.level:0.5|g\n",
+		m: stats.Metric{
+			Type:   stats.GaugeType,
+			Name:   "fuel.level",
+			Value:  0.5,
+			Sample: 1,
+			Tags:   nil,
 		},
+	},
 
-		{
-			s: "users.online:1|c|@0.5|#country:china\n",
-			m: Metric{
-				Name:       "users.online",
-				Value:      1,
-				Type:       Counter,
-				SampleRate: 0.5,
-				Tags:       stats.Tags{{"country", "china"}},
-			},
+	{
+		s: "song.length:240|h|@0.5\n",
+		m: stats.Metric{
+			Type:   stats.HistogramType,
+			Name:   "song.length",
+			Value:  240,
+			Sample: 2,
+			Tags:   nil,
 		},
-	}
+	},
 
-	for _, test := range tests {
-		if m, err := ParseMetric(test.s); err != nil {
-			t.Error(err)
-		} else if !reflect.DeepEqual(m, test.m) {
-			t.Errorf("%#v:\n- %#v\n- %#v", test.s, test.m, m)
-		} else if s := m.String(); s != test.s {
-			t.Errorf("%#v\n%#v", test.s, s)
-		}
-	}
-}
+	{
+		s: "users.uniques:1234|h\n",
+		m: stats.Metric{
+			Type:   stats.HistogramType,
+			Name:   "users.uniques",
+			Value:  1234,
+			Sample: 1,
+			Tags:   nil,
+		},
+	},
 
-func TestMetricWriteError(t *testing.T) {
-	w := iostats.WriterFunc(func(b []byte) (int, error) { return 0, io.ErrUnexpectedEOF })
-	m := Metric{}
+	{
+		s: "users.online:1|c|#country:china\n",
+		m: stats.Metric{
+			Type:   stats.CounterType,
+			Name:   "users.online",
+			Value:  1,
+			Sample: 1,
+			Tags:   []stats.Tag{{"country", "china"}},
+		},
+	},
 
-	if e := m.Write(w); e != io.ErrUnexpectedEOF {
-		t.Error("invalid error returned when writing metric:", e)
-	}
-}
-
-func TestParseFailure(t *testing.T) {
-	tests := []string{
-		"",
-		":10|c",             // missing name
-		"name:|c",           // missing value
-		"name:abc|c",        // malformed value
-		"name:1",            // missing type
-		"name:1|",           // missing type
-		"name:1|c|???",      // malformed sample rate
-		"name:1|c|@abc",     // malformed sample rate
-		"name:1|c|@0.5|???", // malformed tags
-	}
-
-	for _, test := range tests {
-		if _, err := ParseMetric(test); err == nil {
-			t.Errorf("%#v: expected parsing error", test)
-		}
-	}
+	{
+		s: "users.online:1|c|@0.5|#country:china\n",
+		m: stats.Metric{
+			Type:   stats.CounterType,
+			Name:   "users.online",
+			Value:  1,
+			Sample: 2,
+			Tags:   []stats.Tag{{"country", "china"}},
+		},
+	},
 }
