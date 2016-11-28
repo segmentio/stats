@@ -13,7 +13,12 @@ type Timer struct {
 
 // T returns a new timer that produces metrics on the default engine.
 func T(name string, tags ...Tag) Timer {
-	return makeTimer(nil, name, copyTags(tags))
+	return MakeTimer(nil, name, tags...)
+}
+
+// MakeTimer returns a new timer that produces metrics on the given engine.
+func MakeTimer(engine *Engine, name string, tags ...Tag) Timer {
+	return makeTimer(engine, name, copyTags(tags))
 }
 
 // Name returns the name of the timer.

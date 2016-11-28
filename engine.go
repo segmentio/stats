@@ -61,25 +61,25 @@ var (
 // Incr increments by one the metric identified by name and tags, a new counter
 // is created in the default engine if none existed.
 func Incr(name string, tags ...Tag) {
-	DefaultEngine.Incr(name, tags...)
+	C(name, tags...).Incr()
 }
 
 // Add adds value to the metric identified by name and tags, a new counter is
 // created in the default engine if none existed.
 func Add(name string, value float64, tags ...Tag) {
-	DefaultEngine.Add(name, value, tags...)
+	C(name, tags...).Add(value)
 }
 
 // Set sets the value of the metric identified by name and tags, a new gauge is
 // created in the default engine if none existed.
 func Set(name string, value float64, tags ...Tag) {
-	DefaultEngine.Set(name, value, tags...)
+	G(name, tags...).Set(value)
 }
 
 // Time returns a clock that produces metrics with name and tags and can be used
 // to report durations.
 func Time(name string, start time.Time, tags ...Tag) *Clock {
-	return DefaultEngine.Time(name, start, tags...)
+	return T(name, tags...).StartAt(start)
 }
 
 // NewDefaultEngine creates and returns an engine configured with default settings.
@@ -118,54 +118,6 @@ func NewEngine(config EngineConfig) *Engine {
 
 	runtime.SetFinalizer(eng, (*Engine).Close)
 	return eng
-}
-
-// Incr increments by one the counter identified by name and tags, a new counter
-// is created in the engine if none existed.
-func (eng *Engine) Incr(name string, tags ...Tag) {
-	eng.Counter(name, tags...).Incr()
-}
-
-// Add adds value to the counter identified by name and tags, a new counter is
-// created in the engine if none existed.
-func (eng *Engine) Add(name string, value float64, tags ...Tag) {
-	eng.Counter(name, tags...).Add(value)
-}
-
-// Set sets the value of the gauge identified by name and tags, a new gauge is
-// created in the engine if none existed.
-func (eng *Engine) Set(name string, value float64, tags ...Tag) {
-	eng.Gauge(name, tags...).Set(value)
-}
-
-// Time returns a clock that produces metrics with name and tags and can be used
-// to report durations.
-func (eng *Engine) Time(name string, start time.Time, tags ...Tag) *Clock {
-	return eng.Timer(name, tags...).StartAt(start)
-}
-
-// Counter creates and returns a counter with name and tags that produces
-// metrics on eng.
-func (eng *Engine) Counter(name string, tags ...Tag) Counter {
-	return makeCounter(eng, name, copyTags(tags))
-}
-
-// Gauge creates and returns a gauge with name and tags that produces
-// metrics on eng.
-func (eng *Engine) Gauge(name string, tags ...Tag) Gauge {
-	return makeGauge(eng, name, copyTags(tags))
-}
-
-// Histogram creates and returns a histogram with name and tags that produces
-// metrics on eng.
-func (eng *Engine) Histogram(name string, tags ...Tag) Histogram {
-	return makeHistogram(eng, name, copyTags(tags))
-}
-
-// Timer creates and returns a timer with name and tags that produces metrics on
-// eng.
-func (eng *Engine) Timer(name string, tags ...Tag) Timer {
-	return makeTimer(eng, name, copyTags(tags))
 }
 
 // Close stops eng and releases all its allocated resources. After calling this

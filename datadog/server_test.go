@@ -38,14 +38,17 @@ func TestServer(t *testing.T) {
 	})
 	defer client.Close()
 
-	engine.Incr("test.A")
+	ma := stats.MakeCounter(engine, "test.A")
+	ma.Incr()
 
-	engine.Incr("test.B")
-	engine.Incr("test.B")
+	mb := stats.MakeCounter(engine, "test.B")
+	mb.Incr()
+	mb.Incr()
 
-	engine.Incr("test.C")
-	engine.Incr("test.C")
-	engine.Incr("test.C")
+	mc := stats.MakeCounter(engine, "test.C")
+	mc.Incr()
+	mc.Incr()
+	mc.Incr()
 
 	time.Sleep(10 * time.Millisecond)
 

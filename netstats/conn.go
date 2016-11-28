@@ -15,13 +15,13 @@ func NewConn(c net.Conn, eng *stats.Engine, tags ...stats.Tag) net.Conn {
 	nc := &conn{
 		Conn: c,
 		metrics: metrics{
-			open:     eng.Counter("conn.open.count", tags...),
-			close:    eng.Counter("conn.close.count", tags...),
-			reads:    eng.Histogram("conn.iops", append(tags, stats.Tag{Name: "operation", Value: "read"})...),
-			writes:   eng.Histogram("conn.iops", append(tags, stats.Tag{Name: "operation", Value: "write"})...),
-			bytesIn:  eng.Counter("conn.bytes.count", append(tags, stats.Tag{Name: "operation", Value: "read"})...),
-			bytesOut: eng.Counter("conn.bytes.count", append(tags, stats.Tag{Name: "operation", Value: "write"})...),
-			errors:   eng.Counter("conn.errors.count", tags...),
+			open:     stats.MakeCounter(eng, "conn.open.count", tags...),
+			close:    stats.MakeCounter(eng, "conn.close.count", tags...),
+			reads:    stats.MakeHistogram(eng, "conn.iops", append(tags, stats.Tag{Name: "operation", Value: "read"})...),
+			writes:   stats.MakeHistogram(eng, "conn.iops", append(tags, stats.Tag{Name: "operation", Value: "write"})...),
+			bytesIn:  stats.MakeCounter(eng, "conn.bytes.count", append(tags, stats.Tag{Name: "operation", Value: "read"})...),
+			bytesOut: stats.MakeCounter(eng, "conn.bytes.count", append(tags, stats.Tag{Name: "operation", Value: "write"})...),
+			errors:   stats.MakeCounter(eng, "conn.errors.count", tags...),
 		},
 	}
 	nc.metrics.open.Incr()

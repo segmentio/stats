@@ -6,7 +6,7 @@ import (
 	"github.com/segmentio/stats"
 )
 
-func NewTransport(transport http.RoundTripper, eng *stats.Engine, tags ...stats.Tag) http.RoundTripper {
+func NewTransport(eng *stats.Engine, transport http.RoundTripper, tags ...stats.Tag) http.RoundTripper {
 	return &httpTransport{
 		transport: transport,
 		metrics:   MakeClientMetrics(eng, tags...),

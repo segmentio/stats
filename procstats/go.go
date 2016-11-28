@@ -60,52 +60,52 @@ func NewGoMetrics(eng *stats.Engine, tags ...stats.Tag) *GoMetrics {
 	)
 
 	g := &GoMetrics{
-		NumCPU:       eng.Gauge("go.runtime.cpu.num", tags...),
-		NumGoroutine: eng.Gauge("go.runtime.goroutine.num", tags...),
-		NumCgoCall:   eng.Counter("go.runtime.cgo.calls", tags...),
+		NumCPU:       stats.MakeGauge(eng, "go.runtime.cpu.num", tags...),
+		NumGoroutine: stats.MakeGauge(eng, "go.runtime.goroutine.num", tags...),
+		NumCgoCall:   stats.MakeCounter(eng, "go.runtime.cgo.calls", tags...),
 	}
 
 	tagsTotal := append(tags, stats.Tag{"type", "total"})
-	g.Alloc = eng.Gauge("go.memstats.alloc.bytes", tagsTotal...)
-	g.TotalAlloc = eng.Counter("go.memstats.total_alloc.bytes", tagsTotal...)
-	g.Lookups = eng.Counter("go.memstats.lookups.count", tagsTotal...)
-	g.Mallocs = eng.Counter("go.memstats.mallocs.count", tagsTotal...)
-	g.Frees = eng.Counter("go.memstats.frees.count", tagsTotal...)
+	g.Alloc = stats.MakeGauge(eng, "go.memstats.alloc.bytes", tagsTotal...)
+	g.TotalAlloc = stats.MakeCounter(eng, "go.memstats.total_alloc.bytes", tagsTotal...)
+	g.Lookups = stats.MakeCounter(eng, "go.memstats.lookups.count", tagsTotal...)
+	g.Mallocs = stats.MakeCounter(eng, "go.memstats.mallocs.count", tagsTotal...)
+	g.Frees = stats.MakeCounter(eng, "go.memstats.frees.count", tagsTotal...)
 
 	tagsHeap := append(tags, stats.Tag{"type", "heap"})
-	g.HeapAlloc = eng.Gauge("go.memstats.alloc.bytes", tagsHeap...)
-	g.HeapSys = eng.Gauge("go.memstats.sys.bytes", tagsHeap...)
-	g.HeapIdle = eng.Gauge("go.memstats.idle.bytes", tagsHeap...)
-	g.HeapInuse = eng.Gauge("go.memstats.inuse.bytes", tagsHeap...)
-	g.HeapReleased = eng.Counter("go.memstats.released.bytes", tagsHeap...)
-	g.HeapObjects = eng.Gauge("go.memstats.objects.count", tagsHeap...)
+	g.HeapAlloc = stats.MakeGauge(eng, "go.memstats.alloc.bytes", tagsHeap...)
+	g.HeapSys = stats.MakeGauge(eng, "go.memstats.sys.bytes", tagsHeap...)
+	g.HeapIdle = stats.MakeGauge(eng, "go.memstats.idle.bytes", tagsHeap...)
+	g.HeapInuse = stats.MakeGauge(eng, "go.memstats.inuse.bytes", tagsHeap...)
+	g.HeapReleased = stats.MakeCounter(eng, "go.memstats.released.bytes", tagsHeap...)
+	g.HeapObjects = stats.MakeGauge(eng, "go.memstats.objects.count", tagsHeap...)
 
 	tagsStack := append(tags, stats.Tag{"type", "stack"})
-	g.StackInuse = eng.Gauge("go.memstats.inuse.bytes", tagsStack...)
-	g.StackSys = eng.Gauge("go.memstats.sys.bytes", tagsStack...)
+	g.StackInuse = stats.MakeGauge(eng, "go.memstats.inuse.bytes", tagsStack...)
+	g.StackSys = stats.MakeGauge(eng, "go.memstats.sys.bytes", tagsStack...)
 
 	tagsMSpan := append(tags, stats.Tag{"type", "mspan"})
-	g.MSpanInuse = eng.Gauge("go.memstats.inuse.bytes", tagsMSpan...)
-	g.MSpanSys = eng.Gauge("go.memstats.sys.bytes", tagsMSpan...)
+	g.MSpanInuse = stats.MakeGauge(eng, "go.memstats.inuse.bytes", tagsMSpan...)
+	g.MSpanSys = stats.MakeGauge(eng, "go.memstats.sys.bytes", tagsMSpan...)
 
 	tagsMCache := append(tags, stats.Tag{"type", "mcache"})
-	g.MCacheInuse = eng.Gauge("go.memstats.inuse.bytes", tagsMCache...)
-	g.MCacheSys = eng.Gauge("go.memstats.sys.bytes", tagsMCache...)
+	g.MCacheInuse = stats.MakeGauge(eng, "go.memstats.inuse.bytes", tagsMCache...)
+	g.MCacheSys = stats.MakeGauge(eng, "go.memstats.sys.bytes", tagsMCache...)
 
 	tagsBuckHash := append(tags, stats.Tag{"type", "bucket_hash_table"})
-	g.BuckHashSys = eng.Gauge("go.memstats.sys.bytes", tagsBuckHash...)
+	g.BuckHashSys = stats.MakeGauge(eng, "go.memstats.sys.bytes", tagsBuckHash...)
 
 	tagsGC := append(tags, stats.Tag{"type", "gc"})
-	g.GCSys = eng.Gauge("go.memstats.sys.bytes", tagsGC...)
+	g.GCSys = stats.MakeGauge(eng, "go.memstats.sys.bytes", tagsGC...)
 
 	otherTags := append(tags, stats.Tag{"type", "other"})
-	g.OtherSys = eng.Gauge("go.memstats.sys.bytes", otherTags...)
+	g.OtherSys = stats.MakeGauge(eng, "go.memstats.sys.bytes", otherTags...)
 
-	g.NumGC = eng.Counter("go.memstats.gc.count", tags...)
-	g.NextGC = eng.Gauge("go.memstats.gc_next.bytes", tags...)
-	g.LastGC = eng.Gauge("go.memstats.gc_last.seconds", tags...)
-	g.Pauses = eng.Histogram("go.memstats.gc_pause.seconds", tags...)
-	g.GCCPUFraction = eng.Gauge("go.memstats.gc_cpu.fraction", tags...)
+	g.NumGC = stats.MakeCounter(eng, "go.memstats.gc.count", tags...)
+	g.NextGC = stats.MakeGauge(eng, "go.memstats.gc_next.bytes", tags...)
+	g.LastGC = stats.MakeGauge(eng, "go.memstats.gc_last.seconds", tags...)
+	g.Pauses = stats.MakeHistogram(eng, "go.memstats.gc_pause.seconds", tags...)
+	g.GCCPUFraction = stats.MakeGauge(eng, "go.memstats.gc_cpu.fraction", tags...)
 
 	g.lastNumGC = uint64(g.gc.NumGC)
 	return g

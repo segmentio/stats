@@ -8,7 +8,7 @@ import (
 	"github.com/segmentio/stats"
 )
 
-func NewHandler(handler http.Handler, eng *stats.Engine, tags ...stats.Tag) http.Handler {
+func NewHandler(eng *stats.Engine, handler http.Handler, tags ...stats.Tag) http.Handler {
 	return &httpHandler{
 		handler: handler,
 		metrics: MakeServerMetrics(eng, tags...),

@@ -11,7 +11,12 @@ type Histogram struct {
 
 // H returns a new histogram that produces metrics on the default engine.
 func H(name string, tags ...Tag) Histogram {
-	return makeHistogram(nil, name, copyTags(tags))
+	return MakeHistogram(nil, name, tags...)
+}
+
+// MakeHistogram returns a new histogram that produces metrics on the given engine.
+func MakeHistogram(engine *Engine, name string, tags ...Tag) Histogram {
+	return makeHistogram(engine, name, copyTags(tags))
 }
 
 // Name returns the name of the histogram.

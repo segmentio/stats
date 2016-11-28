@@ -40,18 +40,18 @@ func makeMetrics(eng *stats.Engine, reqOp string, resOp string, tags ...stats.Ta
 	return Metrics{
 		Requests:  makeMessageMetrics(eng, "request", reqOp, tags...),
 		Responses: makeMessageMetrics(eng, "response", resOp, tags...),
-		Errors:    eng.Counter("http.errors.count", tags...),
-		RTT:       eng.Timer("http.rtt.seconds", tags...),
+		Errors:    stats.MakeCounter(eng, "http.errors.count", tags...),
+		RTT:       stats.MakeTimer(eng, "http.rtt.seconds", tags...),
 	}
 }
 
 func makeMessageMetrics(eng *stats.Engine, typ string, op string, tags ...stats.Tag) MessageMetrics {
 	tags = append(tags, stats.Tag{"type", typ}, stats.Tag{"operation", op})
 	return MessageMetrics{
-		Count:       eng.Counter("http.message.count", tags...),
-		HeaderSizes: eng.Histogram("http.message.header.sizes", tags...),
-		HeaderBytes: eng.Histogram("http.message.header.bytes", tags...),
-		BodyBytes:   eng.Histogram("http.message.body.bytes", tags...),
+		Count:       stats.MakeCounter(eng, "http.message.count", tags...),
+		HeaderSizes: stats.MakeHistogram(eng, "http.message.header.sizes", tags...),
+		HeaderBytes: stats.MakeHistogram(eng, "http.message.header.bytes", tags...),
+		BodyBytes:   stats.MakeHistogram(eng, "http.message.body.bytes", tags...),
 	}
 }
 

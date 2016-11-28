@@ -11,7 +11,12 @@ type Gauge struct {
 
 // G returns a new gauge that produces metrics on the default engine.
 func G(name string, tags ...Tag) Gauge {
-	return makeGauge(nil, name, copyTags(tags))
+	return MakeGauge(nil, name, tags...)
+}
+
+// MakeGauge returns a new gauge that produces metrics on the given engine.
+func MakeGauge(engine *Engine, name string, tags ...Tag) Gauge {
+	return makeGauge(engine, name, copyTags(tags))
 }
 
 // Name returns the name of the gauge.

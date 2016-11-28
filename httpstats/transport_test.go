@@ -29,7 +29,7 @@ func TestTransport(t *testing.T) {
 			defer server.Close()
 
 			httpc := &http.Client{
-				Transport: NewTransport(transport, engine),
+				Transport: NewTransport(engine, transport),
 			}
 
 			res, err := httpc.Post(server.URL, "text/plain", strings.NewReader("Hi"))
@@ -75,7 +75,7 @@ func TestTransportError(t *testing.T) {
 	defer server.Close()
 
 	httpc := &http.Client{
-		Transport: NewTransport(&http.Transport{}, engine),
+		Transport: NewTransport(engine, &http.Transport{}),
 	}
 
 	if _, err := httpc.Post(server.URL, "text/plain", strings.NewReader("Hi")); err == nil {

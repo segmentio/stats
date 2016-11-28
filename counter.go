@@ -11,7 +11,12 @@ type Counter struct {
 
 // C returns a new counter that produces metrics on the default engine.
 func C(name string, tags ...Tag) Counter {
-	return makeCounter(nil, name, copyTags(tags))
+	return MakeCounter(nil, name, tags...)
+}
+
+// MakeCounter returns a new counter that produces metrics on the given engine.
+func MakeCounter(engine *Engine, name string, tags ...Tag) Counter {
+	return makeCounter(engine, name, copyTags(tags))
 }
 
 // Name returns the name of the counter.

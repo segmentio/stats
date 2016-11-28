@@ -15,14 +15,18 @@ func TestEngine(t *testing.T) {
 
 	now := time.Now()
 
-	engine.Incr("A")
-	engine.Set("B", 2)
-	engine.Add("C", 3, Tag{"context", "test"})
+	a := MakeCounter(engine, "A")
+	b := MakeGauge(engine, "B")
+	c := MakeCounter(engine, "C", Tag{"context", "test"})
+	d := MakeTimer(engine, "D").StartAt(now)
 
-	clock := engine.Time("D", now)
-	clock.StampAt("lap", now.Add(1*time.Second))
-	clock.StampAt("lap", now.Add(2*time.Second))
-	clock.StopAt(now.Add(3 * time.Second))
+	a.Incr()
+	b.Set(2)
+	c.Add(3)
+
+	d.StampAt("lap", now.Add(1*time.Second))
+	d.StampAt("lap", now.Add(2*time.Second))
+	d.StopAt(now.Add(3 * time.Second))
 
 	// Give a bit of time for the engine to update its state.
 	time.Sleep(10 * time.Millisecond)

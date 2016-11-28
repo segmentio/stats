@@ -15,10 +15,10 @@ func TestHandler(t *testing.T) {
 	engine := stats.NewDefaultEngine()
 	defer engine.Close()
 
-	server := httptest.NewServer(NewHandler(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+	server := httptest.NewServer(NewHandler(engine, http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		ioutil.ReadAll(req.Body)
 		res.Write([]byte("Hello World"))
-	}), engine))
+	})))
 	defer server.Close()
 
 	res, err := http.Post(server.URL, "text/plain", strings.NewReader("Hi"))
@@ -55,11 +55,11 @@ func TestHandlerHijack(t *testing.T) {
 	engine := stats.NewDefaultEngine()
 	defer engine.Close()
 
-	server := httptest.NewServer(NewHandler(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+	server := httptest.NewServer(NewHandler(engine, http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		// make sure the response writer supports hijacking
 		conn, _, _ := res.(http.Hijacker).Hijack()
 		conn.Close()
-	}), engine))
+	})))
 	defer server.Close()
 
 	if _, err := http.Post(server.URL, "text/plain", strings.NewReader("Hi")); err == nil {

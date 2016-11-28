@@ -87,7 +87,6 @@ Here's an example of how to use the collector:
 package main
 
 import (
-    "github.com/segmentio/stats"
     "github.com/segmentio/stats/datadog"
     "github.com/segmentio/stats/procstats"
 )
@@ -121,7 +120,6 @@ package main
 import (
     "net/http"
 
-    "github.com/segmentio/stats"
     "github.com/segmentio/stats/datadog"
     "github.com/segmentio/stats/httpstats"
 )
@@ -133,12 +131,12 @@ func main() {
     // ...
 
     http.ListenAndServe(":8080", httpstats.NewHandler(
+        nil, // use the default stats engine
         http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
             // This HTTP handler is automatically reporting metrics for all
             // requests it handles.
             // ...
         }),
-        nil, // use the default stats engine
     ))
 }
 ```
@@ -156,7 +154,6 @@ package main
 import (
     "net/http"
 
-    "github.com/segmentio/stats"
     "github.com/segmentio/stats/datadog"
     "github.com/segmentio/stats/httpstats"
 )
@@ -168,7 +165,10 @@ func main() {
     // Make a new HTTP client with a transport that will report HTTP metrics,
     // set the engine to nil to use the default.
     httpc := &http.Client{
-        Transport: httpstats.NewTransport(&http.Transport{}, nil),
+        Transport: httpstats.NewTransport(
+            nil, // use the default stats engine
+            &http.Transport{},
+        ),
     }
 
     // ...
@@ -183,7 +183,6 @@ package main
 import (
     "net/http"
 
-    "github.com/segmentio/stats"
     "github.com/segmentio/stats/datadog"
     "github.com/segmentio/stats/httpstats"
 )
@@ -194,7 +193,7 @@ func main() {
 
     // Wraps the default HTTP client's transport, set the engine to nil to use
     // the default.
-    http.DefaultClient.Transport = httpstats.NewTransport(http.DefaultClient.Transport, nil)
+    http.DefaultClient.Transport = httpstats.NewTransport(nil, http.DefaultClient.Transport)
 
     // ...
 }

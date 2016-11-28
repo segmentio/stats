@@ -96,64 +96,64 @@ func makeCPU(eng *stats.Engine, tags ...stats.Tag) (cpu CPU) {
 	tags = append(tags, stats.Tag{})
 
 	tags[n] = stats.Tag{"type", "user"}
-	cpu.User = eng.Counter("cpu.usage.seconds", tags...)
+	cpu.User = stats.MakeCounter(eng, "cpu.usage.seconds", tags...)
 
 	tags[n] = stats.Tag{"type", "sys"}
-	cpu.Sys = eng.Counter("cpu.usage.seconds", tags...)
+	cpu.Sys = stats.MakeCounter(eng, "cpu.usage.seconds", tags...)
 
 	return cpu
 }
 
 func makeMemory(eng *stats.Engine, tags ...stats.Tag) Memory {
 	mem := Memory{
-		Available: eng.Gauge("memory.available.bytes", tags...),
-		Size:      eng.Gauge("memory.total.bytes", tags...),
+		Available: stats.MakeGauge(eng, "memory.available.bytes", tags...),
+		Size:      stats.MakeGauge(eng, "memory.total.bytes", tags...),
 	}
 
 	n := len(tags)
 	tags = append(tags, stats.Tag{})
 
 	tags[n] = stats.Tag{"type", "resident"}
-	mem.Resident = eng.Gauge("memory.usage.bytes", tags...)
+	mem.Resident = stats.MakeGauge(eng, "memory.usage.bytes", tags...)
 
 	tags[n] = stats.Tag{"type", "shared"}
-	mem.Shared = eng.Gauge("memory.usage.bytes", tags...)
+	mem.Shared = stats.MakeGauge(eng, "memory.usage.bytes", tags...)
 
 	tags[n] = stats.Tag{"type", "text"}
-	mem.Text = eng.Gauge("memory.usage.bytes", tags...)
+	mem.Text = stats.MakeGauge(eng, "memory.usage.bytes", tags...)
 
 	tags[n] = stats.Tag{"type", "data"}
-	mem.Data = eng.Gauge("memory.usage.bytes", tags...)
+	mem.Data = stats.MakeGauge(eng, "memory.usage.bytes", tags...)
 
 	tags[n] = stats.Tag{"type", "major"}
-	mem.MajorPageFaults = eng.Counter("memory.pagefault.count", tags...)
+	mem.MajorPageFaults = stats.MakeCounter(eng, "memory.pagefault.count", tags...)
 
 	tags[n] = stats.Tag{"type", "minor"}
-	mem.MinorPageFaults = eng.Counter("memory.pagefault.count", tags...)
+	mem.MinorPageFaults = stats.MakeCounter(eng, "memory.pagefault.count", tags...)
 
 	return mem
 }
 
 func makeFiles(eng *stats.Engine, tags ...stats.Tag) Files {
 	return Files{
-		Open: eng.Gauge("files.open.count", tags...),
-		Max:  eng.Gauge("files.open.max", tags...),
+		Open: stats.MakeGauge(eng, "files.open.count", tags...),
+		Max:  stats.MakeGauge(eng, "files.open.max", tags...),
 	}
 }
 
 func makeThreads(eng *stats.Engine, tags ...stats.Tag) Threads {
 	threads := Threads{
-		Num: eng.Gauge("thread.count", tags...),
+		Num: stats.MakeGauge(eng, "thread.count", tags...),
 	}
 
 	n := len(tags)
 	tags = append(tags, stats.Tag{})
 
 	tags[n] = stats.Tag{"type", "voluntary"}
-	threads.VoluntaryContextSwitches = eng.Counter("thread.switch.count", tags...)
+	threads.VoluntaryContextSwitches = stats.MakeCounter(eng, "thread.switch.count", tags...)
 
 	tags[n] = stats.Tag{"type", "involuntary"}
-	threads.InvoluntaryContextSwitches = eng.Counter("thread.switch.count", tags...)
+	threads.InvoluntaryContextSwitches = stats.MakeCounter(eng, "thread.switch.count", tags...)
 
 	return threads
 }
