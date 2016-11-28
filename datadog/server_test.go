@@ -19,13 +19,13 @@ func TestServer(t *testing.T) {
 
 	addr, closer := startTestServer(t, HandlerFunc(func(m stats.Metric, _ net.Addr) {
 		switch m.Name {
-		case "test.A":
+		case "datadog.test.A":
 			atomic.AddUint32(&a, uint32(m.Value))
 
-		case "test.B":
+		case "datadog.test.B":
 			atomic.AddUint32(&b, uint32(m.Value))
 
-		case "test.C":
+		case "datadog.test.C":
 			atomic.AddUint32(&c, uint32(m.Value))
 		}
 	}))
@@ -38,14 +38,14 @@ func TestServer(t *testing.T) {
 	})
 	defer client.Close()
 
-	ma := stats.MakeCounter(engine, "test.A")
+	ma := stats.MakeCounter(engine, "A")
 	ma.Incr()
 
-	mb := stats.MakeCounter(engine, "test.B")
+	mb := stats.MakeCounter(engine, "B")
 	mb.Incr()
 	mb.Incr()
 
-	mc := stats.MakeCounter(engine, "test.C")
+	mc := stats.MakeCounter(engine, "C")
 	mc.Incr()
 	mc.Incr()
 	mc.Incr()
@@ -53,15 +53,15 @@ func TestServer(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	if atomic.LoadUint32(&a) != 1 {
-		t.Error("test.A not reported")
+		t.Error("datadog.test.A not reported")
 	}
 
 	if atomic.LoadUint32(&b) != 2 {
-		t.Error("test.B not reported")
+		t.Error("datadog.test.B not reported")
 	}
 
 	if atomic.LoadUint32(&c) != 3 {
-		t.Error("test.C not reported")
+		t.Error("datadog.test.C not reported")
 	}
 }
 

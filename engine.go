@@ -1,6 +1,8 @@
 package stats
 
 import (
+	"os"
+	"path/filepath"
 	"runtime"
 	"sync"
 	"time"
@@ -84,7 +86,7 @@ func Time(name string, start time.Time, tags ...Tag) *Clock {
 
 // NewDefaultEngine creates and returns an engine configured with default settings.
 func NewDefaultEngine() *Engine {
-	return NewEngine(EngineConfig{})
+	return NewEngine(EngineConfig{Prefix: progname()})
 }
 
 // NewEngine creates and returns an engine configured with config.
@@ -228,4 +230,11 @@ func runEngine(e engine) {
 			e.store.deleteExpiredMetrics(now)
 		}
 	}
+}
+
+func progname() (name string) {
+	if args := os.Args; len(args) != 0 {
+		name = filepath.Base(args[0])
+	}
+	return
 }

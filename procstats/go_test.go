@@ -28,8 +28,8 @@ func TestGoMetrics(t *testing.T) {
 
 	for _, m := range metrics {
 		switch {
-		case strings.HasPrefix(m.Name, "go.runtime."):
-		case strings.HasPrefix(m.Name, "go.memstats."):
+		case strings.HasPrefix(m.Name, "procstats.test.go.runtime."):
+		case strings.HasPrefix(m.Name, "procstats.test.go.memstats."):
 		default:
 			t.Error("invalid metric name:", m.Name)
 		}
@@ -59,8 +59,8 @@ func TestGoMetricsMock(t *testing.T) {
 
 	for _, m := range metrics {
 		switch {
-		case strings.HasPrefix(m.Name, "go.runtime."):
-		case strings.HasPrefix(m.Name, "go.memstats."):
+		case strings.HasPrefix(m.Name, "procstats.test.go.runtime."):
+		case strings.HasPrefix(m.Name, "procstats.test.go.memstats."):
 		default:
 			t.Error("invalid metric name:", m.Name)
 		}

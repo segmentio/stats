@@ -26,10 +26,10 @@ func TestProcMetrics(t *testing.T) {
 
 	for _, m := range metrics {
 		switch {
-		case strings.HasPrefix(m.Name, "cpu."):
-		case strings.HasPrefix(m.Name, "memory."):
-		case strings.HasPrefix(m.Name, "files."):
-		case strings.HasPrefix(m.Name, "thread."):
+		case strings.HasPrefix(m.Name, "procstats.test.cpu."):
+		case strings.HasPrefix(m.Name, "procstats.test.memory."):
+		case strings.HasPrefix(m.Name, "procstats.test.files."):
+		case strings.HasPrefix(m.Name, "procstats.test.thread."):
 		default:
 			t.Error("invalid metric name:", m.Name)
 		}
