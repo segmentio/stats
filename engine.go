@@ -186,7 +186,7 @@ func runEngine(e engine) {
 			tags := e.tags
 
 			if len(e.prefix) != 0 {
-				name = e.prefix + "." + name
+				name = e.prefix + name
 			}
 
 			e.store.apply(metricOp{
@@ -211,7 +211,7 @@ func runEngine(e engine) {
 
 			if len(e.prefix) != 0 {
 				rekey = true
-				op.name = e.prefix + "." + op.name
+				op.name = e.prefix + op.name
 			}
 
 			if rekey {
@@ -234,7 +234,7 @@ func runEngine(e engine) {
 
 func progname() (name string) {
 	if args := os.Args; len(args) != 0 {
-		name = filepath.Base(args[0])
+		name = filepath.Base(args[0]) + "."
 	}
 	return
 }
