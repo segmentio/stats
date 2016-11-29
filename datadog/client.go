@@ -74,6 +74,10 @@ func NewClient(config ClientConfig) *Client {
 		config.FlushInterval = DefaultFlushInterval
 	}
 
+	if config.Engine == nil {
+		config.Engine = stats.DefaultEngine
+	}
+
 	cli := &Client{
 		done: make(chan struct{}),
 		join: make(chan struct{}),
