@@ -86,7 +86,9 @@ func (m *Metrics) makeMessageBody(body io.ReadCloser, clock *stats.Clock, tags .
 	}{
 		Reader: read,
 		Closer: iostats.CloserFunc(func() (err error) {
-			err = body.Close()
+			if body != nil {
+				err = body.Close()
+			}
 			once.Do(func() {
 				m.Responses.BodyBytes.Clone(tags...).Observe(float64(read.N))
 				if clock != nil {
