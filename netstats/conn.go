@@ -10,7 +10,7 @@ import (
 )
 
 // NewConn returns a net.Conn object that wraps c and produces metrics on eng.
-func NewConn(c net.Conn, eng *stats.Engine, tags ...stats.Tag) net.Conn {
+func NewConn(eng *stats.Engine, c net.Conn, tags ...stats.Tag) net.Conn {
 	tags = append(tags, stats.Tag{Name: "protocol", Value: c.LocalAddr().Network()})
 	nc := &conn{
 		Conn: c,

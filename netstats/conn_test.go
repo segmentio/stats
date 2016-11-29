@@ -18,7 +18,7 @@ func TestConn(t *testing.T) {
 	defer engine.Close()
 
 	c := &testConn{}
-	conn := NewConn(c, engine)
+	conn := NewConn(engine, c)
 	conn.Write([]byte("Hello World!"))
 	conn.Read(make([]byte, 32))
 	conn.Close()
@@ -108,7 +108,7 @@ func TestConnError(t *testing.T) {
 	now := time.Now()
 
 	c := &testConn{err: errTest}
-	conn := NewConn(c, engine)
+	conn := NewConn(engine, c)
 	conn.SetDeadline(now)
 	conn.SetReadDeadline(now)
 	conn.SetWriteDeadline(now)
