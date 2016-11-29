@@ -7,6 +7,15 @@ import (
 	"testing"
 )
 
+func TestZeroCountReader(t *testing.T) {
+	b := [32]byte{}
+	n, err := (&CountReader{}).Read(b[:])
+
+	if n != 0 || err != io.EOF {
+		t.Error("the CountReader zero-value should return EOF:", n, err)
+	}
+}
+
 func TestCountReader(t *testing.T) {
 	tests := []struct {
 		s string
@@ -30,6 +39,15 @@ func TestCountReader(t *testing.T) {
 		} else if s := string(b); s != test.s {
 			t.Errorf("invalid content returned by the reader: %#v != %#v", test.s, s)
 		}
+	}
+}
+
+func TestZeroCountWriter(t *testing.T) {
+	b := [32]byte{}
+	n, err := (&CountWriter{}).Write(b[:])
+
+	if n != 0 || err != io.ErrClosedPipe {
+		t.Error("the CountWriter zero-value should return ErrClosedPipe:", n, err)
 	}
 }
 
