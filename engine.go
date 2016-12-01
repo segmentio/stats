@@ -195,6 +195,7 @@ func runEngine(e engine) {
 				name:  name,
 				tags:  tags,
 				value: 1,
+				apply: metricOpAdd,
 			}, time.Now())
 
 		case op, ok := <-e.opch:
