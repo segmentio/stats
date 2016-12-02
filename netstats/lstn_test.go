@@ -37,7 +37,7 @@ func TestListener(t *testing.T) {
 	expects := []stats.Metric{
 		stats.Metric{
 			Type:   stats.CounterType,
-			Key:    "netstats.test.conn.close.count?protocol=tcp&test=listener",
+			Key:    "conn.close.count?protocol=tcp&test=listener",
 			Name:   "netstats.test.conn.close.count",
 			Tags:   []stats.Tag{{"protocol", "tcp"}, {"test", "listener"}},
 			Value:  1,
@@ -45,7 +45,7 @@ func TestListener(t *testing.T) {
 		},
 		stats.Metric{
 			Type:   stats.CounterType,
-			Key:    "netstats.test.conn.open.count?protocol=tcp&test=listener",
+			Key:    "conn.open.count?protocol=tcp&test=listener",
 			Name:   "netstats.test.conn.open.count",
 			Tags:   []stats.Tag{{"protocol", "tcp"}, {"test", "listener"}},
 			Value:  1,
@@ -100,7 +100,7 @@ func TestListenerError(t *testing.T) {
 	expects := []stats.Metric{
 		stats.Metric{
 			Type:   stats.CounterType,
-			Key:    "netstats.test.lstn.errors.count?operation=accept&protocol=tcp&test=listener",
+			Key:    "lstn.errors.count?operation=accept&protocol=tcp&test=listener",
 			Name:   "netstats.test.lstn.errors.count",
 			Tags:   []stats.Tag{{"operation", "accept"}, {"protocol", "tcp"}, {"test", "listener"}},
 			Value:  1,
@@ -108,7 +108,7 @@ func TestListenerError(t *testing.T) {
 		},
 		stats.Metric{
 			Type:   stats.CounterType,
-			Key:    "netstats.test.lstn.errors.count?operation=close&protocol=tcp&test=listener",
+			Key:    "lstn.errors.count?operation=close&protocol=tcp&test=listener",
 			Name:   "netstats.test.lstn.errors.count",
 			Tags:   []stats.Tag{{"operation", "close"}, {"protocol", "tcp"}, {"test", "listener"}},
 			Value:  1,

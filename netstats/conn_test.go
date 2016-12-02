@@ -33,7 +33,7 @@ func TestConn(t *testing.T) {
 	expects := []stats.Metric{
 		stats.Metric{
 			Type:   stats.CounterType,
-			Key:    "netstats.test.conn.bytes.count?operation=read&protocol=tcp",
+			Key:    "conn.bytes.count?operation=read&protocol=tcp",
 			Name:   "netstats.test.conn.bytes.count",
 			Tags:   []stats.Tag{{"operation", "read"}, {"protocol", "tcp"}},
 			Value:  12,
@@ -41,7 +41,7 @@ func TestConn(t *testing.T) {
 		},
 		stats.Metric{
 			Type:   stats.CounterType,
-			Key:    "netstats.test.conn.bytes.count?operation=write&protocol=tcp",
+			Key:    "conn.bytes.count?operation=write&protocol=tcp",
 			Name:   "netstats.test.conn.bytes.count",
 			Tags:   []stats.Tag{{"operation", "write"}, {"protocol", "tcp"}},
 			Value:  12,
@@ -49,7 +49,7 @@ func TestConn(t *testing.T) {
 		},
 		stats.Metric{
 			Type:   stats.CounterType,
-			Key:    "netstats.test.conn.close.count?protocol=tcp",
+			Key:    "conn.close.count?protocol=tcp",
 			Name:   "netstats.test.conn.close.count",
 			Tags:   []stats.Tag{{"protocol", "tcp"}},
 			Value:  1,
@@ -57,8 +57,8 @@ func TestConn(t *testing.T) {
 		},
 		stats.Metric{
 			Type:   stats.HistogramType,
-			Group:  "netstats.test.conn.iops?operation=read&protocol=tcp",
-			Key:    "netstats.test.conn.iops?operation=read&protocol=tcp#0",
+			Group:  "conn.iops?operation=read&protocol=tcp",
+			Key:    "conn.iops?operation=read&protocol=tcp#0",
 			Name:   "netstats.test.conn.iops",
 			Tags:   []stats.Tag{{"operation", "read"}, {"protocol", "tcp"}},
 			Value:  12,
@@ -66,8 +66,8 @@ func TestConn(t *testing.T) {
 		},
 		stats.Metric{
 			Type:   stats.HistogramType,
-			Group:  "netstats.test.conn.iops?operation=write&protocol=tcp",
-			Key:    "netstats.test.conn.iops?operation=write&protocol=tcp#0",
+			Group:  "conn.iops?operation=write&protocol=tcp",
+			Key:    "conn.iops?operation=write&protocol=tcp#0",
 			Name:   "netstats.test.conn.iops",
 			Tags:   []stats.Tag{{"operation", "write"}, {"protocol", "tcp"}},
 			Value:  12,
@@ -75,7 +75,7 @@ func TestConn(t *testing.T) {
 		},
 		stats.Metric{
 			Type:   stats.CounterType,
-			Key:    "netstats.test.conn.open.count?protocol=tcp",
+			Key:    "conn.open.count?protocol=tcp",
 			Name:   "netstats.test.conn.open.count",
 			Tags:   []stats.Tag{{"protocol", "tcp"}},
 			Value:  1,
@@ -128,7 +128,7 @@ func TestConnError(t *testing.T) {
 	expects := []stats.Metric{
 		stats.Metric{
 			Type:   stats.CounterType,
-			Key:    "netstats.test.conn.close.count?protocol=tcp",
+			Key:    "conn.close.count?protocol=tcp",
 			Name:   "netstats.test.conn.close.count",
 			Tags:   []stats.Tag{{"protocol", "tcp"}},
 			Value:  1,
@@ -136,7 +136,7 @@ func TestConnError(t *testing.T) {
 		},
 		stats.Metric{
 			Type:   stats.CounterType,
-			Key:    "netstats.test.conn.errors.count?operation=close&protocol=tcp",
+			Key:    "conn.errors.count?operation=close&protocol=tcp",
 			Name:   "netstats.test.conn.errors.count",
 			Tags:   []stats.Tag{{"operation", "close"}, {"protocol", "tcp"}},
 			Value:  1,
@@ -144,7 +144,7 @@ func TestConnError(t *testing.T) {
 		},
 		stats.Metric{
 			Type:   stats.CounterType,
-			Key:    "netstats.test.conn.errors.count?operation=read&protocol=tcp",
+			Key:    "conn.errors.count?operation=read&protocol=tcp",
 			Name:   "netstats.test.conn.errors.count",
 			Tags:   []stats.Tag{{"operation", "read"}, {"protocol", "tcp"}},
 			Value:  3,
@@ -152,7 +152,7 @@ func TestConnError(t *testing.T) {
 		},
 		stats.Metric{
 			Type:   stats.CounterType,
-			Key:    "netstats.test.conn.errors.count?operation=set-read-timeout&protocol=tcp",
+			Key:    "conn.errors.count?operation=set-read-timeout&protocol=tcp",
 			Name:   "netstats.test.conn.errors.count",
 			Tags:   []stats.Tag{{"operation", "set-read-timeout"}, {"protocol", "tcp"}},
 			Value:  1,
@@ -160,7 +160,7 @@ func TestConnError(t *testing.T) {
 		},
 		stats.Metric{
 			Type:   stats.CounterType,
-			Key:    "netstats.test.conn.errors.count?operation=set-timeout&protocol=tcp",
+			Key:    "conn.errors.count?operation=set-timeout&protocol=tcp",
 			Name:   "netstats.test.conn.errors.count",
 			Tags:   []stats.Tag{{"operation", "set-timeout"}, {"protocol", "tcp"}},
 			Value:  1,
@@ -168,7 +168,7 @@ func TestConnError(t *testing.T) {
 		},
 		stats.Metric{
 			Type:   stats.CounterType,
-			Key:    "netstats.test.conn.errors.count?operation=set-write-timeout&protocol=tcp",
+			Key:    "conn.errors.count?operation=set-write-timeout&protocol=tcp",
 			Name:   "netstats.test.conn.errors.count",
 			Tags:   []stats.Tag{{"operation", "set-write-timeout"}, {"protocol", "tcp"}},
 			Value:  1,
@@ -176,7 +176,7 @@ func TestConnError(t *testing.T) {
 		},
 		stats.Metric{
 			Type:   stats.CounterType,
-			Key:    "netstats.test.conn.errors.count?operation=write&protocol=tcp",
+			Key:    "conn.errors.count?operation=write&protocol=tcp",
 			Name:   "netstats.test.conn.errors.count",
 			Tags:   []stats.Tag{{"operation", "write"}, {"protocol", "tcp"}},
 			Value:  1,
@@ -184,7 +184,7 @@ func TestConnError(t *testing.T) {
 		},
 		stats.Metric{
 			Type:   stats.CounterType,
-			Key:    "netstats.test.conn.open.count?protocol=tcp",
+			Key:    "conn.open.count?protocol=tcp",
 			Name:   "netstats.test.conn.open.count",
 			Tags:   []stats.Tag{{"protocol", "tcp"}},
 			Value:  1,
