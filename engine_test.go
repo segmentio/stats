@@ -8,7 +8,7 @@ import (
 
 func TestEngine(t *testing.T) {
 	engine := NewEngine(EngineConfig{
-		Prefix: "test.",
+		Prefix: "test",
 		Tags:   []Tag{{"hello", "world"}},
 	})
 	defer engine.Close()
@@ -38,53 +38,77 @@ func TestEngine(t *testing.T) {
 		Metric{
 			Type:   CounterType,
 			Key:    "A?",
-			Name:   "test.A",
-			Tags:   []Tag{{"hello", "world"}},
+			Name:   "A",
+			Tags:   nil,
 			Value:  1,
 			Sample: 1,
+			Namespace: Namespace{
+				Name: "test",
+				Tags: []Tag{{"hello", "world"}},
+			},
 		},
 		Metric{
 			Type:   GaugeType,
 			Key:    "B?",
-			Name:   "test.B",
-			Tags:   []Tag{{"hello", "world"}},
+			Name:   "B",
+			Tags:   nil,
 			Value:  2,
 			Sample: 1,
+			Namespace: Namespace{
+				Name: "test",
+				Tags: []Tag{{"hello", "world"}},
+			},
 		},
 		Metric{
 			Type:   CounterType,
 			Key:    "C?context=test",
-			Name:   "test.C",
-			Tags:   []Tag{{"hello", "world"}, {"context", "test"}},
+			Name:   "C",
+			Tags:   []Tag{{"context", "test"}},
 			Value:  3,
 			Sample: 1,
+			Namespace: Namespace{
+				Name: "test",
+				Tags: []Tag{{"hello", "world"}},
+			},
 		},
 		Metric{
 			Type:   HistogramType,
 			Group:  "D?&stamp=lap",
 			Key:    "D?&stamp=lap#0",
-			Name:   "test.D",
-			Tags:   []Tag{{"hello", "world"}, {"stamp", "lap"}},
+			Name:   "D",
+			Tags:   []Tag{{"stamp", "lap"}},
 			Value:  1,
 			Sample: 1,
+			Namespace: Namespace{
+				Name: "test",
+				Tags: []Tag{{"hello", "world"}},
+			},
 		},
 		Metric{
 			Type:   HistogramType,
 			Group:  "D?&stamp=lap",
 			Key:    "D?&stamp=lap#1",
-			Name:   "test.D",
-			Tags:   []Tag{{"hello", "world"}, {"stamp", "lap"}},
+			Name:   "D",
+			Tags:   []Tag{{"stamp", "lap"}},
 			Value:  1,
 			Sample: 1,
+			Namespace: Namespace{
+				Name: "test",
+				Tags: []Tag{{"hello", "world"}},
+			},
 		},
 		Metric{
 			Type:   HistogramType,
 			Group:  "D?&stamp=total",
 			Key:    "D?&stamp=total#0",
-			Name:   "test.D",
-			Tags:   []Tag{{"hello", "world"}, {"stamp", "total"}},
+			Name:   "D",
+			Tags:   []Tag{{"stamp", "total"}},
 			Value:  1,
 			Sample: 1,
+			Namespace: Namespace{
+				Name: "test",
+				Tags: []Tag{{"hello", "world"}},
+			},
 		},
 	}
 

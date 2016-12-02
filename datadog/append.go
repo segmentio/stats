@@ -7,6 +7,11 @@ import (
 )
 
 func appendMetric(b []byte, m stats.Metric) []byte {
+	if len(m.Namespace.Name) != 0 {
+		b = append(b, m.Namespace.Name...)
+		b = append(b, '.')
+	}
+
 	b = append(b, m.Name...)
 	b = append(b, ':')
 	b = strconv.AppendFloat(b, m.Value, 'g', -1, 64)
@@ -31,18 +36,31 @@ func appendMetric(b []byte, m stats.Metric) []byte {
 		b = strconv.AppendFloat(b, 1/float64(m.Sample), 'g', -1, 64)
 	}
 
-	if len(m.Tags) != 0 {
-		b = append(b, '|', '#')
+	n1 := len(m.Namespace.Tags)
+	n2 := len(m.Tags)
 
-		for i, t := range m.Tags {
-			if i != 0 {
-				b = append(b, ',')
-			}
-			b = append(b, t.Name...)
-			b = append(b, ':')
-			b = append(b, t.Value...)
+	if n1 != 0 || n2 != 0 {
+		b = append(b, '|', '#')
+		b = appendTags(b, m.Namespace.Tags)
+
+		if n1 != 0 && n2 != 0 {
+			b = append(b, ',')
 		}
+
+		b = appendTags(b, m.Tags)
 	}
 
 	return append(b, '\n')
+}
+
+func appendTags(b []byte, tags []stats.Tag) []byte {
+	for i, t := range tags {
+		if i != 0 {
+			b = append(b, ',')
+		}
+		b = append(b, t.Name...)
+		b = append(b, ':')
+		b = append(b, t.Value...)
+	}
+	return b
 }

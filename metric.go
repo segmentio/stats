@@ -19,6 +19,12 @@ const (
 	HistogramType
 )
 
+// The Namespace type represents the namespace in which a metric exists.
+type Namespace struct {
+	Name string // The name of the namespace.
+	Tags []Tag  // The tags to apply to all metrics of the namespace.
+}
+
 // Metric is a universal representation of the state of a metric.
 //
 // No operations are available on this data type, instead it carries the state
@@ -62,6 +68,9 @@ type Metric struct {
 
 	// Time is set to the time at which the metric was last modified.
 	Time time.Time
+
+	// Namespace carries the metric namespace.
+	Namespace Namespace
 }
 
 // MetricKey takes the name and tags of a metric and returns a unique key
@@ -109,6 +118,7 @@ func (m MetricsByKey) Len() int {
 
 type metricOp struct {
 	typ   MetricType
+	space Namespace
 	key   string
 	name  string
 	tags  []Tag
@@ -141,6 +151,7 @@ func metricOpObserve(state *metricState, value float64, mod time.Time, exp time.
 	state.expTime = exp
 	state.metrics[key] = metricState{
 		typ:     state.typ,
+		space:   state.space,
 		group:   state.key,
 		key:     key,
 		name:    state.name,
@@ -158,6 +169,7 @@ type metricReq struct {
 
 type metricState struct {
 	typ     MetricType
+	space   Namespace
 	group   string
 	key     string
 	name    string
@@ -191,28 +203,30 @@ func (s metricStore) state() []Metric {
 	for _, state := range s.metrics {
 		if len(state.metrics) == 0 {
 			metrics = append(metrics, Metric{
-				Type:   state.typ,
-				Group:  state.group,
-				Key:    state.key,
-				Name:   state.name,
-				Tags:   state.tags,
-				Value:  state.value,
-				Sample: state.sample,
-				Time:   state.modTime,
+				Type:      state.typ,
+				Group:     state.group,
+				Key:       state.key,
+				Name:      state.name,
+				Tags:      state.tags,
+				Value:     state.value,
+				Sample:    state.sample,
+				Time:      state.modTime,
+				Namespace: state.space,
 			})
 			continue
 		}
 
 		for _, sub := range state.metrics {
 			metrics = append(metrics, Metric{
-				Type:   sub.typ,
-				Group:  sub.group,
-				Key:    sub.key,
-				Name:   sub.name,
-				Tags:   sub.tags,
-				Value:  sub.value,
-				Sample: sub.sample,
-				Time:   sub.modTime,
+				Type:      sub.typ,
+				Group:     sub.group,
+				Key:       sub.key,
+				Name:      sub.name,
+				Tags:      sub.tags,
+				Value:     sub.value,
+				Sample:    sub.sample,
+				Time:      sub.modTime,
+				Namespace: state.space,
 			})
 		}
 	}
@@ -225,10 +239,11 @@ func (s metricStore) apply(op metricOp, now time.Time) {
 
 	if state == nil || state.typ != op.typ {
 		state = &metricState{
-			typ:  op.typ,
-			key:  op.key,
-			name: op.name,
-			tags: op.tags,
+			typ:   op.typ,
+			space: op.space,
+			key:   op.key,
+			name:  op.name,
+			tags:  op.tags,
 		}
 		s.metrics[op.key] = state
 	}

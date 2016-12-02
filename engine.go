@@ -221,21 +221,19 @@ func runEngine(e engine) {
 	ticker := time.NewTicker(e.store.timeout / 2)
 	defer ticker.Stop()
 
+	namespace := Namespace{
+		Name: e.prefix,
+		Tags: e.tags,
+	}
+
 	for {
 		select {
 		case <-e.errch:
-			name := "stats.discarded"
-			tags := e.tags
-
-			if len(e.prefix) != 0 {
-				name = e.prefix + name
-			}
-
 			e.store.apply(metricOp{
 				typ:   CounterType,
-				key:   MetricKey(name, tags),
-				name:  name,
-				tags:  tags,
+				space: namespace,
+				key:   "stats.discarded?",
+				name:  "stats.discarded",
 				value: 1,
 				apply: metricOpAdd,
 			}, time.Now())
@@ -244,15 +242,7 @@ func runEngine(e engine) {
 			if !ok {
 				return // done
 			}
-
-			if len(e.prefix) != 0 {
-				op.name = e.prefix + op.name
-			}
-
-			if len(e.tags) != 0 {
-				op.tags = concatTags(e.tags, op.tags)
-			}
-
+			op.space = namespace
 			e.store.apply(op, time.Now())
 
 		case req, ok := <-e.reqch:
@@ -269,7 +259,7 @@ func runEngine(e engine) {
 
 func progname() (name string) {
 	if args := os.Args; len(args) != 0 {
-		name = filepath.Base(args[0]) + "."
+		name = filepath.Base(args[0])
 	}
 	return
 }
