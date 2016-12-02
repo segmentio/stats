@@ -11,25 +11,31 @@ import (
 
 // NewConn returns a net.Conn object that wraps c and produces metrics on eng.
 func NewConn(eng *stats.Engine, c net.Conn, tags ...stats.Tag) net.Conn {
-	tags = append(tags, stats.Tag{Name: "protocol", Value: c.LocalAddr().Network()})
+	t0 := make([]stats.Tag, 0, len(tags)+2)
+	t0 = append(t0, tags...)
+	t0 = append(t0, stats.Tag{Name: "protocol", Value: c.LocalAddr().Network()})
+
 	nc := &conn{
-		Conn: c,
-		metrics: metrics{
-			open:     stats.MakeCounter(eng, "conn.open.count", tags...),
-			close:    stats.MakeCounter(eng, "conn.close.count", tags...),
-			reads:    stats.MakeHistogram(eng, "conn.iops", append(tags, stats.Tag{Name: "operation", Value: "read"})...),
-			writes:   stats.MakeHistogram(eng, "conn.iops", append(tags, stats.Tag{Name: "operation", Value: "write"})...),
-			bytesIn:  stats.MakeCounter(eng, "conn.bytes.count", append(tags, stats.Tag{Name: "operation", Value: "read"})...),
-			bytesOut: stats.MakeCounter(eng, "conn.bytes.count", append(tags, stats.Tag{Name: "operation", Value: "write"})...),
-			errors:   stats.MakeCounter(eng, "conn.errors.count", tags...),
-		},
+		Conn:   c,
+		close:  stats.MakeCounter(eng, "conn.close.count", t0...),
+		errors: stats.MakeCounter(eng, "conn.errors.count", t0...),
 	}
-	nc.metrics.open.Incr()
+
+	t1 := append(t0, stats.Tag{Name: "operation", Value: "read"})
+	nc.reads = stats.MakeHistogram(eng, "conn.iops", t1...)
+	nc.bytesIn = stats.MakeCounter(eng, "conn.bytes.count", t1...)
+
+	t2 := append(t0, stats.Tag{Name: "operation", Value: "write"})
+	nc.writes = stats.MakeHistogram(eng, "conn.iops", t2...)
+	nc.bytesOut = stats.MakeCounter(eng, "conn.bytes.count", t2...)
+
+	stats.MakeCounter(eng, "conn.open.count", t0...).Incr()
 	return nc
 }
 
-type metrics struct {
-	open     stats.Counter
+type conn struct {
+	net.Conn
+	once     sync.Once
 	close    stats.Counter
 	reads    stats.Histogram
 	writes   stats.Histogram
@@ -38,19 +44,13 @@ type metrics struct {
 	errors   stats.Counter
 }
 
-type conn struct {
-	net.Conn
-	metrics
-	once sync.Once
-}
-
 func (c *conn) Close() (err error) {
 	err = c.Conn.Close()
 	c.once.Do(func() {
 		if err != nil {
 			c.error("close", err)
 		}
-		c.metrics.close.Incr()
+		c.close.Incr()
 	})
 	return
 }
@@ -59,8 +59,8 @@ func (c *conn) Read(b []byte) (n int, err error) {
 	n, err = c.Conn.Read(b)
 
 	if n > 0 {
-		c.metrics.reads.Observe(float64(n))
-		c.metrics.bytesIn.Add(float64(n))
+		c.reads.Observe(float64(n))
+		c.bytesIn.Add(float64(n))
 	}
 
 	if err != nil && err != io.EOF {
@@ -74,8 +74,8 @@ func (c *conn) Write(b []byte) (n int, err error) {
 	n, err = c.Conn.Write(b)
 
 	if n > 0 {
-		c.metrics.writes.Observe(float64(n))
-		c.metrics.bytesOut.Add(float64(n))
+		c.writes.Observe(float64(n))
+		c.bytesOut.Add(float64(n))
 	}
 
 	if err != nil {
@@ -113,7 +113,7 @@ func (c *conn) error(op string, err error) {
 	default:
 		// only report serious errors, others should be handled gracefully
 		if e, ok := err.(net.Error); !ok || !(e.Temporary() || e.Timeout()) {
-			c.metrics.errors.Clone(stats.Tag{Name: "operation", Value: op}).Incr()
+			c.errors.Clone(stats.Tag{Name: "operation", Value: op}).Incr()
 		}
 	}
 }
