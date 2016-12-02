@@ -2,9 +2,10 @@ package httpstats
 
 import (
 	"io"
-	"io/ioutil"
+	"math"
 	"net"
 	"net/http"
+	"net/url"
 	"path"
 	"strconv"
 	"strings"
@@ -137,45 +138,78 @@ func makeResponseTags(res *http.Response, tags ...stats.Tag) []stats.Tag {
 }
 
 func requestHeaderLength(req *http.Request) int {
-	w := &iostats.CountWriter{W: ioutil.Discard}
-	r := &http.Request{
-		Method:           req.Method,
-		URL:              req.URL,
-		Host:             req.Host,
-		ContentLength:    -1,
-		TransferEncoding: req.TransferEncoding,
-		Header:           copyHeader(req.Header),
-		Body:             nopeReadCloser{},
+	n := headerLength(req.Header) +
+		urlLength(req.URL) +
+		len(" ") +
+		len(req.Method) +
+		len(" ") +
+		len(req.Proto) +
+		len("\r\n")
+
+	if _, ok := req.Header["User-Agent"]; !ok {
+		n += len("User-Agent: Go-http-client/1.1\r\n")
 	}
 
-	if req.ContentLength >= 0 {
-		r.Header.Set("Content-Length", strconv.FormatInt(req.ContentLength, 10))
-	}
-
-	r.Write(w)
-	return w.N
+	n += len("Host: ") + len(req.Host) + len("\r\n")
+	return n
 }
 
 func responseHeaderLength(res *http.Response) int {
-	w := &iostats.CountWriter{W: ioutil.Discard}
-	r := &http.Response{
-		StatusCode:       res.StatusCode,
-		ProtoMajor:       res.ProtoMajor,
-		ProtoMinor:       res.ProtoMinor,
-		Request:          res.Request,
-		TransferEncoding: res.TransferEncoding,
-		Trailer:          res.Trailer,
-		ContentLength:    -1,
-		Header:           copyHeader(res.Header),
-		Body:             nopeReadCloser{},
+	n := headerLength(res.Header) +
+		len(res.Proto) +
+		len(" ") +
+		intLength(int64(res.StatusCode)) +
+		len(" ") +
+		len(http.StatusText(res.StatusCode)) +
+		len("\r\n")
+
+	if _, ok := res.Header["Connection"]; !ok {
+		n += len("Connection: close\r\n")
 	}
 
-	if res.ContentLength >= 0 {
-		r.Header.Set("Content-Length", strconv.FormatInt(res.ContentLength, 10))
+	return n
+}
+
+func headerLength(h http.Header) int {
+	n := 0
+
+	for name, values := range h {
+		for _, v := range values {
+			n += len(name) + len(": ") + len(v) + len("\r\n")
+		}
 	}
 
-	r.Write(w)
-	return w.N
+	return n + len("\r\n")
+}
+
+func urlLength(u *url.URL) int {
+	n := len(u.Host) + len(u.Path)
+
+	if l := len(u.Scheme); l != 0 {
+		n += l + len("://")
+	}
+
+	if l := len(u.RawQuery); l != 0 {
+		n += l + len("?")
+	}
+
+	if user := u.User; user != nil {
+		n += len(user.Username()) + len("@")
+
+		if p, ok := user.Password(); ok {
+			n += len(p) + len(":")
+		}
+	}
+
+	if len(u.Fragment) != 0 {
+		n += len(u.Fragment) + len("#")
+	}
+
+	return n
+}
+
+func intLength(n int64) int {
+	return int(math.Log10(float64(n))) + 1
 }
 
 func requestHost(req *http.Request) (host string, port string) {
