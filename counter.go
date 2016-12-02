@@ -1,5 +1,7 @@
 package stats
 
+import "time"
+
 // Counter is an immutable data strcture that can be used to represent metrics
 // that accumulate values.
 type Counter struct {
@@ -51,14 +53,7 @@ func (c Counter) Incr() {
 // Note that most data collection systems expect counters to be monotonically
 // increasing so the program should not call this method with negative values.
 func (c Counter) Add(value float64) {
-	c.eng.push(metricOp{
-		typ:   CounterType,
-		key:   c.key,
-		name:  c.name,
-		tags:  c.tags,
-		value: value,
-		apply: metricOpAdd,
-	})
+	c.eng.Add(CounterType, c.key, c.name, c.tags, value, time.Now())
 }
 
 // Set sets the value of the counter.
@@ -70,14 +65,7 @@ func (c Counter) Add(value float64) {
 // This method is useful for reporting values of counters that aren't managed
 // by the application itself, like CPU ticks for example.
 func (c Counter) Set(value float64) {
-	c.eng.push(metricOp{
-		typ:   CounterType,
-		key:   c.key,
-		name:  c.name,
-		tags:  c.tags,
-		value: value,
-		apply: metricOpSet,
-	})
+	c.eng.Add(CounterType, c.key, c.name, c.tags, value, time.Now())
 }
 
 func makeCounter(eng *Engine, name string, tags []Tag) Counter {

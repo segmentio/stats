@@ -1,5 +1,7 @@
 package stats
 
+import "time"
+
 // Histogram is an immutable data strcture that can be used to represent
 // metrics that measure a distribution of values.
 type Histogram struct {
@@ -44,14 +46,7 @@ func (h Histogram) Clone(tags ...Tag) Histogram {
 
 // Observe reports a value observed by the histogram.
 func (h Histogram) Observe(value float64) {
-	h.eng.push(metricOp{
-		typ:   HistogramType,
-		key:   h.key,
-		name:  h.name,
-		tags:  h.tags,
-		value: value,
-		apply: metricOpObserve,
-	})
+	h.eng.Observe(HistogramType, h.key, h.name, h.tags, value, time.Now())
 }
 
 func makeHistogram(eng *Engine, name string, tags []Tag) Histogram {

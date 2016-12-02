@@ -1,5 +1,7 @@
 package stats
 
+import "time"
+
 // Gauge is an immutable data structure that can be used to represent metrics
 // with a value that can go up or down.
 type Gauge struct {
@@ -53,26 +55,12 @@ func (g Gauge) Decr() {
 
 // Add adds a value to the gauge.
 func (g Gauge) Add(value float64) {
-	g.eng.push(metricOp{
-		typ:   GaugeType,
-		key:   g.key,
-		name:  g.name,
-		tags:  g.tags,
-		value: value,
-		apply: metricOpAdd,
-	})
+	g.eng.Add(GaugeType, g.key, g.name, g.tags, value, time.Now())
 }
 
 // Set sets the gauge to value.
 func (g Gauge) Set(value float64) {
-	g.eng.push(metricOp{
-		typ:   GaugeType,
-		key:   g.key,
-		name:  g.name,
-		tags:  g.tags,
-		value: value,
-		apply: metricOpSet,
-	})
+	g.eng.Set(GaugeType, g.key, g.name, g.tags, value, time.Now())
 }
 
 func makeGauge(eng *Engine, name string, tags []Tag) Gauge {

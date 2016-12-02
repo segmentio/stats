@@ -136,6 +136,48 @@ func (eng *Engine) State() []Metric {
 	return <-res
 }
 
+// Add is a low-level method that sends an 'add' opertaion on a metric within
+// the engine.
+func (eng *Engine) Add(typ MetricType, key string, name string, tags []Tag, value float64, time time.Time) {
+	eng.push(metricOp{
+		typ:   typ,
+		key:   key,
+		name:  name,
+		tags:  tags,
+		value: value,
+		time:  time,
+		apply: metricOpAdd,
+	})
+}
+
+// Add is a low-level method that sends a 'set' opertaion on a metric within
+// the engine.
+func (eng *Engine) Set(typ MetricType, key string, name string, tags []Tag, value float64, time time.Time) {
+	eng.push(metricOp{
+		typ:   typ,
+		key:   key,
+		name:  name,
+		tags:  tags,
+		value: value,
+		time:  time,
+		apply: metricOpSet,
+	})
+}
+
+// Add is a low-level method that sends an 'observe' opertaion on a metric
+// within the engine.
+func (eng *Engine) Observe(typ MetricType, key string, name string, tags []Tag, value float64, time time.Time) {
+	eng.push(metricOp{
+		typ:   typ,
+		key:   key,
+		name:  name,
+		tags:  tags,
+		value: value,
+		time:  time,
+		apply: metricOpObserve,
+	})
+}
+
 func (eng *Engine) close() {
 	close(eng.opch)
 	close(eng.reqch)
