@@ -101,10 +101,10 @@ func (m *Metrics) makeMessageBody(body io.ReadCloser, clock *stats.Clock, tags .
 	}
 }
 
-func makeRequestTags(req *http.Request, tags ...stats.Tag) []stats.Tag {
+func makeRequestTags(req *http.Request) []stats.Tag {
 	host, _ := requestHost(req)
 	ctype, charset := contentType(req.Header)
-	return append([]stats.Tag{
+	return []stats.Tag{
 		{"http_req_method", req.Method},
 		{"http_req_path", sanitizeHttpPath(req.URL.Path)},
 		{"http_req_protocol", req.Proto},
@@ -113,12 +113,12 @@ func makeRequestTags(req *http.Request, tags ...stats.Tag) []stats.Tag {
 		{"http_req_content_charset", charset},
 		{"http_req_content_encoding", contentEncoding(req.Header)},
 		{"http_req_transfer_encoding", transferEncoding(req.TransferEncoding)},
-	})
+	}
 }
 
-func makeResponseTags(res *http.Response, tags ...stats.Tag) []stats.Tag {
+func makeResponseTags(res *http.Response) []stats.Tag {
 	ctype, charset := contentType(res.Header)
-	tags = append([]stats.Tag{
+	tags := []stats.Tag{
 		{"http_res_status_bucket", responseStatusBucket(res.StatusCode)},
 		{"http_res_status", strconv.Itoa(res.StatusCode)},
 		{"http_res_protocol", res.Proto},
@@ -128,7 +128,7 @@ func makeResponseTags(res *http.Response, tags ...stats.Tag) []stats.Tag {
 		{"http_res_content_charset", charset},
 		{"http_res_content_encoding", contentEncoding(res.Header)},
 		{"http_res_transfer_encoding", transferEncoding(res.TransferEncoding)},
-	})
+	}
 
 	if req := res.Request; req != nil {
 		tags = append(tags, makeRequestTags(req)...)
