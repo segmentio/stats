@@ -1,7 +1,6 @@
 package httpstats
 
 import (
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -12,82 +11,6 @@ import (
 
 	"github.com/segmentio/stats/iostats"
 )
-
-func TestIsIDByte(t *testing.T) {
-	tests := []struct {
-		c  byte
-		is bool
-	}{
-		{'0', true},
-		{'1', true},
-		{'2', true},
-		{'3', true},
-		{'4', true},
-		{'5', true},
-		{'6', true},
-		{'7', true},
-		{'8', true},
-		{'9', true},
-
-		{'a', true},
-		{'b', true},
-		{'c', true},
-		{'d', true},
-		{'e', true},
-		{'f', true},
-
-		{'A', true},
-		{'B', true},
-		{'C', true},
-		{'D', true},
-		{'E', true},
-		{'F', true},
-
-		{'-', true},
-
-		{'g', false},
-		{'z', false},
-
-		{'G', false},
-		{'Z', false},
-
-		{' ', false},
-		{'!', false},
-	}
-
-	for _, test := range tests {
-		t.Run(fmt.Sprintf("%c", test.c), func(t *testing.T) {
-			if is := isIDByte(test.c); is != test.is {
-				t.Errorf("isIDByte(%c) != %t", test.c, test.is)
-			}
-		})
-	}
-}
-
-func TestIsID(t *testing.T) {
-	tests := []struct {
-		s  string
-		is bool
-	}{
-		{"0", true},
-		{"1", true},
-		{"1234567890", true},
-		{"abcdef", true},
-		{"ABCDEF", true},
-		{"7CDACC74-F84B-4C2B-A4E0-7640A285F211", true},
-
-		{"", false},
-		{"Hello World!", false},
-	}
-
-	for _, test := range tests {
-		t.Run(test.s, func(t *testing.T) {
-			if is := isID(test.s); is != test.is {
-				t.Errorf("isID(%s) != %t", test.s, test.is)
-			}
-		})
-	}
-}
 
 func TestCopyHeader(t *testing.T) {
 	h1 := http.Header{"Content-Type": {"text/plain"}, "Content-Length": {"11"}}
