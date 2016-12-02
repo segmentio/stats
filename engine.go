@@ -244,21 +244,13 @@ func runEngine(e engine) {
 			if !ok {
 				return // done
 			}
-			rekey := false
-
-			if len(e.tags) != 0 {
-				rekey = true
-				op.tags = concatTags(e.tags, op.tags)
-				sortTags(op.tags)
-			}
 
 			if len(e.prefix) != 0 {
-				rekey = true
 				op.name = e.prefix + op.name
 			}
 
-			if rekey {
-				op.key = MetricKey(op.name, op.tags)
+			if len(e.tags) != 0 {
+				op.tags = concatTags(e.tags, op.tags)
 			}
 
 			e.store.apply(op, time.Now())

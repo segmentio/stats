@@ -37,7 +37,7 @@ func TestEngine(t *testing.T) {
 	expects := []Metric{
 		Metric{
 			Type:   CounterType,
-			Key:    "test.A?hello=world",
+			Key:    "A?",
 			Name:   "test.A",
 			Tags:   []Tag{{"hello", "world"}},
 			Value:  1,
@@ -45,7 +45,7 @@ func TestEngine(t *testing.T) {
 		},
 		Metric{
 			Type:   GaugeType,
-			Key:    "test.B?hello=world",
+			Key:    "B?",
 			Name:   "test.B",
 			Tags:   []Tag{{"hello", "world"}},
 			Value:  2,
@@ -53,16 +53,16 @@ func TestEngine(t *testing.T) {
 		},
 		Metric{
 			Type:   CounterType,
-			Key:    "test.C?context=test&hello=world",
+			Key:    "C?context=test",
 			Name:   "test.C",
-			Tags:   []Tag{{"context", "test"}, {"hello", "world"}},
+			Tags:   []Tag{{"hello", "world"}, {"context", "test"}},
 			Value:  3,
 			Sample: 1,
 		},
 		Metric{
 			Type:   HistogramType,
-			Group:  "test.D?hello=world&stamp=lap",
-			Key:    "test.D?hello=world&stamp=lap#0",
+			Group:  "D?&stamp=lap",
+			Key:    "D?&stamp=lap#0",
 			Name:   "test.D",
 			Tags:   []Tag{{"hello", "world"}, {"stamp", "lap"}},
 			Value:  1,
@@ -70,8 +70,8 @@ func TestEngine(t *testing.T) {
 		},
 		Metric{
 			Type:   HistogramType,
-			Group:  "test.D?hello=world&stamp=lap",
-			Key:    "test.D?hello=world&stamp=lap#1",
+			Group:  "D?&stamp=lap",
+			Key:    "D?&stamp=lap#1",
 			Name:   "test.D",
 			Tags:   []Tag{{"hello", "world"}, {"stamp", "lap"}},
 			Value:  1,
@@ -79,8 +79,8 @@ func TestEngine(t *testing.T) {
 		},
 		Metric{
 			Type:   HistogramType,
-			Group:  "test.D?hello=world&stamp=total",
-			Key:    "test.D?hello=world&stamp=total#0",
+			Group:  "D?&stamp=total",
+			Key:    "D?&stamp=total#0",
 			Name:   "test.D",
 			Tags:   []Tag{{"hello", "world"}, {"stamp", "total"}},
 			Value:  1,
