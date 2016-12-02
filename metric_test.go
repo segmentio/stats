@@ -42,7 +42,7 @@ func TestMetricKey(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run("", func(t *testing.T) {
-			if key := metricKey(test.name, test.tags); key != test.key {
+			if key := MetricKey(test.name, test.tags); key != test.key {
 				t.Errorf("metricKey(%#v, %#v) => %#v != %#v", test.name, test.tags, key, test.key)
 			}
 		})

@@ -53,7 +53,7 @@ func makeHistogram(eng *Engine, name string, tags []Tag) Histogram {
 	sortTags(tags)
 	return Histogram{
 		eng:  eng,
-		key:  metricKey(name, tags),
+		key:  MetricKey(name, tags),
 		name: name,
 		tags: tags,
 	}

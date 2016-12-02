@@ -8,6 +8,18 @@ type Tag struct {
 	Value string
 }
 
+// RawTags are a list of tags in a serialized from that can be used to construct
+// a metric key.
+//
+// This is a low-level API that is intended to be used for optimization purposes
+// and most application should not need it.
+type RawTags string
+
+// MakeRawTags converts a slice of tags to their RawTags representation.
+func MakeRawTags(tags []Tag) RawTags {
+	return RawTags(appendTags(make([]byte, 0, tagsLen(tags)), tags))
+}
+
 type tags []Tag
 
 func (t tags) Less(i int, j int) bool {

@@ -67,7 +67,7 @@ func makeGauge(eng *Engine, name string, tags []Tag) Gauge {
 	sortTags(tags)
 	return Gauge{
 		eng:  eng,
-		key:  metricKey(name, tags),
+		key:  MetricKey(name, tags),
 		name: name,
 		tags: tags,
 	}

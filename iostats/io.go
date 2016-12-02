@@ -4,8 +4,6 @@ import "io"
 
 // CountReader is an io.Reader that counts how many bytes are read by calls to
 // the Read method.
-//
-// The zero-value is a valid reader that always returns io.EOF.
 type CountReader struct {
 	R io.Reader
 	N int
@@ -13,9 +11,7 @@ type CountReader struct {
 
 // Read satisfies the io.Reader interface.
 func (r *CountReader) Read(b []byte) (n int, err error) {
-	if r.R == nil {
-		err = io.EOF
-	} else if n, err = r.R.Read(b); n > 0 {
+	if n, err = r.R.Read(b); n > 0 {
 		r.N += n
 	}
 	return
@@ -23,8 +19,6 @@ func (r *CountReader) Read(b []byte) (n int, err error) {
 
 // CountWriter is an io.Writer that counts how many bytes are written by calls
 // to the Write method.
-//
-// The zero-value is a valid writer that always returns io.ErrClosedPipe.
 type CountWriter struct {
 	W io.Writer
 	N int
@@ -32,9 +26,7 @@ type CountWriter struct {
 
 // Write satisfies the io.Writer interface.
 func (w *CountWriter) Write(b []byte) (n int, err error) {
-	if w.W == nil {
-		err = io.ErrClosedPipe
-	} else if n, err = w.W.Write(b); n > 0 {
+	if n, err = w.W.Write(b); n > 0 {
 		w.N += n
 	}
 	return

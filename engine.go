@@ -233,7 +233,7 @@ func runEngine(e engine) {
 
 			e.store.apply(metricOp{
 				typ:   CounterType,
-				key:   metricKey(name, tags),
+				key:   MetricKey(name, tags),
 				name:  name,
 				tags:  tags,
 				value: 1,
@@ -248,7 +248,7 @@ func runEngine(e engine) {
 
 			if len(e.tags) != 0 {
 				rekey = true
-				op.tags = append(op.tags, e.tags...)
+				op.tags = concatTags(e.tags, op.tags)
 				sortTags(op.tags)
 			}
 
@@ -258,7 +258,7 @@ func runEngine(e engine) {
 			}
 
 			if rekey {
-				op.key = metricKey(op.name, op.tags)
+				op.key = MetricKey(op.name, op.tags)
 			}
 
 			e.store.apply(op, time.Now())

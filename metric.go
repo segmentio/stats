@@ -63,8 +63,16 @@ type Metric struct {
 	Time time.Time
 }
 
-func metricKey(name string, tags []Tag) string {
+// MetricKey takes the name and tags of a metric and returns a unique key
+// representing that metric.
+func MetricKey(name string, tags []Tag) string {
 	return string(appendMetricKey(make([]byte, 0, metricKeyLen(name, tags)), name, tags))
+}
+
+// RawMetricKey works the same as MetricKey but receives the tags as a RawTags
+// object.
+func RawMetricKey(name string, tags RawTags) string {
+	return name + "?" + string(tags)
 }
 
 func metricKeyLen(name string, tags []Tag) int {

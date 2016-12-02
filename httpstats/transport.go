@@ -1,7 +1,10 @@
 package httpstats
 
 import (
+	"io"
 	"net/http"
+	"sync"
+	"time"
 
 	"github.com/segmentio/stats"
 )
@@ -19,11 +22,15 @@ type httpTransport struct {
 }
 
 func (t *httpTransport) RoundTrip(req *http.Request) (res *http.Response, err error) {
-	var clock = t.metrics.RTT.Start()
 	var tags []stats.Tag
+	var start = time.Now()
 
 	if t.transport == nil {
 		t.transport = http.DefaultTransport
+	}
+
+	if req.Body == nil {
+		req.Body = nullBody{}
 	}
 
 	req.Body, tags = t.metrics.ObserveRequest(req)
@@ -31,11 +38,37 @@ func (t *httpTransport) RoundTrip(req *http.Request) (res *http.Response, err er
 	req.Body.Close() // safe guard, the transport should have done it already
 
 	if err != nil {
-		t.metrics.Errors.Clone(tags...).Incr()
-		clock.Clone(tags...).Stop()
-	} else {
-		res.Body, _ = t.metrics.ObserveResponse(res, clock)
+		t.metrics.incrErrorCounter(tags, stats.MakeRawTags(tags), start)
+	}
+
+	if res != nil {
+		body, tags := t.metrics.ObserveResponse(res)
+		res.Body = &httpTransportResponseBody{
+			ReadCloser: body,
+			metrics:    t.metrics,
+			tags:       tags,
+			start:      start,
+		}
 	}
 
 	return
+}
+
+type httpTransportResponseBody struct {
+	io.ReadCloser
+	metrics Metrics
+	tags    []stats.Tag
+	start   time.Time
+	once    sync.Once
+}
+
+func (t *httpTransportResponseBody) Close() (err error) {
+	err = t.ReadCloser.Close()
+	t.once.Do(t.complete)
+	return
+}
+
+func (t *httpTransportResponseBody) complete() {
+	now := time.Now()
+	t.metrics.observeRTT(now.Sub(t.start), t.tags, stats.MakeRawTags(t.tags), now)
 }

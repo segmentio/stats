@@ -127,7 +127,7 @@ func TestRequestLength(t *testing.T) {
 			ContentLength:    -1,
 			TransferEncoding: req.TransferEncoding,
 			Header:           copyHeader(req.Header),
-			Body:             nopeReadCloser{},
+			Body:             nullBody{},
 		}
 		if r.ContentLength >= 0 {
 			r.Header.Set("Content-Length", strconv.FormatInt(r.ContentLength, 10))
@@ -146,7 +146,7 @@ func TestRequestLength(t *testing.T) {
 			Host:          "localhost",
 			ContentLength: 11,
 			Header:        http.Header{"Content-Type": {"text/plain"}},
-			Body:          nopeReadCloser{},
+			Body:          nullBody{},
 		},
 	}
 
@@ -173,7 +173,7 @@ func TestResponseLength(t *testing.T) {
 			Trailer:          res.Trailer,
 			ContentLength:    -1,
 			Header:           copyHeader(res.Header),
-			Body:             nopeReadCloser{},
+			Body:             nullBody{},
 		}
 		if r.ContentLength >= 0 {
 			r.Header.Set("Content-Length", strconv.FormatInt(res.ContentLength, 10))

@@ -72,7 +72,7 @@ func makeCounter(eng *Engine, name string, tags []Tag) Counter {
 	sortTags(tags)
 	return Counter{
 		eng:  eng,
-		key:  metricKey(name, tags),
+		key:  MetricKey(name, tags),
 		name: name,
 		tags: tags,
 	}

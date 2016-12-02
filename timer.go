@@ -67,7 +67,7 @@ func makeTimer(eng *Engine, name string, tags []Tag) Timer {
 	sortTags(tags)
 	return Timer{
 		eng:  eng,
-		key:  metricKey(name, tags),
+		key:  MetricKey(name, tags),
 		name: name,
 		tags: tags,
 	}

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/segmentio/stats"
 )
@@ -21,14 +22,14 @@ type httpHandler struct {
 }
 
 func (h *httpHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	clock := h.metrics.RTT.Start()
+	start := time.Now()
 
 	req.Body, _ = h.metrics.ObserveRequest(req)
 
 	w := &httpResponseWriter{
 		ResponseWriter: res,
 		req:            req,
-		clock:          clock,
+		start:          start,
 		metrics:        h.metrics,
 	}
 	res = w
@@ -47,7 +48,7 @@ type httpResponseWriter struct {
 	bytes   int
 	status  int
 	metrics Metrics
-	clock   *stats.Clock
+	start   time.Time
 	req     *http.Request
 }
 
@@ -71,10 +72,9 @@ func (w *httpResponseWriter) Write(b []byte) (n int, err error) {
 
 func (w *httpResponseWriter) complete() {
 	if w.header != nil {
-		// make sure the request body was closed
 		w.req.Body.Close()
 
-		// report response metrics
+		now := time.Now()
 		res := &http.Response{
 			ProtoMajor:    w.req.ProtoMajor,
 			ProtoMinor:    w.req.ProtoMinor,
@@ -84,17 +84,18 @@ func (w *httpResponseWriter) complete() {
 			ContentLength: -1,
 		}
 
-		tags := makeResponseTags(res)
-		w.metrics.Responses.Count.Clone(tags...).Incr()
-		w.metrics.Responses.HeaderSizes.Clone(tags...).Observe(float64(len(res.Header)))
-		w.metrics.Responses.HeaderBytes.Clone(tags...).Observe(float64(responseHeaderLength(res)))
-		w.metrics.Responses.BodyBytes.Clone(tags...).Observe(float64(w.bytes))
-		w.clock.Clone(tags...).Stop()
+		tags := make([]stats.Tag, 0, len(w.metrics.resTags)+20)
+		tags = append(tags, w.metrics.resTags...)
+		tags = appendResponseTags(tags, res)
+		tags = appendRequestTags(tags, res.Request)
 
-		// release resources
-		w.header = nil
-		w.clock = nil
-		w.req = nil
+		rawTags := stats.MakeRawTags(tags)
+
+		w.metrics.incrMessageCounter(tags, rawTags, now)
+		w.metrics.observeHeaderSize(len(res.Header), tags, rawTags, now)
+		w.metrics.observeHeaderLength(responseHeaderLength(res), tags, rawTags, now)
+		w.metrics.observeBodyLength(w.bytes, tags, rawTags, now)
+		w.metrics.observeRTT(now.Sub(w.start), tags, rawTags, now)
 	}
 }
 
