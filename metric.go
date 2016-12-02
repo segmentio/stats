@@ -39,7 +39,8 @@ type Metric struct {
 	// Key is a unique identifier for the metric.
 	//
 	// Application should not rely on the actual structure of the key and just
-	// assume that it will be uniquely representing a single metric.
+	// assume that it will be uniquely representing a single metric within an
+	// engine.
 	Key string
 
 	// Name is the name of the metric as defined by the program.
