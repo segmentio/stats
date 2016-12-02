@@ -89,28 +89,6 @@ func TestIsID(t *testing.T) {
 	}
 }
 
-func TestSanitizeHttpPath(t *testing.T) {
-	tests := []struct {
-		in  string
-		out string
-	}{
-		{"", ""},
-		{"/", "/"},
-		{"/hello", "/hello"},
-		{"/hello/world", "/hello/world"},
-		{"/hello/1", "/hello/<id>"},
-		{"/hello/7CDACC74-F84B-4C2B-A4E0-7640A285F211", "/hello/<id>"},
-	}
-
-	for _, test := range tests {
-		t.Run(test.in, func(t *testing.T) {
-			if out := sanitizeHttpPath(test.in); out != test.out {
-				t.Errorf("sanitizeHttpPath(%s) => %s != %s", test.in, test.out, out)
-			}
-		})
-	}
-}
-
 func TestCopyHeader(t *testing.T) {
 	h1 := http.Header{"Content-Type": {"text/plain"}, "Content-Length": {"11"}}
 	h2 := copyHeader(h1)
@@ -309,31 +287,25 @@ func TestRequestHost(t *testing.T) {
 	tests := []struct {
 		req  *http.Request
 		host string
-		port string
 	}{
 		{
 			req:  &http.Request{Host: "host"},
 			host: "host",
-			port: "",
 		},
 		{
 			req:  &http.Request{URL: &url.URL{Host: "url"}},
 			host: "url",
-			port: "",
 		},
 		{
-			req:  &http.Request{URL: &url.URL{}, Header: http.Header{"Host": {"header:port"}}},
+			req:  &http.Request{Header: http.Header{"Host": {"header"}}},
 			host: "header",
-			port: "port",
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.host, func(t *testing.T) {
-			if host, port := requestHost(test.req); host != test.host {
+			if host := requestHost(test.req); host != test.host {
 				t.Errorf("invalid request host: %#v != %#v", test.host, host)
-			} else if port != test.port {
-				t.Errorf("invalid request port: %#v != %#v", test.port, port)
 			}
 		})
 	}

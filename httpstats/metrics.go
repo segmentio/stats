@@ -3,10 +3,8 @@ package httpstats
 import (
 	"io"
 	"math"
-	"net"
 	"net/http"
 	"net/url"
-	"path"
 	"strconv"
 	"strings"
 	"sync"
@@ -102,13 +100,12 @@ func (m *Metrics) makeMessageBody(body io.ReadCloser, clock *stats.Clock, tags .
 }
 
 func makeRequestTags(req *http.Request) []stats.Tag {
-	host, _ := requestHost(req)
 	ctype, charset := contentType(req.Header)
 	return []stats.Tag{
 		{"http_req_method", req.Method},
-		{"http_req_path", sanitizeHttpPath(req.URL.Path)},
+		{"http_req_path", req.URL.Path},
 		{"http_req_protocol", req.Proto},
-		{"http_req_host", host},
+		{"http_req_host", requestHost(req)},
 		{"http_req_content_type", ctype},
 		{"http_req_content_charset", charset},
 		{"http_req_content_encoding", contentEncoding(req.Header)},
@@ -212,17 +209,12 @@ func intLength(n int64) int {
 	return int(math.Log10(float64(n))) + 1
 }
 
-func requestHost(req *http.Request) (host string, port string) {
+func requestHost(req *http.Request) (host string) {
 	if host = req.Host; len(host) == 0 {
-		if host = req.URL.Host; len(host) == 0 {
-			host = req.Header.Get("Host")
+		if host = req.Header.Get("Host"); len(host) == 0 {
+			host = req.URL.Host
 		}
 	}
-
-	if h, p, e := net.SplitHostPort(host); e == nil {
-		host, port = h, p
-	}
-
 	return
 }
 
@@ -294,35 +286,6 @@ func parseHeaderToken(s string) (token string, next string) {
 		token = strings.TrimSpace(s)
 	}
 	return
-}
-
-func isIDByte(c byte) bool {
-	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') || c == '-'
-}
-
-func isID(s string) bool {
-	if len(s) == 0 {
-		return false
-	}
-	for i := range s {
-		if !isIDByte(s[i]) {
-			return false
-		}
-	}
-	return true
-}
-
-func sanitizeHttpPath(p string) string {
-	if len(p) == 0 {
-		return p
-	}
-	parts := strings.Split(path.Clean(p), "/")
-	for i, s := range parts {
-		if isID(s) {
-			parts[i] = "<id>"
-		}
-	}
-	return strings.Join(parts, "/")
 }
 
 type readCloser struct {
