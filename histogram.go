@@ -36,7 +36,10 @@ func (h Histogram) Tags() []Tag {
 // Clone returns a copy of the histogram, potentially setting tags on the
 // returned object.
 func (h Histogram) Clone(tags ...Tag) Histogram {
-	return makeHistogram(h.eng, h.name, append(copyTags(tags), h.tags...))
+	if len(tags) == 0 {
+		return h
+	}
+	return makeHistogram(h.eng, h.name, concatTags(h.tags, tags))
 }
 
 // Observe reports a value observed by the histogram.

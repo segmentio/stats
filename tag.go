@@ -28,6 +28,13 @@ func sortTags(t []Tag) {
 	sort.Sort(tags(t))
 }
 
+func concatTags(t1 []Tag, t2 []Tag) []Tag {
+	t3 := make([]Tag, 0, len(t1)+len(t2))
+	t3 = append(t3, t1...)
+	t3 = append(t3, t2...)
+	return t3
+}
+
 func copyTags(tags []Tag) []Tag {
 	if len(tags) == 0 {
 		return nil

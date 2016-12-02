@@ -37,7 +37,10 @@ func (t Timer) Tags() []Tag {
 // Clone returns a copy of the timer, potentially setting tags on the returned
 // object.
 func (t Timer) Clone(tags ...Tag) Timer {
-	return makeTimer(t.eng, t.name, append(copyTags(tags), t.tags...))
+	if len(tags) == 0 {
+		return t
+	}
+	return makeTimer(t.eng, t.name, concatTags(t.tags, tags))
 }
 
 // Start the timer, returning a clock object that should be used to publish the

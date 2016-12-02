@@ -35,7 +35,10 @@ func (g Gauge) Tags() []Tag {
 // Clone returns a copy of the gauge, potentially setting tags on the returned
 // object.
 func (g Gauge) Clone(tags ...Tag) Gauge {
-	return makeGauge(g.eng, g.name, append(copyTags(tags), g.tags...))
+	if len(tags) == 0 {
+		return g
+	}
+	return makeGauge(g.eng, g.name, concatTags(g.tags, tags))
 }
 
 // Incr increments the gauge by a value of 1.

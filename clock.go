@@ -68,6 +68,11 @@ func (c *Clock) StopAt(now time.Time) {
 }
 
 func (c *Clock) observe(stamp string, now time.Time) {
-	c.metric.Clone(Tag{"stamp", stamp}).Observe(now.Sub(c.last).Seconds())
+	h := c.metric
+	h.key += "&stamp=" + stamp
+	h.tags = make([]Tag, 0, len(c.metric.tags)+1)
+	h.tags = append(h.tags, c.metric.tags...)
+	h.tags = append(h.tags, Tag{"stamp", stamp})
+	h.Observe(now.Sub(c.last).Seconds())
 	c.last = now
 }

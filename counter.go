@@ -35,7 +35,10 @@ func (c Counter) Tags() []Tag {
 // Clone returns a copy of the counter, potentially setting tags on the returned
 // object.
 func (c Counter) Clone(tags ...Tag) Counter {
-	return makeCounter(c.eng, c.name, append(copyTags(tags), c.tags...))
+	if len(tags) == 0 {
+		return c
+	}
+	return makeCounter(c.eng, c.name, concatTags(c.tags, tags))
 }
 
 // Incr increments the counter by a value of 1.
