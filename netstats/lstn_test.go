@@ -27,7 +27,7 @@ func TestListener(t *testing.T) {
 	// Give time to the engine to process the metrics.
 	time.Sleep(10 * time.Millisecond)
 
-	metrics := engine.State()
+	metrics, _ := engine.State(0)
 	sort.Sort(stats.MetricsByKey(metrics))
 
 	for i := range metrics {
@@ -36,23 +36,21 @@ func TestListener(t *testing.T) {
 
 	expects := []stats.Metric{
 		stats.Metric{
-			Type:   stats.CounterType,
-			Key:    "conn.close.count?protocol=tcp&test=listener",
-			Name:   "conn.close.count",
-			Tags:   []stats.Tag{{"protocol", "tcp"}, {"test", "listener"}},
-			Value:  1,
-			Sample: 1,
+			Type:  stats.CounterType,
+			Key:   "conn.close.count?protocol=tcp&test=listener",
+			Name:  "conn.close.count",
+			Tags:  []stats.Tag{{"protocol", "tcp"}, {"test", "listener"}},
+			Value: 1,
 			Namespace: stats.Namespace{
 				Name: "netstats.test",
 			},
 		},
 		stats.Metric{
-			Type:   stats.CounterType,
-			Key:    "conn.open.count?protocol=tcp&test=listener",
-			Name:   "conn.open.count",
-			Tags:   []stats.Tag{{"protocol", "tcp"}, {"test", "listener"}},
-			Value:  1,
-			Sample: 1,
+			Type:  stats.CounterType,
+			Key:   "conn.open.count?protocol=tcp&test=listener",
+			Name:  "conn.open.count",
+			Tags:  []stats.Tag{{"protocol", "tcp"}, {"test", "listener"}},
+			Value: 1,
 			Namespace: stats.Namespace{
 				Name: "netstats.test",
 			},
@@ -96,7 +94,7 @@ func TestListenerError(t *testing.T) {
 	// Give time to the engine to process the metrics.
 	time.Sleep(10 * time.Millisecond)
 
-	metrics := engine.State()
+	metrics, _ := engine.State(0)
 	sort.Sort(stats.MetricsByKey(metrics))
 
 	for i := range metrics {
@@ -105,23 +103,21 @@ func TestListenerError(t *testing.T) {
 
 	expects := []stats.Metric{
 		stats.Metric{
-			Type:   stats.CounterType,
-			Key:    "lstn.errors.count?operation=accept&protocol=tcp&test=listener",
-			Name:   "lstn.errors.count",
-			Tags:   []stats.Tag{{"operation", "accept"}, {"protocol", "tcp"}, {"test", "listener"}},
-			Value:  1,
-			Sample: 1,
+			Type:  stats.CounterType,
+			Key:   "lstn.errors.count?operation=accept&protocol=tcp&test=listener",
+			Name:  "lstn.errors.count",
+			Tags:  []stats.Tag{{"operation", "accept"}, {"protocol", "tcp"}, {"test", "listener"}},
+			Value: 1,
 			Namespace: stats.Namespace{
 				Name: "netstats.test",
 			},
 		},
 		stats.Metric{
-			Type:   stats.CounterType,
-			Key:    "lstn.errors.count?operation=close&protocol=tcp&test=listener",
-			Name:   "lstn.errors.count",
-			Tags:   []stats.Tag{{"operation", "close"}, {"protocol", "tcp"}, {"test", "listener"}},
-			Value:  1,
-			Sample: 1,
+			Type:  stats.CounterType,
+			Key:   "lstn.errors.count?operation=close&protocol=tcp&test=listener",
+			Name:  "lstn.errors.count",
+			Tags:  []stats.Tag{{"operation", "close"}, {"protocol", "tcp"}, {"test", "listener"}},
+			Value: 1,
 			Namespace: stats.Namespace{
 				Name: "netstats.test",
 			},

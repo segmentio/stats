@@ -6,7 +6,7 @@ import (
 	"github.com/segmentio/stats"
 )
 
-func appendMetric(b []byte, m stats.Metric) []byte {
+func appendMetric(b []byte, m Metric) []byte {
 	if len(m.Namespace.Name) != 0 {
 		b = append(b, m.Namespace.Name...)
 		b = append(b, '.')
@@ -16,24 +16,11 @@ func appendMetric(b []byte, m stats.Metric) []byte {
 	b = append(b, ':')
 	b = strconv.AppendFloat(b, m.Value, 'g', -1, 64)
 	b = append(b, '|')
+	b = append(b, m.Type...)
 
-	switch m.Type {
-	case stats.CounterType:
-		b = append(b, 'c')
-
-	case stats.GaugeType:
-		b = append(b, 'g')
-
-	case stats.HistogramType:
-		b = append(b, 'h')
-
-	default:
-		b = append(b, '?') // unsupported
-	}
-
-	if m.Sample > 1 {
+	if m.Rate != 0 && m.Rate != 1 {
 		b = append(b, '|', '@')
-		b = strconv.AppendFloat(b, 1/float64(m.Sample), 'g', -1, 64)
+		b = strconv.AppendFloat(b, m.Rate, 'g', -1, 64)
 	}
 
 	n1 := len(m.Namespace.Tags)

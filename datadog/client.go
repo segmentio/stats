@@ -83,7 +83,9 @@ func NewClient(config ClientConfig) *Client {
 		join: make(chan struct{}),
 	}
 
-	go run(config, time.NewTicker(config.FlushInterval), cli.done, cli.join)
+	engineConfig := config.Engine.Config()
+	metricTimeout := 2 * engineConfig.MetricTimeout
+	go run(config, time.NewTicker(config.FlushInterval), cli.done, cli.join, metricTimeout)
 
 	runtime.SetFinalizer(cli, func(c *Client) { c.Close() })
 	return cli
@@ -100,7 +102,7 @@ func (c *Client) close() {
 	<-c.join
 }
 
-func run(c ClientConfig, tick *time.Ticker, done <-chan struct{}, join chan<- struct{}) {
+func run(c ClientConfig, tick *time.Ticker, done <-chan struct{}, join chan<- struct{}, timeout time.Duration) {
 	defer close(join)
 	defer tick.Stop()
 
@@ -114,7 +116,8 @@ func run(c ClientConfig, tick *time.Ticker, done <-chan struct{}, join chan<- st
 
 	defer c.Output.Close()
 
-	var state []stats.Metric
+	var version uint64                      // last version seen by the client
+	var counters = make(map[string]counter) // cache of previous counter values
 	var b1 = make([]byte, 0, 1024)
 	var b2 = make([]byte, 0, c.BufferSize)
 
@@ -126,21 +129,27 @@ mainLoop:
 		case <-done:
 			break mainLoop
 
-		case <-tick.C:
-			var changes []stats.Metric
-			state, changes = diff(state, c.Engine.State())
-			write(c.Output, b1, b2, changes)
+		case now := <-tick.C:
+			var state []stats.Metric
+			state, version = c.Engine.State(version)
+			write(c.Output, b1, b2, metrics(state, counters, now))
+
+			for k, c := range counters { // clear expired counters
+				if now.After(c.modTime.Add(timeout)) {
+					delete(counters, k)
+				}
+			}
 		}
 	}
 
 	// Flush the engine state one last time before exiting, this helps prevent
 	// data loss when the program is shutting down and the engine had a couple
 	// of pending changes.
-	_, changes := diff(state, c.Engine.State())
-	write(c.Output, b1, b2, changes)
+	state, _ := c.Engine.State(version)
+	write(c.Output, b1, b2, metrics(state, counters, time.Now()))
 }
 
-func write(w io.Writer, b1 []byte, b2 []byte, changes []stats.Metric) {
+func write(w io.Writer, b1 []byte, b2 []byte, changes []Metric) {
 	// Write all changed metrics to the client buffer in order to send
 	// it to the datadog agent.
 	for _, m := range changes {
@@ -170,74 +179,79 @@ func write(w io.Writer, b1 []byte, b2 []byte, changes []stats.Metric) {
 	}
 }
 
-// The diff function takes an old and new engine state and computes the
-// differences between them, returing a list of metrics that have been
-// changed.
-func diff(old []stats.Metric, new []stats.Metric) (state []stats.Metric, changes []stats.Metric) {
-	changes = make([]stats.Metric, 0, len(new))
+type counter struct {
+	value   float64
+	modTime time.Time
+}
 
-	c1 := make(map[string]stats.Metric)   // metric diff cache
-	c2 := make(map[string][]stats.Metric) // histogram aggregation cache
+func metrics(state []stats.Metric, counters map[string]counter, now time.Time) []Metric {
+	// List of datadog metrics computed from the state.
+	metrics := make([]Metric, 0, len(state))
 
-	// Populate the cache with all old metrics.
-	for _, m := range old {
-		c1[m.Key] = m
-	}
+	// Aggregation of histograms into a single value.
+	histograms := make(map[string]Metric)
 
-	// Look for metrics that have changed since the last tick.
-	for _, m := range new {
-		n, ok := c1[m.Key]
-
-		if ok && m.Sample == n.Sample {
-			// There were no changes on this metric, skipping.
-			continue
-		}
-
+	for _, m := range state {
 		switch m.Type {
 		case stats.CounterType:
-			// For counters we need to report the difference since the last
-			// tick and discards rate sampling.
-			m.Value -= n.Value
-			m.Sample = 0
-			changes = append(changes, m)
+			// For counters the datadog client needs to report the difference of
+			// value between now and the last time the counter was reported.
+			value := m.Value - counters[m.Key].value
+
+			// If the value is negative then we have an outdated entry in the
+			// counter cache, we simply overwrite it with the new value.
+			if value < 0 {
+				value = m.Value
+			}
+
+			counters[m.Key] = counter{
+				value:   value,
+				modTime: now,
+			}
+
+			metrics = append(metrics, Metric{
+				Type:      Counter,
+				Name:      m.Name,
+				Value:     value,
+				Tags:      m.Tags,
+				Namespace: m.Namespace,
+			})
 
 		case stats.GaugeType:
-			// For gages we already have the correct value, no need to do
-			// rate sampling.
-			m.Sample = 0
-			changes = append(changes, m)
+			// Gauge always have the right value, we just place them in the
+			// result list of metrics.
+			metrics = append(metrics, Metric{
+				Type:      Gauge,
+				Name:      m.Name,
+				Value:     m.Value,
+				Tags:      m.Tags,
+				Namespace: m.Namespace,
+			})
 
 		case stats.HistogramType:
-			// Histograms are first grouped by group to be processed in the
-			// next step.
-			c2[m.Group] = append(c2[m.Group], m)
-		}
-	}
+			// Histograms need to be aggregated to report average values.
+			h, ok := histograms[m.Key]
 
-	// Aggregate histograms, report the average value and the number of samples
-	// they represent.
-	for _, h := range c2 {
-		var avg stats.Metric
-
-		for _, m := range h {
-			avg = stats.Metric{
-				Type: m.Type,
-				Key:  m.Group,
-				Name: m.Name,
-				Tags: m.Tags,
+			if !ok {
+				h = Metric{
+					Type:      Histogram,
+					Name:      m.Name,
+					Tags:      m.Tags,
+					Namespace: m.Namespace,
+				}
 			}
-			break
-		}
 
-		for _, m := range h {
-			avg.Value += m.Value
-			avg.Sample += m.Sample
+			h.Value += m.Value
+			h.Rate += 1 // reuse the field to accumulate the number of samples
 		}
-
-		avg.Value /= float64(avg.Sample)
-		changes = append(changes, avg)
 	}
 
-	state = new
-	return
+	// Compute the average values and set the sample rate on histograms.
+	for _, h := range histograms {
+		h.Value /= h.Rate   // average value
+		h.Rate = 1 / h.Rate // sample rate
+		metrics = append(metrics, h)
+	}
+
+	return metrics
 }

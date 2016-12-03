@@ -17,7 +17,7 @@ func TestServer(t *testing.T) {
 	b := uint32(0)
 	c := uint32(0)
 
-	addr, closer := startTestServer(t, HandlerFunc(func(m stats.Metric, _ net.Addr) {
+	addr, closer := startTestServer(t, HandlerFunc(func(m Metric, _ net.Addr) {
 		switch m.Name {
 		case "datadog.test.A":
 			atomic.AddUint32(&a, uint32(m.Value))
@@ -27,6 +27,9 @@ func TestServer(t *testing.T) {
 
 		case "datadog.test.C":
 			atomic.AddUint32(&c, uint32(m.Value))
+
+		default:
+			t.Error("unexpected metric:", m)
 		}
 	}))
 	defer closer.Close()
@@ -52,16 +55,16 @@ func TestServer(t *testing.T) {
 
 	time.Sleep(10 * time.Millisecond)
 
-	if atomic.LoadUint32(&a) != 1 {
-		t.Error("datadog.test.A not reported")
+	if n := atomic.LoadUint32(&a); n != 1 {
+		t.Error("datadog.test.A: bad count:", n)
 	}
 
-	if atomic.LoadUint32(&b) != 2 {
-		t.Error("datadog.test.B not reported")
+	if n := atomic.LoadUint32(&b); n != 2 {
+		t.Error("datadog.test.B: bad count:", n)
 	}
 
-	if atomic.LoadUint32(&c) != 3 {
-		t.Error("datadog.test.C not reported")
+	if n := atomic.LoadUint32(&c); n != 3 {
+		t.Error("datadog.test.C: bad count:", n)
 	}
 }
 

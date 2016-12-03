@@ -44,6 +44,9 @@ type EngineConfig struct {
 // Most applications don't need to create a stats engine and can simply use the
 // default one which is implicitly used by metrics when no engine is specified.
 type Engine struct {
+	// immutable state of the engine
+	config EngineConfig
+
 	// error channel used to report dropped metrics.
 	errch chan<- struct{}
 
@@ -104,18 +107,24 @@ func NewEngine(config EngineConfig) *Engine {
 	reqch := make(chan metricReq)
 
 	eng := &Engine{
+		config: EngineConfig{
+			Prefix:        config.Prefix,
+			Tags:          copyTags(config.Tags),
+			MaxPending:    config.MaxPending,
+			MetricTimeout: config.MetricTimeout,
+		},
 		errch: errch,
 		opch:  opch,
 		reqch: reqch,
 	}
 
 	go runEngine(engine{
-		errch:  errch,
-		opch:   opch,
-		reqch:  reqch,
-		prefix: config.Prefix,
-		tags:   config.Tags,
-		store:  makeMetricStore(metricStoreConfig{timeout: config.MetricTimeout}),
+		errch:   errch,
+		opch:    opch,
+		reqch:   reqch,
+		prefix:  config.Prefix,
+		tags:    config.Tags,
+		timeout: config.MetricTimeout,
 	})
 
 	runtime.SetFinalizer(eng, (*Engine).Close)
@@ -129,11 +138,26 @@ func (eng *Engine) Close() error {
 	return nil
 }
 
-// State returns the current state of the engine as a list of metrics.
-func (eng *Engine) State() []Metric {
-	res := make(chan []Metric, 1)
-	eng.reqch <- metricReq{res: res}
-	return <-res
+// Config returns the engine's configuration.
+//
+// This method is useful to implement clients that need to have insights into
+// the metric timeout or other properties of the engine they're fetching the
+// state from.
+func (eng *Engine) Config() EngineConfig {
+	config := eng.config
+	config.Tags = copyTags(config.Tags)
+	return config
+}
+
+// State returns the current state of the engine as a diff of metrics since a
+// specific version number.
+//
+// Passing zero will fetch the full state of the engine.
+func (eng *Engine) State(since uint64) (metrics []Metric, version uint64) {
+	res := make(chan metricRes, 1)
+	eng.reqch <- metricReq{res: res, since: since}
+	state := <-res
+	return state.metrics, state.version
 }
 
 // Add is a low-level method that sends an 'add' opertaion on a metric within
@@ -209,16 +233,16 @@ func (eng *Engine) push(op metricOp) {
 // other end of the diverse communication channels and the local state on which
 // the engine's goroutine works.
 type engine struct {
-	errch  <-chan struct{}
-	opch   <-chan metricOp
-	reqch  <-chan metricReq
-	prefix string
-	tags   []Tag
-	store  metricStore
+	errch   <-chan struct{}
+	opch    <-chan metricOp
+	reqch   <-chan metricReq
+	prefix  string
+	tags    []Tag
+	timeout time.Duration
 }
 
 func runEngine(e engine) {
-	ticker := time.NewTicker(e.store.timeout / 2)
+	ticker := time.NewTicker(e.timeout / 2)
 	defer ticker.Stop()
 
 	namespace := Namespace{
@@ -226,10 +250,14 @@ func runEngine(e engine) {
 		Tags: e.tags,
 	}
 
+	store := newMetricStore(metricStoreConfig{
+		timeout: e.timeout,
+	})
+
 	for {
 		select {
 		case <-e.errch:
-			e.store.apply(metricOp{
+			store.apply(metricOp{
 				typ:   CounterType,
 				space: namespace,
 				key:   "stats.discarded?",
@@ -243,16 +271,17 @@ func runEngine(e engine) {
 				return // done
 			}
 			op.space = namespace
-			e.store.apply(op, time.Now())
+			store.apply(op, time.Now())
 
 		case req, ok := <-e.reqch:
 			if !ok {
 				return // done
 			}
-			req.res <- e.store.state()
+			metrics, version := store.state(req.since)
+			req.res <- metricRes{metrics: metrics, version: version}
 
 		case now := <-ticker.C:
-			e.store.deleteExpiredMetrics(now)
+			store.deleteExpiredMetrics(now)
 		}
 	}
 }

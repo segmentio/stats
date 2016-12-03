@@ -8,7 +8,7 @@ import (
 	"github.com/segmentio/stats"
 )
 
-func parseMetric(s string) (m stats.Metric, err error) {
+func parseMetric(s string) (m Metric, err error) {
 	var next = strings.TrimSpace(s)
 	var name string
 	var val string
@@ -58,7 +58,6 @@ func parseMetric(s string) (m stats.Metric, err error) {
 		}
 	}
 
-	var mtype stats.MetricType
 	var value float64
 	var sampleRate float64
 
@@ -78,25 +77,11 @@ func parseMetric(s string) (m stats.Metric, err error) {
 		sampleRate = 1
 	}
 
-	switch typ {
-	case "c":
-		mtype = stats.CounterType
-
-	case "g":
-		mtype = stats.GaugeType
-
-	case "h":
-		mtype = stats.HistogramType
-
-	default:
-		mtype = stats.MetricType(-1)
-	}
-
-	m = stats.Metric{
-		Type:   mtype,
-		Name:   name,
-		Value:  value,
-		Sample: uint64(1 / sampleRate),
+	m = Metric{
+		Type:  MetricType(typ),
+		Name:  name,
+		Value: value,
+		Rate:  sampleRate,
 	}
 
 	if len(tags) != 0 {

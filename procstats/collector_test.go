@@ -25,7 +25,7 @@ func TestCollector(t *testing.T) {
 	// Let the engine process the metrics.
 	time.Sleep(10 * time.Millisecond)
 
-	metrics := engine.State()
+	metrics, _ := engine.State(0)
 
 	if len(metrics) == 0 {
 		t.Error("no metrics were reported by the stats collector")

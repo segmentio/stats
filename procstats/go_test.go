@@ -20,7 +20,7 @@ func TestGoMetrics(t *testing.T) {
 	// Wait for metrics to be reported.
 	time.Sleep(10 * time.Millisecond)
 
-	metrics := engine.State()
+	metrics, _ := engine.State(0)
 
 	if len(metrics) == 0 {
 		t.Error("no metrics were reported by the stats collector")
@@ -51,7 +51,7 @@ func TestGoMetricsMock(t *testing.T) {
 	// Wait for metrics to be reported.
 	time.Sleep(10 * time.Millisecond)
 
-	metrics := engine.State()
+	metrics, _ := engine.State(0)
 
 	if len(metrics) == 0 {
 		t.Error("no metrics were reported by the stats collector")

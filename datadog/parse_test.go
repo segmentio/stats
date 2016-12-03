@@ -6,7 +6,7 @@ import (
 )
 
 func TestParseMetricSuccess(t *testing.T) {
-	for _, test := range metrics {
+	for _, test := range testMetrics {
 		t.Run(test.s, func(t *testing.T) {
 			if m, err := parseMetric(test.s); err != nil {
 				t.Error(err)
@@ -40,7 +40,7 @@ func TestParseMetricFailure(t *testing.T) {
 }
 
 func BenchmarkParseMetric(b *testing.B) {
-	for _, test := range metrics {
+	for _, test := range testMetrics {
 		b.Run(test.m.Name, func(b *testing.B) {
 			for i := 0; i != b.N; i++ {
 				parseMetric(test.s)

@@ -31,80 +31,75 @@ func TestEngine(t *testing.T) {
 	// Give a bit of time for the engine to update its state.
 	time.Sleep(10 * time.Millisecond)
 
-	metrics := engine.State()
+	metrics, version := engine.State(0)
 	sortMetrics(metrics)
+
+	if version != 6 {
+		t.Error("bad engine version:", version)
+	}
 
 	expects := []Metric{
 		Metric{
-			Type:   CounterType,
-			Key:    "A?",
-			Name:   "A",
-			Tags:   nil,
-			Value:  1,
-			Sample: 1,
+			Type:  CounterType,
+			Key:   "A?",
+			Name:  "A",
+			Tags:  nil,
+			Value: 1,
 			Namespace: Namespace{
 				Name: "test",
 				Tags: []Tag{{"hello", "world"}},
 			},
 		},
 		Metric{
-			Type:   GaugeType,
-			Key:    "B?",
-			Name:   "B",
-			Tags:   nil,
-			Value:  2,
-			Sample: 1,
+			Type:  GaugeType,
+			Key:   "B?",
+			Name:  "B",
+			Tags:  nil,
+			Value: 2,
 			Namespace: Namespace{
 				Name: "test",
 				Tags: []Tag{{"hello", "world"}},
 			},
 		},
 		Metric{
-			Type:   CounterType,
-			Key:    "C?context=test",
-			Name:   "C",
-			Tags:   []Tag{{"context", "test"}},
-			Value:  3,
-			Sample: 1,
+			Type:  CounterType,
+			Key:   "C?context=test",
+			Name:  "C",
+			Tags:  []Tag{{"context", "test"}},
+			Value: 3,
 			Namespace: Namespace{
 				Name: "test",
 				Tags: []Tag{{"hello", "world"}},
 			},
 		},
 		Metric{
-			Type:   HistogramType,
-			Group:  "D?&stamp=lap",
-			Key:    "D?&stamp=lap#0",
-			Name:   "D",
-			Tags:   []Tag{{"stamp", "lap"}},
-			Value:  1,
-			Sample: 1,
+			Type:  HistogramType,
+			Key:   "D?&stamp=lap",
+			Name:  "D",
+			Tags:  []Tag{{"stamp", "lap"}},
+			Value: 1,
 			Namespace: Namespace{
 				Name: "test",
 				Tags: []Tag{{"hello", "world"}},
 			},
 		},
 		Metric{
-			Type:   HistogramType,
-			Group:  "D?&stamp=lap",
-			Key:    "D?&stamp=lap#1",
-			Name:   "D",
-			Tags:   []Tag{{"stamp", "lap"}},
-			Value:  1,
-			Sample: 1,
+			Type:  HistogramType,
+			Key:   "D?&stamp=lap",
+			Name:  "D",
+			Tags:  []Tag{{"stamp", "lap"}},
+			Value: 1,
 			Namespace: Namespace{
 				Name: "test",
 				Tags: []Tag{{"hello", "world"}},
 			},
 		},
 		Metric{
-			Type:   HistogramType,
-			Group:  "D?&stamp=total",
-			Key:    "D?&stamp=total#0",
-			Name:   "D",
-			Tags:   []Tag{{"stamp", "total"}},
-			Value:  1,
-			Sample: 1,
+			Type:  HistogramType,
+			Key:   "D?&stamp=total",
+			Name:  "D",
+			Tags:  []Tag{{"stamp", "total"}},
+			Value: 1,
 			Namespace: Namespace{
 				Name: "test",
 				Tags: []Tag{{"hello", "world"}},
