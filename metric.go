@@ -123,9 +123,6 @@ func metricOpSet(state *metricState, value float64, mod time.Time, exp time.Time
 }
 
 func metricOpObserve(state *metricState, value float64, mod time.Time, exp time.Time, version uint64) {
-	if state.metrics == nil {
-		state.metrics = make([]metricSubState, 0, 100)
-	}
 	state.version = version
 	state.modTime = mod
 	state.expTime = exp
