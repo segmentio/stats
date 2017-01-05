@@ -2,6 +2,15 @@ package stats
 
 import "sort"
 
+// T returns a tag with `name`, `value`.
+// T is just sugar for `Tag{}`.
+func T(name, value string) Tag {
+	return Tag{
+		Name:  name,
+		Value: value,
+	}
+}
+
 // Tag represents a single tag that can be set on a metric.
 type Tag struct {
 	Name  string
