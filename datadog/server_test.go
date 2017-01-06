@@ -43,27 +43,29 @@ func TestServer(t *testing.T) {
 
 	ma := stats.MakeCounter(engine, "A")
 	ma.Incr()
+	ma.Incr()
 
-	mb := stats.MakeCounter(engine, "B")
-	mb.Incr()
-	mb.Incr()
+	mb := stats.MakeGauge(engine, "B")
+	mb.Set(1)
+	mb.Set(2)
+	mb.Set(3)
 
-	mc := stats.MakeCounter(engine, "C")
-	mc.Incr()
-	mc.Incr()
-	mc.Incr()
+	mc := stats.MakeHistogram(engine, "C")
+	mc.Observe(1)
+	mc.Observe(2)
+	mc.Observe(3)
 
 	time.Sleep(10 * time.Millisecond)
 
-	if n := atomic.LoadUint32(&a); n != 1 {
+	if n := atomic.LoadUint32(&a); n != 2 { // two increments (+1, +1)
 		t.Error("datadog.test.A: bad count:", n)
 	}
 
-	if n := atomic.LoadUint32(&b); n != 2 {
+	if n := atomic.LoadUint32(&b); n != 3 { // three assignments (=1, =2, =3)
 		t.Error("datadog.test.B: bad count:", n)
 	}
 
-	if n := atomic.LoadUint32(&c); n != 3 {
+	if n := atomic.LoadUint32(&c); n != 2 { // observed values are averaged ((1 + 2 + 3) / 3)
 		t.Error("datadog.test.C: bad count:", n)
 	}
 }

@@ -243,6 +243,7 @@ func metrics(state []stats.Metric, counters map[string]counter, now time.Time) [
 
 			h.Value += m.Value
 			h.Rate += 1 // reuse the field to accumulate the number of samples
+			histograms[m.Key] = h
 		}
 	}
 
