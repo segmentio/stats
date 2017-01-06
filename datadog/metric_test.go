@@ -1,6 +1,10 @@
 package datadog
 
-import "github.com/segmentio/stats"
+import (
+	"testing"
+
+	"github.com/segmentio/stats"
+)
 
 var testMetrics = []struct {
 	s string
@@ -115,4 +119,14 @@ var testMetrics = []struct {
 			Tags:  []stats.Tag{{"country", "china"}},
 		},
 	},
+}
+
+func TestMetricString(t *testing.T) {
+	for _, test := range testMetrics {
+		t.Run(test.s, func(t *testing.T) {
+			if s := test.m.String(); s != test.s {
+				t.Error(s)
+			}
+		})
+	}
 }
