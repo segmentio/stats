@@ -46,7 +46,7 @@ commands:
 }
 
 func client(cmd string, args ...string) {
-	var fset = flag.NewFlagSet("dogstatsd "+cmd, flag.ExitOnError)
+	var fset = flag.NewFlagSet("dogstatsd "+cmd+" [options...] [metric] [args...]", flag.ExitOnError)
 	var addr string
 	var name string
 	var value float64
@@ -103,7 +103,7 @@ func client(cmd string, args ...string) {
 }
 
 func server(args ...string) {
-	var fset = flag.NewFlagSet("dogstatsd agent", flag.ExitOnError)
+	var fset = flag.NewFlagSet("dogstatsd agent [options...]", flag.ExitOnError)
 	var bind string
 
 	fset.StringVar(&bind, "bind", ":8125", "The network address to listen on for incoming UDP datagrams")
