@@ -68,16 +68,18 @@ func client(cmd string, args ...string) {
 			value = 1.0
 		} else if value, err = strconv.ParseFloat(args[0], 64); err != nil {
 			errorf("bad metric value: %s", args[0])
+		} else {
+			args = args[1:]
 		}
-		args = args[1:]
 
 	case "set":
 		if len(args) == 0 {
 			errorf("missing metric value")
 		} else if value, err = strconv.ParseFloat(args[0], 64); err != nil {
 			errorf("bad metric value: %s", args[0])
+		} else {
+			args = args[1:]
 		}
-		args = args[1:]
 
 	case "time":
 		if len(args) == 0 {
@@ -117,9 +119,11 @@ func server(args ...string) {
 
 func run(args ...string) {
 	cmd := exec.Command(args[0], args[1:]...)
-	err := cmd.Run()
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
-	if err != nil {
+	if err := cmd.Run(); err != nil {
 		errorf("%s", err)
 	}
 }
