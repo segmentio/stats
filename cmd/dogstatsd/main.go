@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"log"
@@ -8,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/segmentio/stats"
@@ -46,13 +48,17 @@ commands:
 }
 
 func client(cmd string, args ...string) {
-	var fset = flag.NewFlagSet("dogstatsd "+cmd+" [options...] [metric] [args...]", flag.ExitOnError)
+	var fset = flag.NewFlagSet("dogstatsd "+cmd+" [options...] metric value [-- args...]", flag.ExitOnError)
+	var extra []string
+	var tags tags
 	var addr string
 	var name string
 	var value float64
 	var err error
 
+	args, extra = split(args, "--")
 	fset.StringVar(&addr, "addr", "localhost:8125", "The network address where a dogstatsd server is listening for incoming UDP datagrams")
+	fset.Var(&tags, "tags", "A comma-separated list of tags to set on the metric")
 	fset.Parse(args)
 	args = fset.Args()
 
@@ -80,11 +86,6 @@ func client(cmd string, args ...string) {
 		} else {
 			args = args[1:]
 		}
-
-	case "time":
-		if len(args) == 0 {
-			args = []string{"true"}
-		}
 	}
 
 	dd := datadog.NewClient(datadog.ClientConfig{Address: addr})
@@ -92,14 +93,14 @@ func client(cmd string, args ...string) {
 
 	switch cmd {
 	case "add":
-		stats.Add(name, value)
+		stats.Add(name, value, tags...)
 
 	case "set":
-		stats.Set(name, value)
+		stats.Set(name, value, tags...)
 
 	case "time":
-		clock := stats.Time(name, time.Now())
-		run(args...)
+		clock := stats.Time(name, time.Now(), tags...)
+		run(extra...)
 		clock.Stop()
 	}
 }
@@ -118,6 +119,10 @@ func server(args ...string) {
 }
 
 func run(args ...string) {
+	if len(args) == 0 {
+		errorf("missing command line")
+	}
+
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -131,4 +136,52 @@ func run(args ...string) {
 func errorf(msg string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, msg+"\n", args...)
 	os.Exit(1)
+}
+
+func split(args []string, sep string) (head []string, tail []string) {
+	if i := indexOf(args, sep); i < 0 {
+		head = args
+	} else {
+		head, tail = args[:i], args[i+1:]
+	}
+	return
+}
+
+func indexOf(args []string, s string) int {
+	for i, a := range args {
+		if a == s {
+			return i
+		}
+	}
+	return -1
+}
+
+type tags []stats.Tag
+
+func (tags tags) String() string {
+	b := &bytes.Buffer{}
+
+	for i, tag := range tags {
+		if i != 0 {
+			b.WriteByte(',')
+		}
+		b.WriteString(tag.Name)
+		b.WriteByte(':')
+		b.WriteString(tag.Value)
+	}
+
+	return b.String()
+}
+
+func (tags *tags) Set(s string) (err error) {
+	for _, pair := range strings.Split(s, ",") {
+		var tag stats.Tag
+		if i := strings.IndexByte(pair, ':'); i < 0 {
+			tag.Name = pair
+		} else {
+			tag.Name, tag.Value = pair[:i], pair[i+1:]
+		}
+		*tags = append(*tags, tag)
+	}
+	return
 }
