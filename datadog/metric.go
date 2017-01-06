@@ -1,6 +1,11 @@
 package datadog
 
-import "github.com/segmentio/stats"
+import (
+	"fmt"
+	"sync"
+
+	"github.com/segmentio/stats"
+)
 
 // MetricType is an enumeration providing symbols to represent the different
 // metric types upported by datadog.
@@ -20,4 +25,25 @@ type Metric struct {
 	Rate      float64         // sample rate, a value between 0 and 1
 	Tags      []stats.Tag     // the list of tags set on the metric
 	Namespace stats.Namespace // the metric namespace (never populated by parsing operations)
+}
+
+// String satisfies the fmt.Stringer interface.
+func (m Metric) String() string {
+	return fmt.Sprint(m)
+}
+
+// Format satisfies the fmt.Formatter interface.
+func (m Metric) Format(f fmt.State, _ rune) {
+	buf := bufferPool.Get().(*buffer)
+	buf.b = appendMetric(buf.b[:0], m)
+	f.Write(buf.b)
+	bufferPool.Put(buf)
+}
+
+type buffer struct {
+	b []byte
+}
+
+var bufferPool = sync.Pool{
+	New: func() interface{} { return &buffer{make([]byte, 0, 512)} },
 }
