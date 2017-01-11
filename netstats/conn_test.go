@@ -13,6 +13,15 @@ import (
 	"github.com/segmentio/stats"
 )
 
+func TestBaseConn(t *testing.T) {
+	c1 := &testConn{}
+	c2 := &conn{Conn: c1}
+
+	if base := c2.BaseConn(); base != c1 {
+		t.Error("bad base:", base)
+	}
+}
+
 func TestConn(t *testing.T) {
 	engine := stats.NewDefaultEngine()
 	defer engine.Close()
