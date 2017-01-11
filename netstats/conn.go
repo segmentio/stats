@@ -44,7 +44,7 @@ type conn struct {
 	errors   stats.Counter
 }
 
-func (c *conn) Base() net.Conn {
+func (c *conn) BaseConn() net.Conn {
 	return c.Conn
 }
 
