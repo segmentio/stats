@@ -44,6 +44,10 @@ type conn struct {
 	errors   stats.Counter
 }
 
+func (c *conn) Base() net.Conn {
+	return c.Conn
+}
+
 func (c *conn) Close() (err error) {
 	err = c.Conn.Close()
 	c.once.Do(func() {
