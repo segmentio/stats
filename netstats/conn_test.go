@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/segmentio/netx"
 	"github.com/segmentio/stats"
 )
 
@@ -17,7 +18,7 @@ func TestBaseConn(t *testing.T) {
 	c1 := &testConn{}
 	c2 := &conn{Conn: c1}
 
-	if base := c2.BaseConn(); base != c1 {
+	if base := netx.BaseConn(c2); base != c1 {
 		t.Error("bad base:", base)
 	}
 }
