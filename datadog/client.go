@@ -205,7 +205,7 @@ func metrics(state []stats.Metric, counters map[string]counter, now time.Time) [
 			}
 
 			counters[m.Key] = counter{
-				value:   value,
+				value:   m.Value,
 				modTime: now,
 			}
 

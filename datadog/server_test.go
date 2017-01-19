@@ -45,6 +45,11 @@ func TestServer(t *testing.T) {
 	ma.Incr()
 	ma.Incr()
 
+	// Test that the counter properly computes the delta between flushes of the
+	// client.
+	time.Sleep(10 * time.Millisecond)
+	ma.Incr()
+
 	mb := stats.MakeGauge(engine, "B")
 	mb.Set(1)
 	mb.Set(2)
@@ -57,7 +62,7 @@ func TestServer(t *testing.T) {
 
 	time.Sleep(10 * time.Millisecond)
 
-	if n := atomic.LoadUint32(&a); n != 2 { // two increments (+1, +1)
+	if n := atomic.LoadUint32(&a); n != 3 { // two increments (+1, +1, +1)
 		t.Error("datadog.test.A: bad count:", n)
 	}
 
