@@ -109,7 +109,7 @@ func run(c ClientConfig, tick *time.Ticker, done <-chan struct{}, join chan<- st
 	if c.Output == nil {
 		var err error
 		if c.Output, err = net.Dial("udp", c.Address); err != nil {
-			log.Print(err)
+			log.Printf("stats/datadog: %s", err)
 			return
 		}
 	}
