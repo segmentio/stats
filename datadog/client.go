@@ -109,7 +109,7 @@ func run(c ClientConfig, tick *time.Ticker, done <-chan struct{}, join chan<- st
 	if c.Output == nil {
 		var err error
 		if c.Output, err = net.Dial("udp", c.Address); err != nil {
-			log.Print(err)
+			log.Printf("stats/datadog: %s", err)
 			return
 		}
 	}
@@ -150,6 +150,8 @@ mainLoop:
 }
 
 func write(w io.Writer, b1 []byte, b2 []byte, changes []Metric) {
+	writer := writeLogger{w}
+
 	// Write all changed metrics to the client buffer in order to send
 	// it to the datadog agent.
 	for _, m := range changes {
@@ -160,13 +162,13 @@ func write(w io.Writer, b1 []byte, b2 []byte, changes []Metric) {
 			// simply write it straight to the output and hope for the
 			// best (it'll likely be discarded because it's bigger than
 			// what a UDP datagram can carry).
-			w.Write(b1)
+			writer.Write(b1)
 			continue
 		}
 
 		if (len(b1) + len(b2)) > cap(b2) {
 			// The output buffer is full, flushing to the writer.
-			w.Write(b2)
+			writer.Write(b2)
 			b2 = b2[:0]
 		}
 
@@ -175,7 +177,17 @@ func write(w io.Writer, b1 []byte, b2 []byte, changes []Metric) {
 
 	// Flush any remaining data in the output buffer.
 	if len(b2) != 0 {
-		w.Write(b2)
+		writer.Write(b2)
+	}
+}
+
+type writeLogger struct {
+	io.Writer
+}
+
+func (wl writeLogger) Write(b []byte) {
+	if _, err := wl.Writer.Write(b); err != nil {
+		log.Printf("stats/datadog: %s", err)
 	}
 }
 
