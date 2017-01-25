@@ -68,7 +68,7 @@ func NewClient(config ClientConfig) *Client {
 		config.Address = DefaultAddress
 	}
 
-	if config.BufferSize == 0 {
+	if config.BufferSize == 0 || config.BufferSize > 65507 {
 		config.BufferSize = DefaultBufferSize
 	}
 
@@ -118,6 +118,11 @@ func socket(address string, sizehint int) (conn net.Conn, bufsize int, err error
 	defer f.Close()
 	fd := int(f.Fd())
 
+	// The kernel refuses to send UDP datagrams that are larger than the size of
+	// the size of the socket send buffer. To maximize the number of metrics
+	// sent in one batch we attempt to attempt to adjust the kernel buffer size
+	// to accept larger datagrams, or fallback to the default socket buffer size
+	// if it failed.
 	if bufsize, err = syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_SNDBUF); err != nil {
 		conn.Close()
 		return
