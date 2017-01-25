@@ -368,6 +368,6 @@ func (m *messageBody) complete() {
 
 type nullBody struct{}
 
-func (n nullBody) Close() error { return nil }
+func (n *nullBody) Close() error { return nil }
 
-func (n nullBody) Read(b []byte) (int, error) { return 0, io.EOF }
+func (n *nullBody) Read(b []byte) (int, error) { return 0, io.EOF }

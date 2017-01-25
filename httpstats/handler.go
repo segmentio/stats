@@ -9,19 +9,21 @@ import (
 	"github.com/segmentio/stats"
 )
 
-func NewHandler(eng *stats.Engine, handler http.Handler, tags ...stats.Tag) http.Handler {
-	return &httpHandler{
-		handler: handler,
+// NewHandler wraps h to produce metrics on eng for every request received and
+// every response sent.
+func NewHandler(eng *stats.Engine, h http.Handler, tags ...stats.Tag) http.Handler {
+	return &handler{
+		handler: h,
 		metrics: MakeServerMetrics(eng, tags...),
 	}
 }
 
-type httpHandler struct {
+type handler struct {
 	handler http.Handler
 	metrics Metrics
 }
 
-func (h *httpHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
+func (h *handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	start := time.Now()
 
 	req.Body, _ = h.metrics.ObserveRequest(req)
@@ -32,13 +34,8 @@ func (h *httpHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		start:          start,
 		metrics:        h.metrics,
 	}
-	res = w
 
-	if _, ok := w.ResponseWriter.(http.Hijacker); ok {
-		res = httpResponseHijacker{w}
-	}
-
-	h.handler.ServeHTTP(res, req)
+	h.handler.ServeHTTP(w, req)
 	w.complete()
 }
 
@@ -70,6 +67,13 @@ func (w *httpResponseWriter) Write(b []byte) (n int, err error) {
 	return
 }
 
+func (w *httpResponseWriter) Hijack() (conn net.Conn, buf *bufio.ReadWriter, err error) {
+	if conn, buf, err = w.ResponseWriter.(http.Hijacker).Hijack(); err == nil {
+		w.complete()
+	}
+	return
+}
+
 func (w *httpResponseWriter) complete() {
 	if w.header != nil {
 		w.req.Body.Close()
@@ -97,15 +101,4 @@ func (w *httpResponseWriter) complete() {
 		w.metrics.observeBodyLength(w.bytes, tags, rawTags, now)
 		w.metrics.observeRTT(now.Sub(w.start), tags, rawTags, now)
 	}
-}
-
-type httpResponseHijacker struct {
-	*httpResponseWriter
-}
-
-func (w httpResponseHijacker) Hijack() (conn net.Conn, buf *bufio.ReadWriter, err error) {
-	if conn, buf, err = w.ResponseWriter.(http.Hijacker).Hijack(); err == nil {
-		w.complete()
-	}
-	return
 }
