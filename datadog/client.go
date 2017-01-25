@@ -4,8 +4,10 @@ import (
 	"io"
 	"log"
 	"net"
+	"os"
 	"runtime"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/segmentio/stats"
@@ -66,7 +68,7 @@ func NewClient(config ClientConfig) *Client {
 		config.Address = DefaultAddress
 	}
 
-	if config.BufferSize == 0 {
+	if config.BufferSize == 0 || config.BufferSize > 65507 {
 		config.BufferSize = DefaultBufferSize
 	}
 
@@ -102,24 +104,66 @@ func (c *Client) close() {
 	<-c.join
 }
 
+func socket(address string, sizehint int) (conn net.Conn, bufsize int, err error) {
+	var f *os.File
+
+	if conn, err = net.Dial("udp", address); err != nil {
+		return
+	}
+
+	if f, err = conn.(*net.UDPConn).File(); err != nil {
+		conn.Close()
+		return
+	}
+	defer f.Close()
+	fd := int(f.Fd())
+
+	// The kernel refuses to send UDP datagrams that are larger than the size of
+	// the size of the socket send buffer. To maximize the number of metrics
+	// sent in one batch we attempt to attempt to adjust the kernel buffer size
+	// to accept larger datagrams, or fallback to the default socket buffer size
+	// if it failed.
+	if bufsize, err = syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_SNDBUF); err != nil {
+		conn.Close()
+		return
+	}
+
+	for sizehint > bufsize && sizehint > 0 {
+		if err := syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_SNDBUF, sizehint); err == nil {
+			bufsize = sizehint
+			break
+		}
+		sizehint /= 2
+	}
+
+	// Creating the file put the socket in blocking mode, reverting.
+	syscall.SetNonblock(fd, true)
+	return
+}
+
 func run(c ClientConfig, tick *time.Ticker, done <-chan struct{}, join chan<- struct{}, timeout time.Duration) {
+	var bufferSize int
+
 	defer close(join)
 	defer tick.Stop()
 
-	if c.Output == nil {
+	for c.Output == nil {
 		var err error
-		if c.Output, err = net.Dial("udp", c.Address); err != nil {
+		if c.Output, bufferSize, err = socket(c.Address, c.BufferSize); err != nil {
 			log.Printf("stats/datadog: %s", err)
-			return
+			select {
+			case <-time.After(1 * time.Second):
+			case <-done:
+				return
+			}
 		}
 	}
-
 	defer c.Output.Close()
 
 	var version uint64                      // last version seen by the client
 	var counters = make(map[string]counter) // cache of previous counter values
 	var b1 = make([]byte, 0, 1024)
-	var b2 = make([]byte, 0, c.BufferSize)
+	var b2 = make([]byte, 0, bufferSize)
 
 	// On each tick, fetch the state of the engine and write the metrics that
 	// have changed since the last loop iteration.
