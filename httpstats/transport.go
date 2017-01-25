@@ -9,19 +9,21 @@ import (
 	"github.com/segmentio/stats"
 )
 
-func NewTransport(eng *stats.Engine, transport http.RoundTripper, tags ...stats.Tag) http.RoundTripper {
-	return &httpTransport{
-		transport: transport,
+// NewTransport wraps t to produce metrics on eng for every request sent and
+// every response received.
+func NewTransport(eng *stats.Engine, t http.RoundTripper, tags ...stats.Tag) http.RoundTripper {
+	return &transport{
+		transport: t,
 		metrics:   MakeClientMetrics(eng, tags...),
 	}
 }
 
-type httpTransport struct {
+type transport struct {
 	transport http.RoundTripper
 	metrics   Metrics
 }
 
-func (t *httpTransport) RoundTrip(req *http.Request) (res *http.Response, err error) {
+func (t *transport) RoundTrip(req *http.Request) (res *http.Response, err error) {
 	var tags []stats.Tag
 	var start = time.Now()
 
@@ -30,7 +32,7 @@ func (t *httpTransport) RoundTrip(req *http.Request) (res *http.Response, err er
 	}
 
 	if req.Body == nil {
-		req.Body = nullBody{}
+		req.Body = &nullBody{}
 	}
 
 	req.Body, tags = t.metrics.ObserveRequest(req)
@@ -43,7 +45,7 @@ func (t *httpTransport) RoundTrip(req *http.Request) (res *http.Response, err er
 
 	if res != nil {
 		body, tags := t.metrics.ObserveResponse(res)
-		res.Body = &httpTransportResponseBody{
+		res.Body = &transportResponseBody{
 			ReadCloser: body,
 			metrics:    t.metrics,
 			tags:       tags,
@@ -54,7 +56,7 @@ func (t *httpTransport) RoundTrip(req *http.Request) (res *http.Response, err er
 	return
 }
 
-type httpTransportResponseBody struct {
+type transportResponseBody struct {
 	io.ReadCloser
 	metrics Metrics
 	tags    []stats.Tag
@@ -62,13 +64,13 @@ type httpTransportResponseBody struct {
 	once    sync.Once
 }
 
-func (t *httpTransportResponseBody) Close() (err error) {
+func (t *transportResponseBody) Close() (err error) {
 	err = t.ReadCloser.Close()
 	t.once.Do(t.complete)
 	return
 }
 
-func (t *httpTransportResponseBody) complete() {
+func (t *transportResponseBody) complete() {
 	now := time.Now()
 	t.metrics.observeRTT(now.Sub(t.start), t.tags, stats.MakeRawTags(t.tags), now)
 }

@@ -73,7 +73,7 @@ func TestUrlLength(t *testing.T) {
 
 	tests := []*url.URL{
 		newURL("/"),
-		newURL("[::1]:4242/hello/world"),
+		newURL("http://127.0.0.1:4242/hello/world"),
 		newURL("http://localhost/?A=1&B=2"),
 		newURL("http://luke:1234@localhost:4242/hello/world?A=1&B=2#space"),
 	}
@@ -127,7 +127,7 @@ func TestRequestLength(t *testing.T) {
 			ContentLength:    -1,
 			TransferEncoding: req.TransferEncoding,
 			Header:           copyHeader(req.Header),
-			Body:             nullBody{},
+			Body:             &nullBody{},
 		}
 		if r.ContentLength >= 0 {
 			r.Header.Set("Content-Length", strconv.FormatInt(r.ContentLength, 10))
@@ -146,7 +146,7 @@ func TestRequestLength(t *testing.T) {
 			Host:          "localhost",
 			ContentLength: 11,
 			Header:        http.Header{"Content-Type": {"text/plain"}},
-			Body:          nullBody{},
+			Body:          &nullBody{},
 		},
 	}
 
@@ -173,7 +173,7 @@ func TestResponseLength(t *testing.T) {
 			Trailer:          res.Trailer,
 			ContentLength:    -1,
 			Header:           copyHeader(res.Header),
-			Body:             nullBody{},
+			Body:             &nullBody{},
 		}
 		if r.ContentLength >= 0 {
 			r.Header.Set("Content-Length", strconv.FormatInt(res.ContentLength, 10))
