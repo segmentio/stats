@@ -90,9 +90,7 @@ func Time(name string, start time.Time, tags ...Tag) *Clock {
 // Duration reports a duration value of the metric identified by name and tags,
 // a new timer is created in the default engine if none existed.
 func Duration(name string, value time.Duration, tags ...Tag) {
-	t0 := time.Time{}
-	t1 := t0.Add(value)
-	Time(name, t0).StopAt(t1)
+	T(name, tags...).Duration(value)
 }
 
 // NewDefaultEngine creates and returns an engine configured with default settings.

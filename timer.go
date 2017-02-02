@@ -43,6 +43,13 @@ func (t Timer) Clone(tags ...Tag) Timer {
 	return makeTimer(t.eng, t.name, concatTags(t.tags, tags))
 }
 
+// Duration is used to report a precomputed duration d on the timer t.
+func (t Timer) Duration(d time.Duration) {
+	t0 := time.Time{}
+	t1 := t0.Add(d)
+	t.StartAt(t0).StopAt(t1)
+}
+
 // Start the timer, returning a clock object that should be used to publish the
 // timer metrics.
 func (t Timer) Start() *Clock {
