@@ -87,6 +87,12 @@ func Time(name string, start time.Time, tags ...Tag) *Clock {
 	return T(name, tags...).StartAt(start)
 }
 
+// Duration reports a duration value of the metric identified by name and tags,
+// a new timer is created in the default engine if none existed.
+func Duration(name string, value time.Duration, tags ...Tag) {
+	T(name, tags...).Duration(value)
+}
+
 // NewDefaultEngine creates and returns an engine configured with default settings.
 func NewDefaultEngine() *Engine {
 	return NewEngine(EngineConfig{Prefix: progname()})
