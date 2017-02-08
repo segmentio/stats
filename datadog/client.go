@@ -14,11 +14,14 @@ import (
 )
 
 const (
+	// MaxBufferSize is a hard-limit on the max size of the datagram buffer.
+	MaxBufferSize = 65507
+
 	// DefaultAddress is the default address to which clients connection to.
 	DefaultAddress = "localhost:8125"
 
 	// DefaultBufferSize is the default size of the client buffer.
-	DefaultBufferSize = 65507
+	DefaultBufferSize = MaxBufferSize
 
 	// DefaultFlushInterval is the default interval at which clients flush
 	// metrics from their stats engine.
@@ -128,12 +131,24 @@ func socket(address string, sizehint int) (conn net.Conn, bufsize int, err error
 		return
 	}
 
+	// The kernel applies a 2x factor on the socket buffer size, only half of it
+	// is available to write datagrams from user-space, the other half is used
+	// by the kernel directly.
+	bufsize /= 2
+
 	for sizehint > bufsize && sizehint > 0 {
 		if err := syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_SNDBUF, sizehint); err == nil {
 			bufsize = sizehint
 			break
 		}
 		sizehint /= 2
+	}
+
+	// Even tho the buffer agrees to support a bigger size it shouldn't be
+	// possible to send datagrams larger than 65 KB on an IPv4 socket, so let's
+	// enforce the max size.
+	if bufsize > MaxBufferSize {
+		bufsize = MaxBufferSize
 	}
 
 	// Creating the file put the socket in blocking mode, reverting.
@@ -194,7 +209,10 @@ mainLoop:
 }
 
 func write(w io.Writer, b1 []byte, b2 []byte, changes []Metric) {
-	writer := writeLogger{w}
+	writer := writeLogger{
+		Writer:  w,
+		bufsize: cap(b2),
+	}
 
 	// Write all changed metrics to the client buffer in order to send
 	// it to the datadog agent.
@@ -202,11 +220,7 @@ func write(w io.Writer, b1 []byte, b2 []byte, changes []Metric) {
 		b1 = appendMetric(b1[:0], m)
 
 		if len(b1) > cap(b2) {
-			// The metric is too large to fit in the output buffer, we
-			// simply write it straight to the output and hope for the
-			// best (it'll likely be discarded because it's bigger than
-			// what a UDP datagram can carry).
-			writer.Write(b1)
+			log.Printf("stats/datadog: discarding metric because it doesn't fit in the write buffer: %s.%s (size = %d, max = %d)", m.Namespace, m.Name, len(b1), cap(b2))
 			continue
 		}
 
@@ -227,11 +241,12 @@ func write(w io.Writer, b1 []byte, b2 []byte, changes []Metric) {
 
 type writeLogger struct {
 	io.Writer
+	bufsize int
 }
 
 func (wl writeLogger) Write(b []byte) {
 	if _, err := wl.Writer.Write(b); err != nil {
-		log.Printf("stats/datadog: %s", err)
+		log.Printf("stats/datadog: %s (size = %d, max = %d)", err, len(b), wl.bufsize)
 	}
 }
 
