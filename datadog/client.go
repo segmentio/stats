@@ -14,11 +14,14 @@ import (
 )
 
 const (
+	// MaxBufferSize is a hard-limit on the max size of the datagram buffer.
+	MaxBufferSize = 65507
+
 	// DefaultAddress is the default address to which clients connection to.
 	DefaultAddress = "localhost:8125"
 
 	// DefaultBufferSize is the default size of the client buffer.
-	DefaultBufferSize = 65507
+	DefaultBufferSize = MaxBufferSize
 
 	// DefaultFlushInterval is the default interval at which clients flush
 	// metrics from their stats engine.
@@ -139,6 +142,13 @@ func socket(address string, sizehint int) (conn net.Conn, bufsize int, err error
 			break
 		}
 		sizehint /= 2
+	}
+
+	// Even tho the buffer agrees to support a bigger size it shouldn't be
+	// possible to send datagrams larger than 65 KB on an IPv4 socket, so let's
+	// enforce the max size.
+	if bufsize > MaxBufferSize {
+		bufsize = MaxBufferSize
 	}
 
 	// Creating the file put the socket in blocking mode, reverting.
