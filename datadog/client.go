@@ -201,7 +201,7 @@ mainLoop:
 func write(w io.Writer, b1 []byte, b2 []byte, changes []Metric) {
 	writer := writeLogger{
 		Writer:  w,
-		bufSize: cap(b2),
+		bufsize: cap(b2),
 	}
 
 	// Write all changed metrics to the client buffer in order to send
@@ -231,12 +231,12 @@ func write(w io.Writer, b1 []byte, b2 []byte, changes []Metric) {
 
 type writeLogger struct {
 	io.Writer
-	bufSize int
+	bufsize int
 }
 
 func (wl writeLogger) Write(b []byte) {
 	if _, err := wl.Writer.Write(b); err != nil {
-		log.Printf("stats/datadog: %s (size = %d, max = %d)", err, len(b), wl.bufSize)
+		log.Printf("stats/datadog: %s (size = %d, max = %d)", err, len(b), wl.bufsize)
 	}
 }
 
