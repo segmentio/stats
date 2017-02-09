@@ -21,7 +21,7 @@ const (
 	DefaultAddress = "localhost:8125"
 
 	// DefaultBufferSize is the default size of the client buffer.
-	DefaultBufferSize = MaxBufferSize
+	DefaultBufferSize = 8192
 
 	// DefaultFlushInterval is the default interval at which clients flush
 	// metrics from their stats engine.
@@ -149,6 +149,16 @@ func socket(address string, sizehint int) (conn net.Conn, bufsize int, err error
 	// enforce the max size.
 	if bufsize > MaxBufferSize {
 		bufsize = MaxBufferSize
+	}
+
+	// Use the size hint as an upper bound, event if the socket buffer is
+	// larger, this gives control in situations where the receive buffer size
+	// on the other side is known but cannot be controlled so the client does
+	// not produce datagrams that are too large for the receiver.
+	//
+	// Related issue: https://github.com/DataDog/dd-agent/issues/2638
+	if bufsize > sizehint {
+		bufsize = sizehint
 	}
 
 	// Creating the file put the socket in blocking mode, reverting.
