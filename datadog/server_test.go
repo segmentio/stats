@@ -23,7 +23,7 @@ func TestServer(t *testing.T) {
 			atomic.AddUint32(&a, uint32(m.Value))
 
 		case "datadog.test.B":
-			atomic.AddUint32(&b, uint32(m.Value))
+			atomic.StoreUint32(&b, uint32(m.Value)) // gauge
 
 		case "datadog.test.C":
 			atomic.AddUint32(&c, uint32(m.Value))
@@ -63,15 +63,15 @@ func TestServer(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	if n := atomic.LoadUint32(&a); n != 3 { // two increments (+1, +1, +1)
-		t.Error("datadog.test.A: bad count:", n)
+		t.Error("datadog.test.A: bad value:", n)
 	}
 
 	if n := atomic.LoadUint32(&b); n != 3 { // three assignments (=1, =2, =3)
-		t.Error("datadog.test.B: bad count:", n)
+		t.Error("datadog.test.B: bad value:", n)
 	}
 
-	if n := atomic.LoadUint32(&c); n != 2 { // observed values are averaged ((1 + 2 + 3) / 3)
-		t.Error("datadog.test.C: bad count:", n)
+	if n := atomic.LoadUint32(&c); n != 6 { // observed values, all reported (+1, +2, +3)
+		t.Error("datadog.test.C: bad value:", n)
 	}
 }
 
