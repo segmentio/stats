@@ -4,22 +4,12 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/segmentio/stats/iostats"
 )
-
-func TestCopyHeader(t *testing.T) {
-	h1 := http.Header{"Content-Type": {"text/plain"}, "Content-Length": {"11"}}
-	h2 := copyHeader(h1)
-
-	if !reflect.DeepEqual(h1, h2) {
-		t.Errorf("%v != %v", h1, h2)
-	}
-}
 
 func TestResponseStatusBucket(t *testing.T) {
 	tests := []struct {
@@ -309,4 +299,14 @@ func TestParseContentType(t *testing.T) {
 			}
 		})
 	}
+}
+
+func copyHeader(h http.Header) http.Header {
+	c := make(http.Header)
+	for k, v := range h {
+		for _, x := range v {
+			c.Add(k, x)
+		}
+	}
+	return c
 }

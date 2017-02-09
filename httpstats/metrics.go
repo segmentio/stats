@@ -289,14 +289,6 @@ func responseStatusBucket(status int) string {
 	}
 }
 
-func copyHeader(h http.Header) http.Header {
-	copy := make(http.Header, len(h))
-	for name, value := range h {
-		copy[name] = value
-	}
-	return copy
-}
-
 func contentType(h http.Header) (string, string) {
 	return parseContentType(h.Get("Content-Type"))
 }
@@ -358,12 +350,12 @@ func newMessageBody(metrics Metrics, body io.ReadCloser, tags []stats.Tag, rawTa
 
 func (m *messageBody) Close() (err error) {
 	err = m.Closer.Close()
-	m.once.Do(m.complete)
+	m.complete()
 	return
 }
 
 func (m *messageBody) complete() {
-	m.metrics.observeBodyLength(m.N, m.tags, m.rawTags, time.Now())
+	m.once.Do(func() { m.metrics.observeBodyLength(m.N, m.tags, m.rawTags, time.Now()) })
 }
 
 type nullBody struct{}
