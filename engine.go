@@ -81,6 +81,12 @@ func Set(name string, value float64, tags ...Tag) {
 	G(name, tags...).Set(value)
 }
 
+// Observe reports a value for the metric identified by name and tags, a new
+// histogram is created in the default engine if none existed.
+func Observe(name string, value float64, tags ...Tag) {
+	H(name, tags...).Observe(value)
+}
+
 // Time returns a clock that produces metrics with name and tags and can be used
 // to report durations.
 func Time(name string, start time.Time, tags ...Tag) *Clock {
