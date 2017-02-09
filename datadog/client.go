@@ -182,6 +182,7 @@ func run(c ClientConfig, tick *time.Ticker, done <-chan struct{}, join chan<- st
 				return
 			}
 		}
+		log.Printf("stats/datadog: opened UDP socket to datadog agent at %s, using a send buffer of size %d", c.Address, c.BufferSize)
 	}
 	defer c.Output.Close()
 
