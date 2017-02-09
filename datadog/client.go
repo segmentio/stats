@@ -259,9 +259,6 @@ func metrics(state []stats.Metric, counters map[string]counter, now time.Time) [
 	// List of datadog metrics computed from the state.
 	metrics := make([]Metric, 0, len(state))
 
-	// Aggregation of histograms into a single value.
-	histograms := make(map[string]Metric)
-
 	for _, m := range state {
 		switch m.Type {
 		case stats.CounterType:
@@ -300,29 +297,15 @@ func metrics(state []stats.Metric, counters map[string]counter, now time.Time) [
 			})
 
 		case stats.HistogramType:
-			// Histograms need to be aggregated to report average values.
-			h, ok := histograms[m.Key]
-
-			if !ok {
-				h = Metric{
-					Type:      Histogram,
-					Name:      m.Name,
-					Tags:      m.Tags,
-					Namespace: m.Namespace,
-				}
-			}
-
-			h.Value += m.Value
-			h.Rate += 1 // reuse the field to accumulate the number of samples
-			histograms[m.Key] = h
+			// Histograms are also fully reported to datadog.
+			metrics = append(metrics, Metric{
+				Type:      Histogram,
+				Name:      m.Name,
+				Value:     m.Value,
+				Tags:      m.Tags,
+				Namespace: m.Namespace,
+			})
 		}
-	}
-
-	// Compute the average values and set the sample rate on histograms.
-	for _, h := range histograms {
-		h.Value /= h.Rate   // average value
-		h.Rate = 1 / h.Rate // sample rate
-		metrics = append(metrics, h)
 	}
 
 	return metrics
