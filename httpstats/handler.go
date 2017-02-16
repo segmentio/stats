@@ -12,15 +12,12 @@ import (
 // NewHandler wraps h to produce metrics on the default engine for every request
 // received and every response sent.
 func NewHandler(h http.Handler) http.Handler {
-	return NewHandlerWith(nil, h)
+	return NewHandlerWith(stats.DefaultEngine, h)
 }
 
 // NewHandlerWith wraps h to produce metrics on eng for every request received
 // and every response sent.
 func NewHandlerWith(eng *stats.Engine, h http.Handler) http.Handler {
-	if eng == nil {
-		eng = stats.DefaultEngine
-	}
 	return &handler{
 		handler: h,
 		eng:     eng,

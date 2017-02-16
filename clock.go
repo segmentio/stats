@@ -70,7 +70,7 @@ func (c *Clock) StopAt(now time.Time) {
 
 func (c *Clock) observe(stamp string, now time.Time) {
 	h := c.metric
-	h.tags = append(h.tags, T("stamp", stamp))
+	h.tags = append(h.tags, Tag{"stamp", stamp})
 	h.Observe(now.Sub(c.last).Seconds())
 	c.last = now
 }

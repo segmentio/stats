@@ -53,7 +53,11 @@ func (eng *Engine) Tags() []Tag {
 
 // Handlers returns a slice containing the handlers currently set on the engine.
 func (eng *Engine) Handlers() []Handler {
-	return eng.handlers
+	eng.hmutex.RLock()
+	handlers := make([]Handler, len(eng.handlers))
+	copy(handlers, eng.handlers)
+	eng.hmutex.RUnlock()
+	return handlers
 }
 
 // Register adds handler to eng.
@@ -192,6 +196,12 @@ func G(name string, tags ...Tag) *Gauge {
 // default engine.
 func H(name string, tags ...Tag) *Histogram {
 	return DefaultEngine.Histogram(name, tags...)
+}
+
+// T returns a new timer that produces a metric with name and tags on the
+// default engine.
+func T(name string, tags ...Tag) *Timer {
+	return DefaultEngine.Timer(name, tags...)
 }
 
 // Incr increments by one the metric identified by name and tags, a new counter

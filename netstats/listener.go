@@ -9,13 +9,10 @@ import (
 )
 
 func NewListener(lstn net.Listener) net.Listener {
-	return NewListenerWith(nil, lstn)
+	return NewListenerWith(stats.DefaultEngine, lstn)
 }
 
 func NewListenerWith(eng *stats.Engine, lstn net.Listener) net.Listener {
-	if eng == nil {
-		eng = stats.DefaultEngine
-	}
 	return &listener{
 		lstn: lstn,
 		eng:  eng,
@@ -54,8 +51,8 @@ func (l *listener) Addr() net.Addr {
 func (l *listener) error(op string, err error) {
 	if !netx.IsTemporary(err) {
 		l.eng.Incr("conn.error.count",
-			stats.T("protocol", l.Addr().Network()),
-			stats.T("operation", op),
+			stats.Tag{"protocol", l.Addr().Network()},
+			stats.Tag{"operation", op},
 		)
 	}
 }

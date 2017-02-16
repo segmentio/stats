@@ -6,14 +6,6 @@ type Tag struct {
 	Value string
 }
 
-// T returns a new tag made of name and value.
-func T(name string, value string) Tag {
-	return Tag{
-		Name:  name,
-		Value: value,
-	}
-}
-
 func concatTags(t1 []Tag, t2 []Tag) []Tag {
 	n := len(t1) + len(t2)
 	if n == 0 {

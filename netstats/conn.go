@@ -23,7 +23,7 @@ func NewConnWith(eng *stats.Engine, c net.Conn) net.Conn {
 		eng:   eng,
 		proto: c.LocalAddr().Network(),
 	}
-	eng.Incr("conn.open.count", stats.T("protocol", nc.proto))
+	eng.Incr("conn.open.count", stats.Tag{"protocol", nc.proto})
 	return nc
 }
 
@@ -44,7 +44,7 @@ func (c *conn) Close() (err error) {
 		if err != nil {
 			c.error("close", err)
 		}
-		c.eng.Incr("conn.close.count", stats.T("protocol", c.proto))
+		c.eng.Incr("conn.close.count", stats.Tag{"protocol", c.proto})
 	})
 	return
 }
@@ -53,7 +53,7 @@ func (c *conn) Read(b []byte) (n int, err error) {
 	n, err = c.Conn.Read(b)
 
 	if n >= 0 {
-		c.eng.Observe("conn.read.bytes", float64(n), stats.T("protocol", c.proto))
+		c.eng.Observe("conn.read.bytes", float64(n), stats.Tag{"protocol", c.proto})
 	}
 
 	if err != nil && err != io.EOF {
@@ -67,7 +67,7 @@ func (c *conn) Write(b []byte) (n int, err error) {
 	n, err = c.Conn.Write(b)
 
 	if n >= 0 {
-		c.eng.Observe("conn.write.bytes", float64(n), stats.T("protocol", c.proto))
+		c.eng.Observe("conn.write.bytes", float64(n), stats.Tag{"protocol", c.proto})
 	}
 
 	if err != nil {
@@ -105,7 +105,7 @@ func (c *conn) error(op string, err error) {
 	default:
 		// only report serious errors, others should be handled gracefully
 		if !netx.IsTemporary(err) {
-			c.eng.Incr("conn.error.count", stats.T("protocol", c.proto), stats.T("operation", op))
+			c.eng.Incr("conn.error.count", stats.Tag{"protocol", c.proto}, stats.Tag{"operation", op})
 		}
 	}
 }

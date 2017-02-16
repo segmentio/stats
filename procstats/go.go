@@ -64,8 +64,8 @@ func NewGoMetrics() *GoMetrics {
 // metrics on eng.
 func NewGoMetricsWith(eng *stats.Engine) *GoMetrics {
 	tags := append(make([]stats.Tag, 0, 3),
-		stats.T("runtime", "go"),
-		stats.T("version", runtime.Version()),
+		stats.Tag{"runtime", "go"},
+		stats.Tag{"version", runtime.Version()},
 	)
 
 	g := &GoMetrics{
@@ -74,14 +74,14 @@ func NewGoMetricsWith(eng *stats.Engine) *GoMetrics {
 		numCgoCall:   *eng.Counter("go.runtime.cgo.calls", tags...),
 	}
 
-	tagsTotal := append(tags, stats.T("type", "total"))
+	tagsTotal := append(tags, stats.Tag{"type", "total"})
 	g.alloc = *eng.Gauge("go.memstats.alloc.bytes", tagsTotal...)
 	g.totalAlloc = *eng.Counter("go.memstats.total_alloc.bytes", tagsTotal...)
 	g.lookups = *eng.Counter("go.memstats.lookups.count", tagsTotal...)
 	g.mallocs = *eng.Counter("go.memstats.mallocs.count", tagsTotal...)
 	g.frees = *eng.Counter("go.memstats.frees.count", tagsTotal...)
 
-	tagsHeap := append(tags, stats.T("type", "heap"))
+	tagsHeap := append(tags, stats.Tag{"type", "heap"})
 	g.heapAlloc = *eng.Gauge("go.memstats.alloc.bytes", tagsHeap...)
 	g.heapSys = *eng.Gauge("go.memstats.sys.bytes", tagsHeap...)
 	g.heapIdle = *eng.Gauge("go.memstats.idle.bytes", tagsHeap...)
@@ -89,25 +89,25 @@ func NewGoMetricsWith(eng *stats.Engine) *GoMetrics {
 	g.heapReleased = *eng.Counter("go.memstats.released.bytes", tagsHeap...)
 	g.heapObjects = *eng.Gauge("go.memstats.objects.count", tagsHeap...)
 
-	tagsStack := append(tags, stats.T("type", "stack"))
+	tagsStack := append(tags, stats.Tag{"type", "stack"})
 	g.stackInuse = *eng.Gauge("go.memstats.inuse.bytes", tagsStack...)
 	g.stackSys = *eng.Gauge("go.memstats.sys.bytes", tagsStack...)
 
-	tagsMSpan := append(tags, stats.T("type", "mspan"))
+	tagsMSpan := append(tags, stats.Tag{"type", "mspan"})
 	g.mSpanInuse = *eng.Gauge("go.memstats.inuse.bytes", tagsMSpan...)
 	g.mSpanSys = *eng.Gauge("go.memstats.sys.bytes", tagsMSpan...)
 
-	tagsMCache := append(tags, stats.T("type", "mcache"))
+	tagsMCache := append(tags, stats.Tag{"type", "mcache"})
 	g.mCacheInuse = *eng.Gauge("go.memstats.inuse.bytes", tagsMCache...)
 	g.mCacheSys = *eng.Gauge("go.memstats.sys.bytes", tagsMCache...)
 
-	tagsBuckHash := append(tags, stats.T("type", "bucket_hash_table"))
+	tagsBuckHash := append(tags, stats.Tag{"type", "bucket_hash_table"})
 	g.buckHashSys = *eng.Gauge("go.memstats.sys.bytes", tagsBuckHash...)
 
-	tagsGC := append(tags, stats.T("type", "gc"))
+	tagsGC := append(tags, stats.Tag{"type", "gc"})
 	g.gcSys = *eng.Gauge("go.memstats.sys.bytes", tagsGC...)
 
-	otherTags := append(tags, stats.T("type", "other"))
+	otherTags := append(tags, stats.Tag{"type", "other"})
 	g.otherSys = *eng.Gauge("go.memstats.sys.bytes", otherTags...)
 
 	g.numGC = *eng.Counter("go.memstats.gc.count", tags...)

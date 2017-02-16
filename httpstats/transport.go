@@ -10,15 +10,12 @@ import (
 // NewTransport wraps t to produce metrics on the default engine for every request
 // sent and every response received.
 func NewTransport(t http.RoundTripper) http.RoundTripper {
-	return NewTransportWith(nil, t)
+	return NewTransportWith(stats.DefaultEngine, t)
 }
 
 // NewTransportWith wraps t to produce metrics on eng for every request sent and
 // every response received.
 func NewTransportWith(eng *stats.Engine, t http.RoundTripper) http.RoundTripper {
-	if eng == nil {
-		eng = stats.DefaultEngine
-	}
 	return &transport{
 		transport: t,
 		eng:       eng,

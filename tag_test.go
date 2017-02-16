@@ -5,12 +5,6 @@ import (
 	"testing"
 )
 
-func TestT(t *testing.T) {
-	if tag := T("hello", "world"); tag != (Tag{Name: "hello", Value: "world"}) {
-		t.Error("invalid tag:", tag)
-	}
-}
-
 func TestCopyTags(t *testing.T) {
 	tests := []struct {
 		t1 []Tag

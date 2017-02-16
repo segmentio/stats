@@ -39,9 +39,9 @@ func TestEngineClone(t *testing.T) {
 	eng1.Register(h2)
 
 	eng2 := eng1.Clone(
-		T("A", "1"),
-		T("B", "2"),
-		T("C", "3"),
+		Tag{"A", "1"},
+		Tag{"B", "2"},
+		Tag{"C", "3"},
 	)
 	eng2.Register(h3)
 
@@ -79,12 +79,12 @@ func TestEngineFlush(t *testing.T) {
 
 func TestEngineAdd(t *testing.T) {
 	h := &handler{}
-	e := NewEngineWith("E", T("base", "tag"))
+	e := NewEngineWith("E", Tag{"base", "tag"})
 	e.Register(h)
 
 	e.Incr("A")
 	e.Add("B", 2)
-	e.Add("C", 3, T("extra", "tag"))
+	e.Add("C", 3, Tag{"extra", "tag"})
 
 	if !reflect.DeepEqual(h.metrics, []Metric{
 		{
@@ -115,12 +115,12 @@ func TestEngineAdd(t *testing.T) {
 
 func TestEngineSet(t *testing.T) {
 	h := &handler{}
-	e := NewEngineWith("E", T("base", "tag"))
+	e := NewEngineWith("E", Tag{"base", "tag"})
 	e.Register(h)
 
 	e.Set("A", 1)
 	e.Set("B", 2)
-	e.Set("C", 3, T("extra", "tag"))
+	e.Set("C", 3, Tag{"extra", "tag"})
 
 	if !reflect.DeepEqual(h.metrics, []Metric{
 		{
@@ -151,12 +151,12 @@ func TestEngineSet(t *testing.T) {
 
 func TestEngineObserve(t *testing.T) {
 	h := &handler{}
-	e := NewEngineWith("E", T("base", "tag"))
+	e := NewEngineWith("E", Tag{"base", "tag"})
 	e.Register(h)
 
 	e.Observe("A", 1)
 	e.Observe("B", 2)
-	e.Observe("C", 3, T("extra", "tag"))
+	e.Observe("C", 3, Tag{"extra", "tag"})
 
 	if !reflect.DeepEqual(h.metrics, []Metric{
 		{
@@ -187,12 +187,12 @@ func TestEngineObserve(t *testing.T) {
 
 func TestEngineObserveDuration(t *testing.T) {
 	h := &handler{}
-	e := NewEngineWith("E", T("base", "tag"))
+	e := NewEngineWith("E", Tag{"base", "tag"})
 	e.Register(h)
 
 	e.ObserveDuration("A", 1*time.Second)
 	e.ObserveDuration("B", 2*time.Second)
-	e.ObserveDuration("C", 3*time.Second, T("extra", "tag"))
+	e.ObserveDuration("C", 3*time.Second, Tag{"extra", "tag"})
 
 	if !reflect.DeepEqual(h.metrics, []Metric{
 		{
@@ -222,8 +222,8 @@ func TestEngineObserveDuration(t *testing.T) {
 }
 
 func TestEngineCounter(t *testing.T) {
-	e := NewEngineWith("E", T("base", "tag"))
-	c := e.Counter("C", T("extra", "tag"))
+	e := NewEngineWith("E", Tag{"base", "tag"})
+	c := e.Counter("C", Tag{"extra", "tag"})
 
 	if name := c.Name(); name != "C" {
 		t.Error("bad counter name:", name)
@@ -235,8 +235,8 @@ func TestEngineCounter(t *testing.T) {
 }
 
 func TestEngineGauge(t *testing.T) {
-	e := NewEngineWith("E", T("base", "tag"))
-	g := e.Gauge("G", T("extra", "tag"))
+	e := NewEngineWith("E", Tag{"base", "tag"})
+	g := e.Gauge("G", Tag{"extra", "tag"})
 
 	if name := g.Name(); name != "G" {
 		t.Error("bad gauge name:", name)
@@ -248,8 +248,8 @@ func TestEngineGauge(t *testing.T) {
 }
 
 func TestEngineHistogram(t *testing.T) {
-	e := NewEngineWith("E", T("base", "tag"))
-	h := e.Histogram("H", T("extra", "tag"))
+	e := NewEngineWith("E", Tag{"base", "tag"})
+	h := e.Histogram("H", Tag{"extra", "tag"})
 
 	if name := h.Name(); name != "H" {
 		t.Error("bad histogram name:", name)
@@ -261,8 +261,8 @@ func TestEngineHistogram(t *testing.T) {
 }
 
 func TestEngineTimer(t *testing.T) {
-	e := NewEngineWith("E", T("base", "tag"))
-	h := e.Timer("H", T("extra", "tag"))
+	e := NewEngineWith("E", Tag{"base", "tag"})
+	h := e.Timer("H", Tag{"extra", "tag"})
 
 	if name := h.Name(); name != "H" {
 		t.Error("bad timer name:", name)

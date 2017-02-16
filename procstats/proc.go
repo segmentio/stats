@@ -63,18 +63,18 @@ func NewProcMetricsWith(eng *stats.Engine, pid int) *ProcMetrics {
 	return &ProcMetrics{
 		pid: pid,
 		cpu: procCPU{
-			user: *eng.Counter("cpu.usage.seconds", stats.T("type", "user")),
-			sys:  *eng.Counter("cpu.usage.seconds", stats.T("type", "system")),
+			user: *eng.Counter("cpu.usage.seconds", stats.Tag{"type", "user"}),
+			sys:  *eng.Counter("cpu.usage.seconds", stats.Tag{"type", "system"}),
 		},
 		memory: procMemory{
 			available:       *eng.Gauge("memory.available.bytes"),
 			size:            *eng.Gauge("memory.total.bytes"),
-			resident:        *eng.Gauge("memory.usage.bytes", stats.T("type", "resident")),
-			shared:          *eng.Gauge("memory.usage.bytes", stats.T("type", "shared")),
-			text:            *eng.Gauge("memory.usage.bytes", stats.T("type", "text")),
-			data:            *eng.Gauge("memory.usage.bytes", stats.T("type", "data")),
-			majorPageFaults: *eng.Counter("memory.pagefault.count", stats.T("type", "major")),
-			minorPageFaults: *eng.Counter("memory.pagefault.count", stats.T("type", "minor")),
+			resident:        *eng.Gauge("memory.usage.bytes", stats.Tag{"type", "resident"}),
+			shared:          *eng.Gauge("memory.usage.bytes", stats.Tag{"type", "shared"}),
+			text:            *eng.Gauge("memory.usage.bytes", stats.Tag{"type", "text"}),
+			data:            *eng.Gauge("memory.usage.bytes", stats.Tag{"type", "data"}),
+			majorPageFaults: *eng.Counter("memory.pagefault.count", stats.Tag{"type", "major"}),
+			minorPageFaults: *eng.Counter("memory.pagefault.count", stats.Tag{"type", "minor"}),
 		},
 		files: procFiles{
 			open: *eng.Gauge("files.open.count"),
@@ -82,8 +82,8 @@ func NewProcMetricsWith(eng *stats.Engine, pid int) *ProcMetrics {
 		},
 		threads: procThreads{
 			num: *eng.Gauge("thread.count"),
-			voluntaryContextSwitches:   *eng.Counter("thread.switch.count", stats.T("type", "voluntary")),
-			involuntaryContextSwitches: *eng.Counter("thread.switch.count", stats.T("type", "involuntary")),
+			voluntaryContextSwitches:   *eng.Counter("thread.switch.count", stats.Tag{"type", "voluntary"}),
+			involuntaryContextSwitches: *eng.Counter("thread.switch.count", stats.Tag{"type", "involuntary"}),
 		},
 	}
 }
