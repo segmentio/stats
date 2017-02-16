@@ -15,16 +15,17 @@ const (
 	Counter   MetricType = "c"
 	Gauge     MetricType = "g"
 	Histogram MetricType = "h"
+	Unknown   MetricType = "?"
 )
 
 // The Metric type is a representation of the metrics supported by datadog.
 type Metric struct {
-	Type      MetricType      // the metric type
-	Name      string          // the metric name
-	Value     float64         // the metric value
-	Rate      float64         // sample rate, a value between 0 and 1
-	Tags      []stats.Tag     // the list of tags set on the metric
-	Namespace stats.Namespace // the metric namespace (never populated by parsing operations)
+	Type      MetricType  // the metric type
+	Namespace string      // the metric namespace (never populated by parsing operations)
+	Name      string      // the metric name
+	Value     float64     // the metric value
+	Rate      float64     // sample rate, a value between 0 and 1
+	Tags      []stats.Tag // the list of tags set on the metric
 }
 
 // String satisfies the fmt.Stringer interface.
@@ -38,6 +39,19 @@ func (m Metric) Format(f fmt.State, _ rune) {
 	buf.b = appendMetric(buf.b[:0], m)
 	f.Write(buf.b)
 	bufferPool.Put(buf)
+}
+
+func metricType(m *stats.Metric) MetricType {
+	switch m.Type {
+	case stats.CounterType:
+		return Counter
+	case stats.GaugeType:
+		return Gauge
+	case stats.HistogramType:
+		return Histogram
+	default:
+		return Unknown
+	}
 }
 
 type buffer struct {
