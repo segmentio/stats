@@ -1,76 +1,71 @@
 package httpstats
 
 import (
-	"io"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/segmentio/stats"
 )
 
-// NewTransport wraps t to produce metrics on eng for every request sent and
+// NewTransport wraps t to produce metrics on the default engine for every request
+// sent and every response received.
+func NewTransport(t http.RoundTripper) http.RoundTripper {
+	return NewTransportWith(nil, t)
+}
+
+// NewTransportWith wraps t to produce metrics on eng for every request sent and
 // every response received.
-func NewTransport(eng *stats.Engine, t http.RoundTripper, tags ...stats.Tag) http.RoundTripper {
+func NewTransportWith(eng *stats.Engine, t http.RoundTripper) http.RoundTripper {
+	if eng == nil {
+		eng = stats.DefaultEngine
+	}
 	return &transport{
 		transport: t,
-		metrics:   MakeClientMetrics(eng, tags...),
+		eng:       eng,
 	}
 }
 
 type transport struct {
 	transport http.RoundTripper
-	metrics   Metrics
+	eng       *stats.Engine
 }
 
 func (t *transport) RoundTrip(req *http.Request) (res *http.Response, err error) {
-	var tags []stats.Tag
-	var start = time.Now()
+	start := time.Now()
+	rtrip := t.transport
 
-	if t.transport == nil {
-		t.transport = http.DefaultTransport
+	if rtrip == nil {
+		rtrip = http.DefaultTransport
 	}
 
 	if req.Body == nil {
 		req.Body = &nullBody{}
 	}
 
-	req.Body, tags = t.metrics.ObserveRequest(req)
-	res, err = t.transport.RoundTrip(req)
+	req.Body = &requestBody{
+		eng:  t.eng,
+		req:  req,
+		body: req.Body,
+		op:   "write",
+	}
+
+	res, err = rtrip.RoundTrip(req)
 	req.Body.Close() // safe guard, the transport should have done it already
 
 	if err != nil {
-		t.metrics.incrErrorCounter(tags, stats.MakeRawTags(tags), start)
+		m := metrics{t.eng}
+		m.observeError(req, "write")
 	}
 
 	if res != nil {
-		body, tags := t.metrics.ObserveResponse(res)
-		res.Body = &transportResponseBody{
-			ReadCloser: body,
-			metrics:    t.metrics,
-			tags:       tags,
-			start:      start,
+		res.Body = &responseBody{
+			eng:   t.eng,
+			res:   res,
+			body:  res.Body,
+			op:    "read",
+			start: start,
 		}
 	}
 
 	return
-}
-
-type transportResponseBody struct {
-	io.ReadCloser
-	metrics Metrics
-	tags    []stats.Tag
-	start   time.Time
-	once    sync.Once
-}
-
-func (t *transportResponseBody) Close() (err error) {
-	err = t.ReadCloser.Close()
-	t.once.Do(t.complete)
-	return
-}
-
-func (t *transportResponseBody) complete() {
-	now := time.Now()
-	t.metrics.observeRTT(now.Sub(t.start), t.tags, stats.MakeRawTags(t.tags), now)
 }

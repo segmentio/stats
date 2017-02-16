@@ -7,9 +7,22 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/segmentio/stats"
 	"github.com/segmentio/stats/iostats"
 )
+
+type metricHandler struct {
+	metrics []stats.Metric
+}
+
+func (h *metricHandler) HandleMetric(m *stats.Metric) {
+	c := *m
+	c.Tags = append([]stats.Tag{}, m.Tags...)
+	c.Time = time.Time{} // discard because it's unpredicatable
+	h.metrics = append(h.metrics, c)
+}
 
 func TestResponseStatusBucket(t *testing.T) {
 	tests := []struct {
