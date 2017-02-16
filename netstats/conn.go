@@ -11,11 +11,6 @@ import (
 	"github.com/segmentio/stats"
 )
 
-const (
-	protocol  = "protocol"
-	operation = "operation"
-)
-
 // NewConn returns a net.Conn object that wraps c and produces metrics on eng.
 //
 // If eng is nil, the default engine is used.
@@ -31,7 +26,7 @@ func NewConn(eng *stats.Engine, c net.Conn) net.Conn {
 	}
 	runtime.SetFinalizer(nc, func(c *conn) { c.Close() })
 
-	eng.Incr("conn.open.count", stats.T(protocol, nc.proto))
+	eng.Incr("conn.open.count", stats.T("protocol", nc.proto))
 	return nc
 }
 
@@ -52,7 +47,7 @@ func (c *conn) Close() (err error) {
 		if err != nil {
 			c.error("close", err)
 		}
-		c.eng.Incr("conn.close.count", stats.T(protocol, c.proto))
+		c.eng.Incr("conn.close.count", stats.T("protocol", c.proto))
 	})
 	return
 }
@@ -61,7 +56,7 @@ func (c *conn) Read(b []byte) (n int, err error) {
 	n, err = c.Conn.Read(b)
 
 	if n >= 0 {
-		c.eng.Observe("conn.read.bytes", float64(n), stats.T(protocol, c.proto))
+		c.eng.Observe("conn.read.bytes", float64(n), stats.T("protocol", c.proto))
 	}
 
 	if err != nil && err != io.EOF {
@@ -75,7 +70,7 @@ func (c *conn) Write(b []byte) (n int, err error) {
 	n, err = c.Conn.Write(b)
 
 	if n >= 0 {
-		c.eng.Observe("conn.write.bytes", float64(n), stats.T(protocol, c.proto))
+		c.eng.Observe("conn.write.bytes", float64(n), stats.T("protocol", c.proto))
 	}
 
 	if err != nil {
@@ -113,7 +108,7 @@ func (c *conn) error(op string, err error) {
 	default:
 		// only report serious errors, others should be handled gracefully
 		if !netx.IsTemporary(err) {
-			c.eng.Incr("conn.error.count", stats.T(protocol, c.proto), stats.T(operation, op))
+			c.eng.Incr("conn.error.count", stats.T("protocol", c.proto), stats.T("operation", op))
 		}
 	}
 }
