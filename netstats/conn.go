@@ -3,7 +3,6 @@ package netstats
 import (
 	"io"
 	"net"
-	"runtime"
 	"sync"
 	"time"
 
@@ -24,7 +23,6 @@ func NewConn(eng *stats.Engine, c net.Conn) net.Conn {
 		eng:   eng,
 		proto: c.LocalAddr().Network(),
 	}
-	runtime.SetFinalizer(nc, func(c *conn) { c.Close() })
 
 	eng.Incr("conn.open.count", stats.T("protocol", nc.proto))
 	return nc
