@@ -128,3 +128,35 @@ func TestGaugeClone(t *testing.T) {
 		t.Error("bad gauge tags:", tags)
 	}
 }
+
+func BenchmarkGauge(b *testing.B) {
+	e := NewEngine("E")
+
+	b.Run("Incr", func(b *testing.B) {
+		g := e.Gauge("A")
+		for i := 0; i != b.N; i++ {
+			g.Incr()
+		}
+	})
+
+	b.Run("Decr", func(b *testing.B) {
+		g := e.Gauge("A")
+		for i := 0; i != b.N; i++ {
+			g.Decr()
+		}
+	})
+
+	b.Run("Add", func(b *testing.B) {
+		g := e.Gauge("A")
+		for i := 0; i != b.N; i++ {
+			g.Add(float64(i))
+		}
+	})
+
+	b.Run("Set", func(b *testing.B) {
+		g := e.Gauge("A")
+		for i := 0; i != b.N; i++ {
+			g.Set(float64(i))
+		}
+	})
+}

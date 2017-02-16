@@ -65,3 +65,14 @@ func TestHistogramClone(t *testing.T) {
 		t.Error("bad histogram tags:", tags)
 	}
 }
+
+func BenchmarkHistogram(b *testing.B) {
+	e := NewEngine("E")
+
+	b.Run("Observe", func(b *testing.B) {
+		h := e.Histogram("A")
+		for i := 0; i != b.N; i++ {
+			h.Observe(float64(i))
+		}
+	})
+}

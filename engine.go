@@ -126,31 +126,31 @@ func (eng *Engine) Timer(name string, tags ...Tag) *Timer {
 
 // Incr increments by 1 the counter with name and tags on eng.
 func (eng *Engine) Incr(name string, tags ...Tag) {
-	eng.handle(CounterType, name, 1, tags)
+	eng.handle(CounterType, name, 1, tags, time.Time{})
 }
 
 // Add adds value to the counter with name and tags on eng.
 func (eng *Engine) Add(name string, value float64, tags ...Tag) {
-	eng.handle(CounterType, name, value, tags)
+	eng.handle(CounterType, name, value, tags, time.Time{})
 }
 
 // Set sets the gauge with name and tags on eng to value.
 func (eng *Engine) Set(name string, value float64, tags ...Tag) {
-	eng.handle(GaugeType, name, value, tags)
+	eng.handle(GaugeType, name, value, tags, time.Time{})
 }
 
 // Observe reports a value on the histogram with name and tags on eng.
 func (eng *Engine) Observe(name string, value float64, tags ...Tag) {
-	eng.handle(HistogramType, name, value, tags)
+	eng.handle(HistogramType, name, value, tags, time.Time{})
 }
 
 // ObserveDuration reports a duration in seconds to the histogram with name and
 // tags on eng.
 func (eng *Engine) ObserveDuration(name string, value time.Duration, tags ...Tag) {
-	eng.handle(HistogramType, name, value.Seconds(), tags)
+	eng.handle(HistogramType, name, value.Seconds(), tags, time.Time{})
 }
 
-func (eng *Engine) handle(typ MetricType, name string, value float64, tags []Tag) {
+func (eng *Engine) handle(typ MetricType, name string, value float64, tags []Tag, time time.Time) {
 	metric := metricPool.Get().(*Metric)
 
 	metric.Namespace = eng.name
@@ -159,7 +159,7 @@ func (eng *Engine) handle(typ MetricType, name string, value float64, tags []Tag
 	metric.Value = value
 	metric.Tags = append(metric.Tags, eng.tags...)
 	metric.Tags = append(metric.Tags, tags...)
-	metric.Time = time.Now()
+	metric.Time = time
 
 	eng.hmutex.RLock()
 

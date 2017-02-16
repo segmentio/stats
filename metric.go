@@ -41,7 +41,7 @@ type Metric struct {
 	// by which the counter is incremented.
 	Value float64
 
-	// Time is set to the time at which the metric was produced.
+	// Time is unused for now, reserved for future extensions.
 	Time time.Time
 }
 
