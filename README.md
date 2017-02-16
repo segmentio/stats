@@ -58,8 +58,8 @@ import (
 )
 
 func main() {
-    dd := datadog.NewDefaultClient()
-    defer dd.Close()
+    stats.Register(datadog.NewClient())
+    defer stats.Flush()
 
     // Increment counters.
     stats.Incr("user.login")
@@ -93,11 +93,11 @@ import (
 
 
 func main() {
-     dd := datadog.NewDefaultClient()
-     defer dd.Close()
+     stats.Register(datadog.NewClient())
+     defer stats.Flush()
 
     // Start a new collector for the current process, reporting Go metrics.
-    c := procstats.StartCollector(procstats.NewGoMetrics(nil))
+    c := procstats.StartCollector(procstats.NewGoMetrics())
 
     // Gracefully stops stats collection.
     defer c.Close()
@@ -125,13 +125,12 @@ import (
 )
 
 func main() {
-     dd := datadog.NewDefaultClient()
-     defer dd.Close()
+     stats.Register(datadog.NewClient())
+     defer stats.Flush()
 
     // ...
 
     http.ListenAndServe(":8080", httpstats.NewHandler(
-        nil, // use the default stats engine
         http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
             // This HTTP handler is automatically reporting metrics for all
             // requests it handles.
@@ -159,14 +158,13 @@ import (
 )
 
 func main() {
-     dd := datadog.NewDefaultClient()
-     defer dd.Close()
+     stats.Register(datadog.NewClient())
+     defer stats.Flush()
 
     // Make a new HTTP client with a transport that will report HTTP metrics,
     // set the engine to nil to use the default.
     httpc := &http.Client{
         Transport: httpstats.NewTransport(
-            nil, // use the default stats engine
             &http.Transport{},
         ),
     }
@@ -188,12 +186,11 @@ import (
 )
 
 func main() {
-     dd := datadog.NewDefaultClient()
-     defer dd.Close()
+     stats.Register(datadog.NewClient())
+     defer stats.Flush()
 
-    // Wraps the default HTTP client's transport, set the engine to nil to use
-    // the default.
-    http.DefaultClient.Transport = httpstats.NewTransport(nil, http.DefaultClient.Transport)
+    // Wraps the default HTTP client's transport.
+    http.DefaultClient.Transport = httpstats.NewTransport(http.DefaultClient.Transport)
 
     // ...
 }
