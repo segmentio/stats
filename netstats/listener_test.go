@@ -3,18 +3,17 @@ package netstats
 import (
 	"net"
 	"reflect"
-	"sort"
 	"testing"
-	"time"
 
 	"github.com/segmentio/stats"
 )
 
 func TestListener(t *testing.T) {
-	engine := stats.NewDefaultEngine()
-	defer engine.Close()
+	h := &handler{}
+	e := stats.NewDefaultEngine()
+	e.Register(h)
 
-	lstn := NewListener(engine, testLstn{}, stats.Tag{"test", "listener"})
+	lstn := NewListenerEngine(e, testLstn{})
 
 	conn, err := lstn.Accept()
 	if err != nil {
@@ -23,54 +22,57 @@ func TestListener(t *testing.T) {
 	}
 
 	conn.Close()
+	lstn.Close()
 
-	// Give time to the engine to process the metrics.
-	time.Sleep(10 * time.Millisecond)
-
-	metrics, _ := engine.State(0)
-	sort.Sort(stats.MetricsByKey(metrics))
-
-	for i := range metrics {
-		metrics[i].Time = time.Time{} // reset because we can't predict that value
-	}
-
-	expects := []stats.Metric{
-		stats.Metric{
-			Type:  stats.CounterType,
-			Key:   "conn.close.count?protocol=tcp&test=listener",
-			Name:  "conn.close.count",
-			Tags:  []stats.Tag{{"protocol", "tcp"}, {"test", "listener"}},
-			Value: 1,
-			Namespace: stats.Namespace{
-				Name: "netstats.test",
-			},
+	if !reflect.DeepEqual(h.metrics, []stats.Metric{
+		{
+			Type:      stats.CounterType,
+			Namespace: "netstats.test",
+			Name:      "conn.open.count",
+			Tags:      []stats.Tag{{"protocol", "tcp"}},
+			Value:     1,
 		},
-		stats.Metric{
-			Type:  stats.CounterType,
-			Key:   "conn.open.count?protocol=tcp&test=listener",
-			Name:  "conn.open.count",
-			Tags:  []stats.Tag{{"protocol", "tcp"}, {"test", "listener"}},
-			Value: 1,
-			Namespace: stats.Namespace{
-				Name: "netstats.test",
-			},
+		{
+			Type:      stats.CounterType,
+			Namespace: "netstats.test",
+			Name:      "conn.close.count",
+			Tags:      []stats.Tag{{"protocol", "tcp"}},
+			Value:     1,
 		},
-	}
-
-	if !reflect.DeepEqual(metrics, expects) {
-		t.Error("bad engine state:")
-
-		for i := range metrics {
-			m := metrics[i]
-			e := expects[i]
-
-			if !reflect.DeepEqual(m, e) {
-				t.Logf("unexpected metric at index %d:\n<<< %#v\n>>> %#v", i, m, e)
-			}
-		}
+	}) {
+		t.Error("bad metrics:", h.metrics)
 	}
 }
 
+func TestListenerError(t *testing.T) {
+	h := &handler{}
+	e := stats.NewDefaultEngine()
+	e.Register(h)
+
+	lstn := NewListenerEngine(e, testLstn{err: errTest})
+
+	_, err := lstn.Accept()
+	if err != errTest {
+		t.Error(err)
+		return
+	}
+
+	lstn.Close()
+
+	if !reflect.DeepEqual(h.metrics, []stats.Metric{
+		{
+			Type:      stats.CounterType,
+			Namespace: "netstats.test",
+			Name:      "conn.error.count",
+			Tags:      []stats.Tag{{"protocol", "tcp"}, {"operation", "accept"}},
+			Value:     1,
+		},
+	}) {
+		t.Error("bad metrics:", h.metrics)
+	}
+}
+
+/*
 func TestListenerError(t *testing.T) {
 	engine := stats.NewDefaultEngine()
 	defer engine.Close()
@@ -137,6 +139,7 @@ func TestListenerError(t *testing.T) {
 		}
 	}
 }
+*/
 
 type testLstn struct {
 	conn testConn

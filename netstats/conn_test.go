@@ -6,13 +6,23 @@ import (
 	"io"
 	"net"
 	"reflect"
-	"sort"
 	"testing"
 	"time"
 
 	"github.com/segmentio/netx"
 	"github.com/segmentio/stats"
 )
+
+type handler struct {
+	metrics []stats.Metric
+}
+
+func (h *handler) HandleMetric(m *stats.Metric) {
+	c := *m
+	c.Tags = append([]stats.Tag{}, m.Tags...)
+	c.Time = time.Time{} // discard because it's unpredicatable
+	h.metrics = append(h.metrics, c)
+}
 
 func TestBaseConn(t *testing.T) {
 	c1 := &testConn{}
@@ -24,111 +34,60 @@ func TestBaseConn(t *testing.T) {
 }
 
 func TestConn(t *testing.T) {
-	engine := stats.NewDefaultEngine()
-	defer engine.Close()
+	h := &handler{}
+	e := stats.NewDefaultEngine()
+	e.Register(h)
 
 	c := &testConn{}
-	conn := NewConn(engine, c)
+	conn := NewConn(e, c)
 	conn.Write([]byte("Hello World!"))
 	conn.Read(make([]byte, 32))
 	conn.Close()
 	conn.Close() // idempotent: only reported once
 
-	// Give time to the engine to process the metrics.
-	time.Sleep(10 * time.Millisecond)
-
-	metrics, _ := engine.State(0)
-	sort.Sort(stats.MetricsByKey(metrics))
-
-	expects := []stats.Metric{
-		stats.Metric{
-			Type:  stats.CounterType,
-			Key:   "conn.bytes.count?operation=read&protocol=tcp",
-			Name:  "conn.bytes.count",
-			Tags:  []stats.Tag{{"operation", "read"}, {"protocol", "tcp"}},
-			Value: 12,
-			Namespace: stats.Namespace{
-				Name: "netstats.test",
-			},
+	if !reflect.DeepEqual(h.metrics, []stats.Metric{
+		{
+			Type:      stats.CounterType,
+			Namespace: "netstats.test",
+			Name:      "conn.open.count",
+			Tags:      []stats.Tag{{"protocol", "tcp"}},
+			Value:     1,
 		},
-		stats.Metric{
-			Type:  stats.CounterType,
-			Key:   "conn.bytes.count?operation=write&protocol=tcp",
-			Name:  "conn.bytes.count",
-			Tags:  []stats.Tag{{"operation", "write"}, {"protocol", "tcp"}},
-			Value: 12,
-			Namespace: stats.Namespace{
-				Name: "netstats.test",
-			},
+		{
+			Type:      stats.HistogramType,
+			Namespace: "netstats.test",
+			Name:      "conn.write.bytes",
+			Tags:      []stats.Tag{{"protocol", "tcp"}},
+			Value:     12,
 		},
-		stats.Metric{
-			Type:  stats.CounterType,
-			Key:   "conn.close.count?protocol=tcp",
-			Name:  "conn.close.count",
-			Tags:  []stats.Tag{{"protocol", "tcp"}},
-			Value: 1,
-			Namespace: stats.Namespace{
-				Name: "netstats.test",
-			},
+		{
+			Type:      stats.HistogramType,
+			Namespace: "netstats.test",
+			Name:      "conn.read.bytes",
+			Tags:      []stats.Tag{{"protocol", "tcp"}},
+			Value:     12,
 		},
-		stats.Metric{
-			Type:  stats.HistogramType,
-			Key:   "conn.iops?operation=read&protocol=tcp",
-			Name:  "conn.iops",
-			Tags:  []stats.Tag{{"operation", "read"}, {"protocol", "tcp"}},
-			Value: 12,
-			Namespace: stats.Namespace{
-				Name: "netstats.test",
-			},
+		{
+			Type:      stats.CounterType,
+			Namespace: "netstats.test",
+			Name:      "conn.close.count",
+			Tags:      []stats.Tag{{"protocol", "tcp"}},
+			Value:     1,
 		},
-		stats.Metric{
-			Type:  stats.HistogramType,
-			Key:   "conn.iops?operation=write&protocol=tcp",
-			Name:  "conn.iops",
-			Tags:  []stats.Tag{{"operation", "write"}, {"protocol", "tcp"}},
-			Value: 12,
-			Namespace: stats.Namespace{
-				Name: "netstats.test",
-			},
-		},
-		stats.Metric{
-			Type:  stats.CounterType,
-			Key:   "conn.open.count?protocol=tcp",
-			Name:  "conn.open.count",
-			Tags:  []stats.Tag{{"protocol", "tcp"}},
-			Value: 1,
-			Namespace: stats.Namespace{
-				Name: "netstats.test",
-			},
-		},
-	}
-
-	for i := range metrics {
-		metrics[i].Time = time.Time{} // reset because we can't predict that value
-	}
-
-	if !reflect.DeepEqual(metrics, expects) {
-		t.Error("bad engine state:")
-
-		for i := range metrics {
-			m := metrics[i]
-			e := expects[i]
-
-			if !reflect.DeepEqual(m, e) {
-				t.Logf("unexpected metric at index %d:\n<<< %#v\n>>> %#v", i, m, e)
-			}
-		}
+	}) {
+		t.Error("bad metrics:", h.metrics)
 	}
 }
 
 func TestConnError(t *testing.T) {
-	engine := stats.NewDefaultEngine()
-	defer engine.Close()
+	h := &handler{}
+	e := stats.NewDefaultEngine()
+	e.Register(h)
 
 	now := time.Now()
 
 	c := &testConn{err: errTest}
-	conn := NewConn(engine, c)
+	conn := NewConn(e, c)
 	conn.SetDeadline(now)
 	conn.SetReadDeadline(now)
 	conn.SetWriteDeadline(now)
@@ -139,110 +98,103 @@ func TestConnError(t *testing.T) {
 	conn.Close()
 	conn.Close() // idempotent: only reported once
 
-	// Give time to the engine to process the metrics.
-	time.Sleep(10 * time.Millisecond)
-
-	metrics, _ := engine.State(0)
-	sort.Sort(stats.MetricsByKey(metrics))
-
-	expects := []stats.Metric{
-		stats.Metric{
-			Type:  stats.CounterType,
-			Key:   "conn.close.count?protocol=tcp",
-			Name:  "conn.close.count",
-			Tags:  []stats.Tag{{"protocol", "tcp"}},
-			Value: 1,
-			Namespace: stats.Namespace{
-				Name: "netstats.test",
-			},
+	if !reflect.DeepEqual(h.metrics, []stats.Metric{
+		{
+			Type:      stats.CounterType,
+			Namespace: "netstats.test",
+			Name:      "conn.open.count",
+			Tags:      []stats.Tag{{"protocol", "tcp"}},
+			Value:     1,
 		},
-		stats.Metric{
-			Type:  stats.CounterType,
-			Key:   "conn.errors.count?operation=close&protocol=tcp",
-			Name:  "conn.errors.count",
-			Tags:  []stats.Tag{{"operation", "close"}, {"protocol", "tcp"}},
-			Value: 1,
-			Namespace: stats.Namespace{
-				Name: "netstats.test",
-			},
+		{
+			Type:      stats.CounterType,
+			Namespace: "netstats.test",
+			Name:      "conn.error.count",
+			Tags:      []stats.Tag{{"protocol", "tcp"}, {"operation", "set-deadline"}},
+			Value:     1,
 		},
-		stats.Metric{
-			Type:  stats.CounterType,
-			Key:   "conn.errors.count?operation=read&protocol=tcp",
-			Name:  "conn.errors.count",
-			Tags:  []stats.Tag{{"operation", "read"}, {"protocol", "tcp"}},
-			Value: 3,
-			Namespace: stats.Namespace{
-				Name: "netstats.test",
-			},
+		{
+			Type:      stats.CounterType,
+			Namespace: "netstats.test",
+			Name:      "conn.error.count",
+			Tags:      []stats.Tag{{"protocol", "tcp"}, {"operation", "set-read-deadline"}},
+			Value:     1,
 		},
-		stats.Metric{
-			Type:  stats.CounterType,
-			Key:   "conn.errors.count?operation=set-read-timeout&protocol=tcp",
-			Name:  "conn.errors.count",
-			Tags:  []stats.Tag{{"operation", "set-read-timeout"}, {"protocol", "tcp"}},
-			Value: 1,
-			Namespace: stats.Namespace{
-				Name: "netstats.test",
-			},
+		{
+			Type:      stats.CounterType,
+			Namespace: "netstats.test",
+			Name:      "conn.error.count",
+			Tags:      []stats.Tag{{"protocol", "tcp"}, {"operation", "set-write-deadline"}},
+			Value:     1,
 		},
-		stats.Metric{
-			Type:  stats.CounterType,
-			Key:   "conn.errors.count?operation=set-timeout&protocol=tcp",
-			Name:  "conn.errors.count",
-			Tags:  []stats.Tag{{"operation", "set-timeout"}, {"protocol", "tcp"}},
-			Value: 1,
-			Namespace: stats.Namespace{
-				Name: "netstats.test",
-			},
+		{
+			Type:      stats.HistogramType,
+			Namespace: "netstats.test",
+			Name:      "conn.write.bytes",
+			Tags:      []stats.Tag{{"protocol", "tcp"}},
 		},
-		stats.Metric{
-			Type:  stats.CounterType,
-			Key:   "conn.errors.count?operation=set-write-timeout&protocol=tcp",
-			Name:  "conn.errors.count",
-			Tags:  []stats.Tag{{"operation", "set-write-timeout"}, {"protocol", "tcp"}},
-			Value: 1,
-			Namespace: stats.Namespace{
-				Name: "netstats.test",
-			},
+		{
+			Type:      stats.CounterType,
+			Namespace: "netstats.test",
+			Name:      "conn.error.count",
+			Tags:      []stats.Tag{{"protocol", "tcp"}, {"operation", "write"}},
+			Value:     1,
 		},
-		stats.Metric{
-			Type:  stats.CounterType,
-			Key:   "conn.errors.count?operation=write&protocol=tcp",
-			Name:  "conn.errors.count",
-			Tags:  []stats.Tag{{"operation", "write"}, {"protocol", "tcp"}},
-			Value: 1,
-			Namespace: stats.Namespace{
-				Name: "netstats.test",
-			},
+		{
+			Type:      stats.HistogramType,
+			Namespace: "netstats.test",
+			Name:      "conn.read.bytes",
+			Tags:      []stats.Tag{{"protocol", "tcp"}},
 		},
-		stats.Metric{
-			Type:  stats.CounterType,
-			Key:   "conn.open.count?protocol=tcp",
-			Name:  "conn.open.count",
-			Tags:  []stats.Tag{{"protocol", "tcp"}},
-			Value: 1,
-			Namespace: stats.Namespace{
-				Name: "netstats.test",
-			},
+		{
+			Type:      stats.CounterType,
+			Namespace: "netstats.test",
+			Name:      "conn.error.count",
+			Tags:      []stats.Tag{{"protocol", "tcp"}, {"operation", "read"}},
+			Value:     1,
 		},
-	}
-
-	for i := range metrics {
-		metrics[i].Time = time.Time{} // reset because we can't predict that value
-	}
-
-	if !reflect.DeepEqual(metrics, expects) {
-		t.Error("bad engine state:")
-
-		for i := range metrics {
-			m := metrics[i]
-			e := expects[i]
-
-			if !reflect.DeepEqual(m, e) {
-				t.Logf("unexpected metric at index %d:\n<<< %#v\n>>> %#v", i, m, e)
-			}
-		}
+		{
+			Type:      stats.HistogramType,
+			Namespace: "netstats.test",
+			Name:      "conn.read.bytes",
+			Tags:      []stats.Tag{{"protocol", "tcp"}},
+		},
+		{
+			Type:      stats.CounterType,
+			Namespace: "netstats.test",
+			Name:      "conn.error.count",
+			Tags:      []stats.Tag{{"protocol", "tcp"}, {"operation", "read"}},
+			Value:     1,
+		},
+		{
+			Type:      stats.HistogramType,
+			Namespace: "netstats.test",
+			Name:      "conn.read.bytes",
+			Tags:      []stats.Tag{{"protocol", "tcp"}},
+		},
+		{
+			Type:      stats.CounterType,
+			Namespace: "netstats.test",
+			Name:      "conn.error.count",
+			Tags:      []stats.Tag{{"protocol", "tcp"}, {"operation", "read"}},
+			Value:     1,
+		},
+		{
+			Type:      stats.CounterType,
+			Namespace: "netstats.test",
+			Name:      "conn.error.count",
+			Tags:      []stats.Tag{{"protocol", "tcp"}, {"operation", "close"}},
+			Value:     1,
+		},
+		{
+			Type:      stats.CounterType,
+			Namespace: "netstats.test",
+			Name:      "conn.close.count",
+			Tags:      []stats.Tag{{"protocol", "tcp"}},
+			Value:     1,
+		},
+	}) {
+		t.Error("bad metrics:", h.metrics)
 	}
 }
 

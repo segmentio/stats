@@ -12,7 +12,7 @@ func TestHandler(t *testing.T) {
 	conn := &testConn{}
 	ok := false
 
-	handler := NewHandler(nil, netx.HandlerFunc(func(ctx context.Context, conn net.Conn) {
+	handler := NewHandler(netx.HandlerFunc(func(ctx context.Context, conn net.Conn) {
 		ok = true
 	}))
 	handler.ServeConn(context.Background(), conn)
