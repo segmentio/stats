@@ -10,7 +10,7 @@ import (
 
 func TestListener(t *testing.T) {
 	h := &handler{}
-	e := stats.NewEngine()
+	e := stats.NewEngine("netstats.test")
 	e.Register(h)
 
 	lstn := NewListenerWith(e, testLstn{})
@@ -46,7 +46,7 @@ func TestListener(t *testing.T) {
 
 func TestListenerError(t *testing.T) {
 	h := &handler{}
-	e := stats.NewEngine()
+	e := stats.NewEngine("netstats.test")
 	e.Register(h)
 
 	lstn := NewListenerWith(e, testLstn{err: errTest})

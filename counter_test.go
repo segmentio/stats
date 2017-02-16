@@ -7,7 +7,7 @@ import (
 
 func TestCounterIncr(t *testing.T) {
 	h := &handler{}
-	e := NewEngineWith("E")
+	e := NewEngine("E")
 	e.Register(h)
 
 	c := e.Counter("A")
@@ -31,7 +31,7 @@ func TestCounterIncr(t *testing.T) {
 
 func TestCounterAdd(t *testing.T) {
 	h := &handler{}
-	e := NewEngineWith("E")
+	e := NewEngine("E")
 	e.Register(h)
 
 	c := e.Counter("A")
@@ -62,7 +62,7 @@ func TestCounterAdd(t *testing.T) {
 
 func TestCounterSet(t *testing.T) {
 	h := &handler{}
-	e := NewEngineWith("E")
+	e := NewEngine("E")
 	e.Register(h)
 
 	c := e.Counter("A")
@@ -92,7 +92,7 @@ func TestCounterSet(t *testing.T) {
 }
 
 func TestCounterClone(t *testing.T) {
-	e := NewEngineWith("E")
+	e := NewEngine("E")
 	c1 := e.Counter("A", Tag{"base", "tag"})
 	c2 := c1.Clone(Tag{"extra", "tag"})
 

@@ -11,7 +11,7 @@ import (
 )
 
 func TestServer(t *testing.T) {
-	engine := stats.NewEngine()
+	engine := stats.NewEngine("datadog.test")
 
 	a := uint32(0)
 	b := uint32(0)
@@ -34,9 +34,7 @@ func TestServer(t *testing.T) {
 	}))
 	defer closer.Close()
 
-	client := NewClient(ClientConfig{
-		Address: addr,
-	})
+	client := NewClient(addr)
 	defer client.Close()
 	engine.Register(client)
 

@@ -12,7 +12,7 @@ import (
 
 func TestGoMetrics(t *testing.T) {
 	h := &handler{}
-	e := stats.NewEngine()
+	e := stats.NewEngine("")
 	e.Register(h)
 
 	gostats := NewGoMetricsWith(e)
@@ -36,7 +36,7 @@ func TestGoMetricsMock(t *testing.T) {
 	now := time.Now()
 
 	h := &handler{}
-	e := stats.NewEngine()
+	e := stats.NewEngine("")
 	e.Register(h)
 
 	gostats := NewGoMetricsWith(e)

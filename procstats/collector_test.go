@@ -20,7 +20,7 @@ func (h *handler) HandleMetric(m *stats.Metric) {
 
 func TestCollector(t *testing.T) {
 	h := &handler{}
-	e := stats.NewEngine()
+	e := stats.NewEngine("")
 	e.Register(h)
 
 	c := StartCollectorWith(Config{

@@ -10,7 +10,7 @@ import (
 
 func TestProcMetrics(t *testing.T) {
 	h := &handler{}
-	e := stats.NewEngine()
+	e := stats.NewEngine("")
 	e.Register(h)
 
 	proc := NewProcMetricsWith(e, os.Getpid())

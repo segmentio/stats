@@ -39,14 +39,16 @@ type Client struct {
 	once sync.Once
 }
 
-// NewDefaultClient creates and returns a new datadog client with a default
-// configuration.
-func NewDefaultClient() *Client {
-	return NewClient(ClientConfig{})
+// NewClient creates and returns a new datadog client publishing metrics to the
+// dogstatsd server listening for UDP datagram at addr.
+func NewClient(addr string) *Client {
+	return NewClientWith(ClientConfig{
+		Address: addr,
+	})
 }
 
-// NewClient creates and returns a new datadog client configured with config.
-func NewClient(config ClientConfig) *Client {
+// NewClientWith creates and returns a new datadog client configured with config.
+func NewClientWith(config ClientConfig) *Client {
 	conn, err := DialConfig(ConnConfig{
 		Address:    config.Address,
 		BufferSize: config.BufferSize,

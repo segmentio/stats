@@ -25,16 +25,11 @@ var (
 	//
 	// Programs that need to change the default engine should do before creating
 	// any metrics handlers or producers.
-	DefaultEngine = NewEngine()
+	DefaultEngine = NewEngine(progname())
 )
 
-// NewEngine creates and returns an engine configured with default settings.
-func NewEngine() *Engine {
-	return NewEngineWith(progname())
-}
-
-// NewEngineWith creates and returns an engine with name and tags.
-func NewEngineWith(name string, tags ...Tag) *Engine {
+// NewEngine creates and returns an engine with tag and tags.
+func NewEngine(name string, tags ...Tag) *Engine {
 	return &Engine{
 		name: name,
 		tags: copyTags(tags),

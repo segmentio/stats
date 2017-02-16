@@ -7,7 +7,7 @@ import (
 
 func TestTimerStart(t *testing.T) {
 	h := &handler{}
-	e := NewEngineWith("E")
+	e := NewEngine("E")
 	e.Register(h)
 
 	m := e.Timer("A", Tag{"base", "tag"}, Tag{"extra", "tag"})
@@ -23,7 +23,7 @@ func TestTimerStart(t *testing.T) {
 }
 
 func TestTimerClone(t *testing.T) {
-	e := NewEngineWith("E")
+	e := NewEngine("E")
 	c1 := e.Timer("A", Tag{"base", "tag"})
 	c2 := c1.Clone(Tag{"extra", "tag"})
 

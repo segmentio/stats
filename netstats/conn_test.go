@@ -35,7 +35,7 @@ func TestBaseConn(t *testing.T) {
 
 func TestConn(t *testing.T) {
 	h := &handler{}
-	e := stats.NewEngine()
+	e := stats.NewEngine("netstats.test")
 	e.Register(h)
 
 	c := &testConn{}
@@ -81,7 +81,7 @@ func TestConn(t *testing.T) {
 
 func TestConnError(t *testing.T) {
 	h := &handler{}
-	e := stats.NewEngine()
+	e := stats.NewEngine("netstats.test")
 	e.Register(h)
 
 	now := time.Now()
