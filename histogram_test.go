@@ -7,7 +7,7 @@ import (
 
 func TestHistogramIncr(t *testing.T) {
 	h := &handler{}
-	e := NewEngine("E")
+	e := NewEngineWith("E")
 	e.Register(h)
 
 	m := NewHistogram(e, "A")
@@ -27,7 +27,7 @@ func TestHistogramIncr(t *testing.T) {
 
 func TestHistogramSet(t *testing.T) {
 	h := &handler{}
-	e := NewEngine("E")
+	e := NewEngineWith("E")
 	e.Register(h)
 
 	m := NewHistogram(e, "A")
@@ -53,7 +53,7 @@ func TestHistogramSet(t *testing.T) {
 }
 
 func TestHistogramClone(t *testing.T) {
-	e := NewEngine("E")
+	e := NewEngineWith("E")
 	c1 := NewHistogram(e, "A", T("base", "tag"))
 	c2 := c1.Clone(T("extra", "tag"))
 

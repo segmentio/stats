@@ -13,23 +13,16 @@ import (
 // NewConn returns a net.Conn object that wraps c and produces metrics on the
 // default engine.
 func NewConn(c net.Conn) net.Conn {
-	return NewConnWith(nil, c)
+	return NewConnWith(stats.DefaultEngine, c)
 }
 
 // NewConn returns a net.Conn object that wraps c and produces metrics on eng.
-//
-// If eng is nil, the default engine is used.
 func NewConnWith(eng *stats.Engine, c net.Conn) net.Conn {
-	if eng == nil {
-		eng = stats.DefaultEngine
-	}
-
 	nc := &conn{
 		Conn:  c,
 		eng:   eng,
 		proto: c.LocalAddr().Network(),
 	}
-
 	eng.Incr("conn.open.count", stats.T("protocol", nc.proto))
 	return nc
 }

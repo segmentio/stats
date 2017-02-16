@@ -11,7 +11,7 @@ import (
 )
 
 func TestServer(t *testing.T) {
-	engine := stats.NewDefaultEngine()
+	engine := stats.NewEngine()
 
 	a := uint32(0)
 	b := uint32(0)

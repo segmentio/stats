@@ -1,30 +1,26 @@
 package procstats
 
 import (
+	"os"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/segmentio/stats"
 )
 
 func TestProcMetrics(t *testing.T) {
-	engine := stats.NewDefaultEngine()
-	defer engine.Close()
+	h := &handler{}
+	e := stats.NewEngine()
+	e.Register(h)
 
-	proc := NewProcMetrics(engine)
+	proc := NewProcMetricsWith(e, os.Getpid())
 	proc.Collect()
 
-	// Let the engine process the metrics.
-	time.Sleep(10 * time.Millisecond)
-
-	metrics, _ := engine.State(0)
-
-	if len(metrics) == 0 {
+	if len(h.metrics) == 0 {
 		t.Error("no metrics were reported by the stats collector")
 	}
 
-	for _, m := range metrics {
+	for _, m := range h.metrics {
 		switch {
 		case strings.HasPrefix(m.Name, "cpu."):
 		case strings.HasPrefix(m.Name, "memory."):

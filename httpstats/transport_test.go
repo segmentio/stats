@@ -30,7 +30,7 @@ func TestTransport(t *testing.T) {
 			} {
 				t.Run("", func(t *testing.T) {
 					h := &metricHandler{}
-					e := stats.NewDefaultEngine()
+					e := stats.NewEngine()
 					e.Register(h)
 
 					server := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
@@ -77,7 +77,7 @@ func TestTransport(t *testing.T) {
 
 func TestTransportError(t *testing.T) {
 	h := &metricHandler{}
-	e := stats.NewDefaultEngine()
+	e := stats.NewEngine()
 	e.Register(h)
 
 	server := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {

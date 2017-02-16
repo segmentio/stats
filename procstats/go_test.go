@@ -11,22 +11,18 @@ import (
 )
 
 func TestGoMetrics(t *testing.T) {
-	engine := stats.NewDefaultEngine()
-	defer engine.Close()
+	h := &handler{}
+	e := stats.NewEngine()
+	e.Register(h)
 
-	gostats := NewGoMetrics(engine)
+	gostats := NewGoMetricsWith(e)
 	gostats.Collect()
 
-	// Wait for metrics to be reported.
-	time.Sleep(10 * time.Millisecond)
-
-	metrics, _ := engine.State(0)
-
-	if len(metrics) == 0 {
+	if len(h.metrics) == 0 {
 		t.Error("no metrics were reported by the stats collector")
 	}
 
-	for _, m := range metrics {
+	for _, m := range h.metrics {
 		switch {
 		case strings.HasPrefix(m.Name, "go.runtime."):
 		case strings.HasPrefix(m.Name, "go.memstats."):
@@ -39,25 +35,21 @@ func TestGoMetrics(t *testing.T) {
 func TestGoMetricsMock(t *testing.T) {
 	now := time.Now()
 
-	engine := stats.NewDefaultEngine()
-	defer engine.Close()
+	h := &handler{}
+	e := stats.NewEngine()
+	e.Register(h)
 
-	gostats := NewGoMetrics(engine)
+	gostats := NewGoMetricsWith(e)
 	gostats.gc.NumGC = 1
 	gostats.gc.Pause = []time.Duration{time.Microsecond}
 	gostats.gc.PauseEnd = []time.Time{now.Add(-time.Second)}
 	gostats.updateMemStats(time.Now())
 
-	// Wait for metrics to be reported.
-	time.Sleep(10 * time.Millisecond)
-
-	metrics, _ := engine.State(0)
-
-	if len(metrics) == 0 {
+	if len(h.metrics) == 0 {
 		t.Error("no metrics were reported by the stats collector")
 	}
 
-	for _, m := range metrics {
+	for _, m := range h.metrics {
 		switch {
 		case strings.HasPrefix(m.Name, "go.runtime."):
 		case strings.HasPrefix(m.Name, "go.memstats."):

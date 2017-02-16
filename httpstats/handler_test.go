@@ -12,7 +12,7 @@ import (
 
 func TestHandler(t *testing.T) {
 	h := &metricHandler{}
-	e := stats.NewDefaultEngine()
+	e := stats.NewEngine()
 	e.Register(h)
 
 	server := httptest.NewServer(NewHandlerWith(e, http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
@@ -49,7 +49,7 @@ func TestHandler(t *testing.T) {
 
 func TestHandlerHijack(t *testing.T) {
 	h := &metricHandler{}
-	e := stats.NewDefaultEngine()
+	e := stats.NewEngine()
 	e.Register(h)
 
 	server := httptest.NewServer(NewHandlerWith(e, http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {

@@ -7,7 +7,7 @@ import (
 
 func TestClockStart(t *testing.T) {
 	h := &handler{}
-	e := NewEngine("E")
+	e := NewEngineWith("E")
 	e.Register(h)
 
 	m := NewTimer(e, "A")
@@ -55,7 +55,7 @@ func TestClockStart(t *testing.T) {
 }
 
 func TestClockClone(t *testing.T) {
-	e := NewEngine("E")
+	e := NewEngineWith("E")
 	m := NewTimer(e, "A", T("base", "tag"))
 	c1 := m.Start()
 	c2 := c1.Clone(T("extra", "tag"))

@@ -7,7 +7,7 @@ import (
 
 func TestGaugeIncr(t *testing.T) {
 	h := &handler{}
-	e := NewEngine("E")
+	e := NewEngineWith("E")
 	e.Register(h)
 
 	g := NewGauge(e, "A")
@@ -31,7 +31,7 @@ func TestGaugeIncr(t *testing.T) {
 
 func TestGaugeDecr(t *testing.T) {
 	h := &handler{}
-	e := NewEngine("E")
+	e := NewEngineWith("E")
 	e.Register(h)
 
 	g := NewGauge(e, "A")
@@ -55,7 +55,7 @@ func TestGaugeDecr(t *testing.T) {
 
 func TestGaugeAdd(t *testing.T) {
 	h := &handler{}
-	e := NewEngine("E")
+	e := NewEngineWith("E")
 	e.Register(h)
 
 	g := NewGauge(e, "A")
@@ -86,7 +86,7 @@ func TestGaugeAdd(t *testing.T) {
 
 func TestGaugeSet(t *testing.T) {
 	h := &handler{}
-	e := NewEngine("E")
+	e := NewEngineWith("E")
 	e.Register(h)
 
 	g := NewGauge(e, "A")
@@ -116,7 +116,7 @@ func TestGaugeSet(t *testing.T) {
 }
 
 func TestGaugeClone(t *testing.T) {
-	e := NewEngine("E")
+	e := NewEngineWith("E")
 	c1 := NewGauge(e, "A", T("base", "tag"))
 	c2 := c1.Clone(T("extra", "tag"))
 
