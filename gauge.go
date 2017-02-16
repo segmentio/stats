@@ -11,16 +11,6 @@ type Gauge struct {
 	tags  []Tag   // the tags set on the gauge
 }
 
-// NewGauge creates and returns a new gauge producing a metric with name and
-// tags on eng.
-func NewGauge(eng *Engine, name string, tags ...Tag) *Gauge {
-	return &Gauge{
-		eng:  eng,
-		name: name,
-		tags: copyTags(tags),
-	}
-}
-
 // Name returns the name of the gauge.
 func (g *Gauge) Name() string {
 	return g.name

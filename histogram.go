@@ -8,16 +8,6 @@ type Histogram struct {
 	tags []Tag   // the tags set on the counter
 }
 
-// NewHistogram creates and returns a new histogram producing a metric with name
-// and tags on eng.
-func NewHistogram(eng *Engine, name string, tags ...Tag) *Histogram {
-	return &Histogram{
-		eng:  eng,
-		name: name,
-		tags: copyTags(tags),
-	}
-}
-
 // Name returns the name of the histogram.
 func (h *Histogram) Name() string {
 	return h.name

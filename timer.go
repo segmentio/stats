@@ -9,16 +9,6 @@ type Timer struct {
 	tags []Tag   // the tags set on the timer
 }
 
-// NewTimer creates and returns a new timer producing a metric with name and
-// tags on eng.
-func NewTimer(eng *Engine, name string, tags ...Tag) *Timer {
-	return &Timer{
-		eng:  eng,
-		name: name,
-		tags: copyTags(tags),
-	}
-}
-
 // Name returns the name of the timer.
 func (t *Timer) Name() string {
 	return t.name

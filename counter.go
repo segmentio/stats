@@ -11,16 +11,6 @@ type Counter struct {
 	tags  []Tag   // the tags set on the counter
 }
 
-// NewCounter creates and returns a new counter producing a metric with name and
-// tags on eng.
-func NewCounter(eng *Engine, name string, tags ...Tag) *Counter {
-	return &Counter{
-		eng:  eng,
-		name: name,
-		tags: copyTags(tags),
-	}
-}
-
 // Name returns the name of the counter.
 func (c *Counter) Name() string {
 	return c.name

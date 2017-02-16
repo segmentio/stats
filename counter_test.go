@@ -10,7 +10,7 @@ func TestCounterIncr(t *testing.T) {
 	e := NewEngineWith("E")
 	e.Register(h)
 
-	c := NewCounter(e, "A")
+	c := e.Counter("A")
 	c.Incr()
 
 	if v := c.Value(); v != 1 {
@@ -34,7 +34,7 @@ func TestCounterAdd(t *testing.T) {
 	e := NewEngineWith("E")
 	e.Register(h)
 
-	c := NewCounter(e, "A")
+	c := e.Counter("A")
 	c.Add(0.5)
 	c.Add(0.5)
 
@@ -65,7 +65,7 @@ func TestCounterSet(t *testing.T) {
 	e := NewEngineWith("E")
 	e.Register(h)
 
-	c := NewCounter(e, "A")
+	c := e.Counter("A")
 	c.Set(1)
 	c.Set(0.5)
 
@@ -93,7 +93,7 @@ func TestCounterSet(t *testing.T) {
 
 func TestCounterClone(t *testing.T) {
 	e := NewEngineWith("E")
-	c1 := NewCounter(e, "A", T("base", "tag"))
+	c1 := e.Counter("A", T("base", "tag"))
 	c2 := c1.Clone(T("extra", "tag"))
 
 	if name := c2.Name(); name != "A" {

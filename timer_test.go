@@ -10,7 +10,7 @@ func TestTimerStart(t *testing.T) {
 	e := NewEngineWith("E")
 	e.Register(h)
 
-	m := NewTimer(e, "A", T("base", "tag"), T("extra", "tag"))
+	m := e.Timer("A", T("base", "tag"), T("extra", "tag"))
 	c := m.Start()
 
 	if name := c.Name(); name != "A" {
@@ -24,7 +24,7 @@ func TestTimerStart(t *testing.T) {
 
 func TestTimerClone(t *testing.T) {
 	e := NewEngineWith("E")
-	c1 := NewTimer(e, "A", T("base", "tag"))
+	c1 := e.Timer("A", T("base", "tag"))
 	c2 := c1.Clone(T("extra", "tag"))
 
 	if name := c2.Name(); name != "A" {

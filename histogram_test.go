@@ -10,7 +10,7 @@ func TestHistogramIncr(t *testing.T) {
 	e := NewEngineWith("E")
 	e.Register(h)
 
-	m := NewHistogram(e, "A")
+	m := e.Histogram("A")
 	m.Observe(1)
 
 	if !reflect.DeepEqual(h.metrics, []Metric{
@@ -30,7 +30,7 @@ func TestHistogramSet(t *testing.T) {
 	e := NewEngineWith("E")
 	e.Register(h)
 
-	m := NewHistogram(e, "A")
+	m := e.Histogram("A")
 	m.Observe(1)
 	m.Observe(0.5)
 
@@ -54,7 +54,7 @@ func TestHistogramSet(t *testing.T) {
 
 func TestHistogramClone(t *testing.T) {
 	e := NewEngineWith("E")
-	c1 := NewHistogram(e, "A", T("base", "tag"))
+	c1 := e.Histogram("A", T("base", "tag"))
 	c2 := c1.Clone(T("extra", "tag"))
 
 	if name := c2.Name(); name != "A" {

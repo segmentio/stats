@@ -91,22 +91,38 @@ func (eng *Engine) Flush() {
 
 // Counter creates a new counter producing a metric with name and tag on eng.
 func (eng *Engine) Counter(name string, tags ...Tag) *Counter {
-	return NewCounter(eng, name, tags...)
+	return &Counter{
+		eng:  eng,
+		name: name,
+		tags: copyTags(tags),
+	}
 }
 
 // Gauge creates a new gauge producing a metric with name and tag on eng.
 func (eng *Engine) Gauge(name string, tags ...Tag) *Gauge {
-	return NewGauge(eng, name, tags...)
+	return &Gauge{
+		eng:  eng,
+		name: name,
+		tags: copyTags(tags),
+	}
 }
 
 // Histogram creates a new hitsogram producing a metric with name and tag on eng.
 func (eng *Engine) Histogram(name string, tags ...Tag) *Histogram {
-	return NewHistogram(eng, name, tags...)
+	return &Histogram{
+		eng:  eng,
+		name: name,
+		tags: copyTags(tags),
+	}
 }
 
 // Timer creates a new timer producing metrics with name and tag on eng.
 func (eng *Engine) Timer(name string, tags ...Tag) *Timer {
-	return NewTimer(eng, name, tags...)
+	return &Timer{
+		eng:  eng,
+		name: name,
+		tags: copyTags(tags),
+	}
 }
 
 // Incr increments by 1 the counter with name and tags on eng.
