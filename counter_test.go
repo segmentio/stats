@@ -104,3 +104,28 @@ func TestCounterClone(t *testing.T) {
 		t.Error("bad counter tags:", tags)
 	}
 }
+
+func BenchmarkCounter(b *testing.B) {
+	e := NewEngine("E")
+
+	b.Run("Incr", func(b *testing.B) {
+		c := e.Counter("A")
+		for i := 0; i != b.N; i++ {
+			c.Incr()
+		}
+	})
+
+	b.Run("Add", func(b *testing.B) {
+		c := e.Counter("A")
+		for i := 0; i != b.N; i++ {
+			c.Add(float64(i))
+		}
+	})
+
+	b.Run("Set", func(b *testing.B) {
+		c := e.Counter("A")
+		for i := 0; i != b.N; i++ {
+			c.Set(float64(i))
+		}
+	})
+}
