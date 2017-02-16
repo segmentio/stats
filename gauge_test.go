@@ -5,44 +5,126 @@ import (
 	"testing"
 )
 
-func TestMakeGauge(t *testing.T) {
-	tests := []struct {
-		key  string
-		name string
-		tags []Tag
-	}{
-		{
-			key:  "?",
-			name: "",
-			tags: nil,
-		},
-		{
-			key:  "M?",
-			name: "M",
-			tags: nil,
-		},
-		{
-			key:  "M?A=1",
-			name: "M",
-			tags: []Tag{{"A", "1"}},
-		},
-		{
-			key:  "M?A=1&B=2",
-			name: "M",
-			tags: []Tag{{"B", "2"}, {"A", "1"}},
-		},
+func TestGaugeIncr(t *testing.T) {
+	h := &handler{}
+	e := NewEngine("E")
+	e.Register(h)
+
+	g := NewGauge(e, "A")
+	g.Incr()
+
+	if v := g.Value(); v != 1 {
+		t.Error("bad value:", v)
 	}
 
-	for _, test := range tests {
-		t.Run("", func(t *testing.T) {
-			if gauge := makeGauge(nil, test.name, test.tags); !reflect.DeepEqual(gauge, Gauge{
-				eng:  nil,
-				key:  test.key,
-				name: test.name,
-				tags: test.tags,
-			}) {
-				t.Errorf("makeGauge(nil, %#v, %#v) => %#v", test.name, test.tags, gauge)
-			}
-		})
+	if !reflect.DeepEqual(h.metrics, []Metric{
+		{
+			Type:      GaugeType,
+			Namespace: "E",
+			Name:      "A",
+			Value:     1,
+		},
+	}) {
+		t.Error("bad metrics:", h.metrics)
+	}
+}
+
+func TestGaugeDecr(t *testing.T) {
+	h := &handler{}
+	e := NewEngine("E")
+	e.Register(h)
+
+	g := NewGauge(e, "A")
+	g.Decr()
+
+	if v := g.Value(); v != -1 {
+		t.Error("bad value:", v)
+	}
+
+	if !reflect.DeepEqual(h.metrics, []Metric{
+		{
+			Type:      GaugeType,
+			Namespace: "E",
+			Name:      "A",
+			Value:     -1,
+		},
+	}) {
+		t.Error("bad metrics:", h.metrics)
+	}
+}
+
+func TestGaugeAdd(t *testing.T) {
+	h := &handler{}
+	e := NewEngine("E")
+	e.Register(h)
+
+	g := NewGauge(e, "A")
+	g.Add(0.5)
+	g.Add(0.5)
+
+	if v := g.Value(); v != 1 {
+		t.Error("bad value:", v)
+	}
+
+	if !reflect.DeepEqual(h.metrics, []Metric{
+		{
+			Type:      GaugeType,
+			Namespace: "E",
+			Name:      "A",
+			Value:     0.5,
+		},
+		{
+			Type:      GaugeType,
+			Namespace: "E",
+			Name:      "A",
+			Value:     1,
+		},
+	}) {
+		t.Error("bad metrics:", h.metrics)
+	}
+}
+
+func TestGaugeSet(t *testing.T) {
+	h := &handler{}
+	e := NewEngine("E")
+	e.Register(h)
+
+	g := NewGauge(e, "A")
+	g.Set(1)
+	g.Set(0.5)
+
+	if v := g.Value(); v != 0.5 {
+		t.Error("bad value:", v)
+	}
+
+	if !reflect.DeepEqual(h.metrics, []Metric{
+		{
+			Type:      GaugeType,
+			Namespace: "E",
+			Name:      "A",
+			Value:     1,
+		},
+		{
+			Type:      GaugeType,
+			Namespace: "E",
+			Name:      "A",
+			Value:     0.5,
+		},
+	}) {
+		t.Error("bad metrics:", h.metrics)
+	}
+}
+
+func TestGaugeClone(t *testing.T) {
+	e := NewEngine("E")
+	c1 := NewGauge(e, "A", T("base", "tag"))
+	c2 := c1.Clone(T("extra", "tag"))
+
+	if name := c2.Name(); name != "A" {
+		t.Error("bad gauge name:", name)
+	}
+
+	if tags := c2.Tags(); !reflect.DeepEqual(tags, []Tag{{"base", "tag"}, {"extra", "tag"}}) {
+		t.Error("bad gauge tags:", tags)
 	}
 }

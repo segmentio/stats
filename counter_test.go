@@ -5,44 +5,102 @@ import (
 	"testing"
 )
 
-func TestMakeCounter(t *testing.T) {
-	tests := []struct {
-		key  string
-		name string
-		tags []Tag
-	}{
-		{
-			key:  "?",
-			name: "",
-			tags: nil,
-		},
-		{
-			key:  "M?",
-			name: "M",
-			tags: nil,
-		},
-		{
-			key:  "M?A=1",
-			name: "M",
-			tags: []Tag{{"A", "1"}},
-		},
-		{
-			key:  "M?A=1&B=2",
-			name: "M",
-			tags: []Tag{{"B", "2"}, {"A", "1"}},
-		},
+func TestCounterIncr(t *testing.T) {
+	h := &handler{}
+	e := NewEngine("E")
+	e.Register(h)
+
+	c := NewCounter(e, "A")
+	c.Incr()
+
+	if v := c.Value(); v != 1 {
+		t.Error("bad value:", v)
 	}
 
-	for _, test := range tests {
-		t.Run("", func(t *testing.T) {
-			if counter := makeCounter(nil, test.name, test.tags); !reflect.DeepEqual(counter, Counter{
-				eng:  nil,
-				key:  test.key,
-				name: test.name,
-				tags: test.tags,
-			}) {
-				t.Errorf("makeCounter(nil, %#v, %#v) => %#v", test.name, test.tags, counter)
-			}
-		})
+	if !reflect.DeepEqual(h.metrics, []Metric{
+		{
+			Type:      CounterType,
+			Namespace: "E",
+			Name:      "A",
+			Value:     1,
+		},
+	}) {
+		t.Error("bad metrics:", h.metrics)
+	}
+}
+
+func TestCounterAdd(t *testing.T) {
+	h := &handler{}
+	e := NewEngine("E")
+	e.Register(h)
+
+	c := NewCounter(e, "A")
+	c.Add(0.5)
+	c.Add(0.5)
+
+	if v := c.Value(); v != 1 {
+		t.Error("bad value:", v)
+	}
+
+	if !reflect.DeepEqual(h.metrics, []Metric{
+		{
+			Type:      CounterType,
+			Namespace: "E",
+			Name:      "A",
+			Value:     0.5,
+		},
+		{
+			Type:      CounterType,
+			Namespace: "E",
+			Name:      "A",
+			Value:     0.5,
+		},
+	}) {
+		t.Error("bad metrics:", h.metrics)
+	}
+}
+
+func TestCounterSet(t *testing.T) {
+	h := &handler{}
+	e := NewEngine("E")
+	e.Register(h)
+
+	c := NewCounter(e, "A")
+	c.Set(1)
+	c.Set(0.5)
+
+	if v := c.Value(); v != 0.5 {
+		t.Error("bad value:", v)
+	}
+
+	if !reflect.DeepEqual(h.metrics, []Metric{
+		{
+			Type:      CounterType,
+			Namespace: "E",
+			Name:      "A",
+			Value:     1,
+		},
+		{
+			Type:      CounterType,
+			Namespace: "E",
+			Name:      "A",
+			Value:     0.5,
+		},
+	}) {
+		t.Error("bad metrics:", h.metrics)
+	}
+}
+
+func TestCounterClone(t *testing.T) {
+	e := NewEngine("E")
+	c1 := NewCounter(e, "A", T("base", "tag"))
+	c2 := c1.Clone(T("extra", "tag"))
+
+	if name := c2.Name(); name != "A" {
+		t.Error("bad counter name:", name)
+	}
+
+	if tags := c2.Tags(); !reflect.DeepEqual(tags, []Tag{{"base", "tag"}, {"extra", "tag"}}) {
+		t.Error("bad counter tags:", tags)
 	}
 }

@@ -5,44 +5,63 @@ import (
 	"testing"
 )
 
-func TestMakeHistogram(t *testing.T) {
-	tests := []struct {
-		key  string
-		name string
-		tags []Tag
-	}{
+func TestHistogramIncr(t *testing.T) {
+	h := &handler{}
+	e := NewEngine("E")
+	e.Register(h)
+
+	m := NewHistogram(e, "A")
+	m.Observe(1)
+
+	if !reflect.DeepEqual(h.metrics, []Metric{
 		{
-			key:  "?",
-			name: "",
-			tags: nil,
+			Type:      HistogramType,
+			Namespace: "E",
+			Name:      "A",
+			Value:     1,
+		},
+	}) {
+		t.Error("bad metrics:", h.metrics)
+	}
+}
+
+func TestHistogramSet(t *testing.T) {
+	h := &handler{}
+	e := NewEngine("E")
+	e.Register(h)
+
+	m := NewHistogram(e, "A")
+	m.Observe(1)
+	m.Observe(0.5)
+
+	if !reflect.DeepEqual(h.metrics, []Metric{
+		{
+			Type:      HistogramType,
+			Namespace: "E",
+			Name:      "A",
+			Value:     1,
 		},
 		{
-			key:  "M?",
-			name: "M",
-			tags: nil,
+			Type:      HistogramType,
+			Namespace: "E",
+			Name:      "A",
+			Value:     0.5,
 		},
-		{
-			key:  "M?A=1",
-			name: "M",
-			tags: []Tag{{"A", "1"}},
-		},
-		{
-			key:  "M?A=1&B=2",
-			name: "M",
-			tags: []Tag{{"B", "2"}, {"A", "1"}},
-		},
+	}) {
+		t.Error("bad metrics:", h.metrics)
+	}
+}
+
+func TestHistogramClone(t *testing.T) {
+	e := NewEngine("E")
+	c1 := NewHistogram(e, "A", T("base", "tag"))
+	c2 := c1.Clone(T("extra", "tag"))
+
+	if name := c2.Name(); name != "A" {
+		t.Error("bad histogram name:", name)
 	}
 
-	for _, test := range tests {
-		t.Run("", func(t *testing.T) {
-			if histogram := makeHistogram(nil, test.name, test.tags); !reflect.DeepEqual(histogram, Histogram{
-				eng:  nil,
-				key:  test.key,
-				name: test.name,
-				tags: test.tags,
-			}) {
-				t.Errorf("makeHistogram(nil, %#v, %#v) => %#v", test.name, test.tags, histogram)
-			}
-		})
+	if tags := c2.Tags(); !reflect.DeepEqual(tags, []Tag{{"base", "tag"}, {"extra", "tag"}}) {
+		t.Error("bad histogram tags:", tags)
 	}
 }

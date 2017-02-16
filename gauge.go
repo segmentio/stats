@@ -1,74 +1,79 @@
 package stats
 
-import "time"
+import "sync"
 
-// Gauge is an immutable data structure that can be used to represent metrics
-// with a value that can go up or down.
+// A Gauge represent a metric that reports a single value.
 type Gauge struct {
-	eng  *Engine // the parent engine
-	key  string  // cached metric key
-	name string  // the name of the gauge
-	tags []Tag   // the tags set on the gauge
+	mutex sync.Mutex
+	value float64 // current value of the gauge
+	eng   *Engine // the engine to produce metrics on
+	name  string  // the name of the gauge
+	tags  []Tag   // the tags set on the gauge
 }
 
-// G returns a new gauge that produces metrics on the default engine.
-func G(name string, tags ...Tag) Gauge {
-	return MakeGauge(nil, name, tags...)
-}
-
-// MakeGauge returns a new gauge that produces metrics on the given engine.
-func MakeGauge(engine *Engine, name string, tags ...Tag) Gauge {
-	return makeGauge(engine, name, copyTags(tags))
+// NewGauge creates and returns a new gauge producing a metric with name and
+// tags on eng.
+func NewGauge(eng *Engine, name string, tags ...Tag) *Gauge {
+	return &Gauge{
+		eng:  eng,
+		name: name,
+		tags: copyTags(tags),
+	}
 }
 
 // Name returns the name of the gauge.
-func (g Gauge) Name() string {
+func (g *Gauge) Name() string {
 	return g.name
 }
 
 // Tags returns the list of tags set on the gauge.
 //
-// The returned slice is a copy of the internal slice maintained by the gauge,
-// the program owns it and can safely modify it without affecting the gauge.
-func (g Gauge) Tags() []Tag {
-	return copyTags(g.tags)
+// The method returns a reference to the gauge's internal tag slice, it does
+// not make a copy. It's expected that the program will treat this value as a
+// read-only list and won't modify its content.
+func (g *Gauge) Tags() []Tag {
+	return g.tags
+}
+
+// Value returns the current value of the gauge.
+func (g *Gauge) Value() float64 {
+	return g.value
 }
 
 // Clone returns a copy of the gauge, potentially setting tags on the returned
 // object.
-func (g Gauge) Clone(tags ...Tag) Gauge {
-	if len(tags) == 0 {
-		return g
+//
+// The internal value of the returned gauge is set to zero.
+func (g *Gauge) Clone(tags ...Tag) *Gauge {
+	return &Gauge{
+		eng:  g.eng,
+		name: g.name,
+		tags: concatTags(g.tags, tags),
 	}
-	return makeGauge(g.eng, g.name, concatTags(g.tags, tags))
 }
 
 // Incr increments the gauge by a value of 1.
-func (g Gauge) Incr() {
+func (g *Gauge) Incr() {
 	g.Add(1)
 }
 
 // Decr decrements the gauge by a value of 1.
-func (g Gauge) Decr() {
+func (g *Gauge) Decr() {
 	g.Add(-1)
 }
 
 // Add adds a value to the gauge.
-func (g Gauge) Add(value float64) {
-	g.eng.Add(GaugeType, g.key, g.name, g.tags, value, time.Now())
+func (g *Gauge) Add(value float64) {
+	g.mutex.Lock()
+	g.value += value
+	g.eng.Set(g.name, g.value, g.tags...)
+	g.mutex.Unlock()
 }
 
 // Set sets the gauge to value.
-func (g Gauge) Set(value float64) {
-	g.eng.Set(GaugeType, g.key, g.name, g.tags, value, time.Now())
-}
-
-func makeGauge(eng *Engine, name string, tags []Tag) Gauge {
-	sortTags(tags)
-	return Gauge{
-		eng:  eng,
-		key:  MetricKey(name, tags),
-		name: name,
-		tags: tags,
-	}
+func (g *Gauge) Set(value float64) {
+	g.mutex.Lock()
+	g.value = value
+	g.eng.Set(g.name, value, g.tags...)
+	g.mutex.Unlock()
 }
