@@ -10,10 +10,16 @@ import (
 	"github.com/segmentio/stats"
 )
 
+// NewConn returns a net.Conn object that wraps c and produces metrics on the
+// default engine.
+func NewConn(c net.Conn) net.Conn {
+	return NewConnWith(nil, c)
+}
+
 // NewConn returns a net.Conn object that wraps c and produces metrics on eng.
 //
 // If eng is nil, the default engine is used.
-func NewConn(eng *stats.Engine, c net.Conn) net.Conn {
+func NewConnWith(eng *stats.Engine, c net.Conn) net.Conn {
 	if eng == nil {
 		eng = stats.DefaultEngine
 	}

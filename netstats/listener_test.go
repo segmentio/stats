@@ -13,7 +13,7 @@ func TestListener(t *testing.T) {
 	e := stats.NewDefaultEngine()
 	e.Register(h)
 
-	lstn := NewListenerEngine(e, testLstn{})
+	lstn := NewListenerWith(e, testLstn{})
 
 	conn, err := lstn.Accept()
 	if err != nil {
@@ -49,7 +49,7 @@ func TestListenerError(t *testing.T) {
 	e := stats.NewDefaultEngine()
 	e.Register(h)
 
-	lstn := NewListenerEngine(e, testLstn{err: errTest})
+	lstn := NewListenerWith(e, testLstn{err: errTest})
 
 	_, err := lstn.Accept()
 	if err != errTest {

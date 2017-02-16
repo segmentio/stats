@@ -9,10 +9,10 @@ import (
 )
 
 func NewListener(lstn net.Listener) net.Listener {
-	return NewListenerEngine(nil, lstn)
+	return NewListenerWith(nil, lstn)
 }
 
-func NewListenerEngine(eng *stats.Engine, lstn net.Listener) net.Listener {
+func NewListenerWith(eng *stats.Engine, lstn net.Listener) net.Listener {
 	if eng == nil {
 		eng = stats.DefaultEngine
 	}
@@ -36,7 +36,7 @@ func (l *listener) Accept() (conn net.Conn, err error) {
 	}
 
 	if conn != nil {
-		conn = NewConn(l.eng, conn)
+		conn = NewConnWith(l.eng, conn)
 	}
 
 	return
