@@ -56,6 +56,8 @@ func NewClientWith(config ClientConfig) *Client {
 
 	if err != nil {
 		log.Printf("stats/datadog: opening a connection to %s failed: %s", config.Address, err)
+	} else {
+		log.Printf("stats/datadog: connection opened to %s with a buffer size of %d B", config.Address, len(conn.b))
 	}
 
 	return &Client{
