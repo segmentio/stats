@@ -16,7 +16,7 @@ const (
 	DefaultAddress = "localhost:8125"
 
 	// DefaultBufferSize is the default size of the client buffer.
-	DefaultBufferSize = 1000
+	DefaultBufferSize = 1024
 
 	// DefaultFlushInterval is the default interval at which clients flush
 	// metrics from their stats engine.

@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -18,6 +19,7 @@ type ConnConfig struct {
 
 // A Conn represents a UDP connection to a dogstatsd server.
 type Conn struct {
+	m sync.Mutex
 	c net.Conn
 	b []byte
 }
@@ -71,21 +73,21 @@ func (c *Conn) Read(b []byte) (int, error) {
 }
 
 // Write satisfies the net.Conn interface.
-func (c *Conn) Write(b []byte) (int, error) {
-	n := len(b)
+func (c *Conn) Write(b []byte) (n int, err error) {
+	c.m.Lock()
 
-	if n > cap(c.b) {
+	if n = len(b); n > cap(c.b) {
+		c.m.Unlock()
 		return 0, fmt.Errorf("discarded because it doesn't fit in the output buffer (size = %d, max = %d)", n, cap(c.b))
 	}
 
 	if n > (cap(c.b) - len(c.b)) {
-		if err := c.Flush(); err != nil {
-			return 0, err
-		}
+		err = c.flush()
 	}
 
 	c.b = append(c.b, b...)
-	return n, nil
+	c.m.Unlock()
+	return
 }
 
 // LocalAddr satisfies the net.Conn interface.
@@ -115,6 +117,13 @@ func (c *Conn) SetWriteDeadline(t time.Time) error {
 
 // Flush sends a UDP datagram containing all buffered data.
 func (c *Conn) Flush() (err error) {
+	c.m.Lock()
+	err = c.flush()
+	c.m.Unlock()
+	return
+}
+
+func (c *Conn) flush() (err error) {
 	if len(c.b) != 0 {
 		_, err = c.c.Write(c.b)
 		c.b = c.b[:0]
