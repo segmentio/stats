@@ -266,7 +266,7 @@ func requestHost(req *http.Request) (host string) {
 func responseStatusBucket(status int) string {
 	switch {
 	case status < 100 || status >= 600:
-		return "???"
+		return ""
 
 	case status < 200:
 		return "1xx"
@@ -296,7 +296,7 @@ func contentEncoding(h http.Header) string {
 func transferEncoding(te []string) string {
 	switch len(te) {
 	case 0:
-		return ""
+		return "identity"
 	case 1:
 		return te[0]
 	default:

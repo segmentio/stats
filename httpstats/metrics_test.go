@@ -43,7 +43,7 @@ func TestResponseStatusBucket(t *testing.T) {
 	}{
 		{
 			status: 0,
-			bucket: "???",
+			bucket: "",
 		},
 		{
 			status: 100,
@@ -256,7 +256,7 @@ func TestTransferEncoding(t *testing.T) {
 	}{
 		{
 			s: nil,
-			e: "",
+			e: "identity",
 		},
 		{
 			s: []string{"chunked"},

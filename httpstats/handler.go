@@ -105,6 +105,7 @@ func (w *responseWriter) complete() {
 	res := &http.Response{
 		ProtoMajor:    w.req.ProtoMajor,
 		ProtoMinor:    w.req.ProtoMinor,
+		Proto:         w.req.Proto,
 		StatusCode:    w.status,
 		Header:        w.Header(),
 		Request:       w.req,
