@@ -5,44 +5,33 @@ import (
 	"testing"
 )
 
-func TestMakeTimer(t *testing.T) {
-	tests := []struct {
-		key  string
-		name string
-		tags []Tag
-	}{
-		{
-			key:  "?",
-			name: "",
-			tags: nil,
-		},
-		{
-			key:  "M?",
-			name: "M",
-			tags: nil,
-		},
-		{
-			key:  "M?A=1",
-			name: "M",
-			tags: []Tag{{"A", "1"}},
-		},
-		{
-			key:  "M?A=1&B=2",
-			name: "M",
-			tags: []Tag{{"B", "2"}, {"A", "1"}},
-		},
+func TestTimerStart(t *testing.T) {
+	h := &handler{}
+	e := NewEngine("E")
+	e.Register(h)
+
+	m := e.Timer("A", Tag{"base", "tag"}, Tag{"extra", "tag"})
+	c := m.Start()
+
+	if name := c.Name(); name != "A" {
+		t.Error("bad timer name:", name)
 	}
 
-	for _, test := range tests {
-		t.Run("", func(t *testing.T) {
-			if timer := makeTimer(nil, test.name, test.tags); !reflect.DeepEqual(timer, Timer{
-				eng:  nil,
-				key:  test.key,
-				name: test.name,
-				tags: test.tags,
-			}) {
-				t.Errorf("makeTimer(nil, %#v, %#v) => %#v", test.name, test.tags, timer)
-			}
-		})
+	if tags := c.Tags(); !reflect.DeepEqual(tags, []Tag{{"base", "tag"}, {"extra", "tag"}}) {
+		t.Error("bad timer tags:", tags)
+	}
+}
+
+func TestTimerWithTags(t *testing.T) {
+	e := NewEngine("E")
+	c1 := e.Timer("A", Tag{"base", "tag"})
+	c2 := c1.WithTags(Tag{"extra", "tag"})
+
+	if name := c2.Name(); name != "A" {
+		t.Error("bad timer name:", name)
+	}
+
+	if tags := c2.Tags(); !reflect.DeepEqual(tags, []Tag{{"base", "tag"}, {"extra", "tag"}}) {
+		t.Error("bad timer tags:", tags)
 	}
 }

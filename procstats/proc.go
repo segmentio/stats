@@ -7,162 +7,124 @@ import (
 	"github.com/segmentio/stats"
 )
 
+// ProcMetrics is a metric collector that reports metrics on processes.
 type ProcMetrics struct {
-	Pid     int
-	CPU     CPU
-	Memory  Memory
-	Files   Files
-	Threads Threads
+	pid     int
+	cpu     procCPU
+	memory  procMemory
+	files   procFiles
+	threads procThreads
 }
 
-type CPU struct {
+type procCPU struct {
 	// CPU time
-	User stats.Counter // user cpu time used by the process
-	Sys  stats.Counter // system cpu time used by the process
+	user stats.Counter // user cpu time used by the process
+	sys  stats.Counter // system cpu time used by the process
 }
 
-type Memory struct {
+type procMemory struct {
 	// Memory
-	Available stats.Gauge // amound of RAM available to the process
-	Size      stats.Gauge // total program memory (including virtual mappings)
-	Resident  stats.Gauge // resident set size
-	Shared    stats.Gauge // shared pages (i.e., backed by a file)
-	Text      stats.Gauge // text (code)
-	Data      stats.Gauge // data + stack
+	available stats.Gauge // amound of RAM available to the process
+	size      stats.Gauge // total program memory (including virtual mappings)
+	resident  stats.Gauge // resident set size
+	shared    stats.Gauge // shared pages (i.e., backed by a file)
+	text      stats.Gauge // text (code)
+	data      stats.Gauge // data + stack
 
 	// Page faults
-	MajorPageFaults stats.Counter
-	MinorPageFaults stats.Counter
+	majorPageFaults stats.Counter
+	minorPageFaults stats.Counter
 }
 
-type Files struct {
+type procFiles struct {
 	// File descriptors
-	Open stats.Gauge // fds opened by the process
-	Max  stats.Gauge // max number of fds the process can open
+	open stats.Gauge // fds opened by the process
+	max  stats.Gauge // max number of fds the process can open
 }
 
-type Threads struct {
+type procThreads struct {
 	// Thread count
-	Num stats.Gauge
+	num stats.Gauge
 
 	// Context switches
-	VoluntaryContextSwitches   stats.Counter
-	InvoluntaryContextSwitches stats.Counter
+	voluntaryContextSwitches   stats.Counter
+	involuntaryContextSwitches stats.Counter
 }
 
-func NewProcMetrics(eng *stats.Engine, tags ...stats.Tag) *ProcMetrics {
-	return NewProcMetricsFor(os.Getpid(), eng, tags...)
+// NewProdMetrics collects metrics on the current process and reports them to
+// the default stats engine.
+func NewProcMetrics() *ProcMetrics {
+	return NewProcMetricsWith(stats.DefaultEngine, os.Getpid())
 }
 
-func NewProcMetricsFor(pid int, eng *stats.Engine, tags ...stats.Tag) *ProcMetrics {
+// NewProcMetricsWith collects metrics on the process identified by pid and
+// reports them to eng.
+func NewProcMetricsWith(eng *stats.Engine, pid int) *ProcMetrics {
 	return &ProcMetrics{
-		Pid:     pid,
-		CPU:     makeCPU(eng, tags...),
-		Memory:  makeMemory(eng, tags...),
-		Files:   makeFiles(eng, tags...),
-		Threads: makeThreads(eng, tags...),
+		pid: pid,
+		cpu: procCPU{
+			user: *eng.Counter("cpu.usage.seconds", stats.Tag{"type", "user"}),
+			sys:  *eng.Counter("cpu.usage.seconds", stats.Tag{"type", "system"}),
+		},
+		memory: procMemory{
+			available:       *eng.Gauge("memory.available.bytes"),
+			size:            *eng.Gauge("memory.total.bytes"),
+			resident:        *eng.Gauge("memory.usage.bytes", stats.Tag{"type", "resident"}),
+			shared:          *eng.Gauge("memory.usage.bytes", stats.Tag{"type", "shared"}),
+			text:            *eng.Gauge("memory.usage.bytes", stats.Tag{"type", "text"}),
+			data:            *eng.Gauge("memory.usage.bytes", stats.Tag{"type", "data"}),
+			majorPageFaults: *eng.Counter("memory.pagefault.count", stats.Tag{"type", "major"}),
+			minorPageFaults: *eng.Counter("memory.pagefault.count", stats.Tag{"type", "minor"}),
+		},
+		files: procFiles{
+			open: *eng.Gauge("files.open.count"),
+			max:  *eng.Gauge("files.open.max"),
+		},
+		threads: procThreads{
+			num: *eng.Gauge("thread.count"),
+			voluntaryContextSwitches:   *eng.Counter("thread.switch.count", stats.Tag{"type", "voluntary"}),
+			involuntaryContextSwitches: *eng.Counter("thread.switch.count", stats.Tag{"type", "involuntary"}),
+		},
 	}
 }
 
+// Collect satsifies the Collector interface.
 func (p *ProcMetrics) Collect() {
-	if m, err := collectProcMetrics(p.Pid); err == nil {
+	if m, err := collectProcMetrics(p.pid); err == nil {
 		// CPU
-		p.CPU.User.Set(m.cpu.user.Seconds())
-		p.CPU.Sys.Set(m.cpu.sys.Seconds())
+		p.cpu.user.Set(m.cpu.user.Seconds())
+		p.cpu.sys.Set(m.cpu.sys.Seconds())
 
 		// Memory
-		p.Memory.Available.Set(float64(m.memory.available))
-		p.Memory.Size.Set(float64(m.memory.size))
-		p.Memory.Resident.Set(float64(m.memory.resident))
-		p.Memory.Shared.Set(float64(m.memory.shared))
-		p.Memory.Text.Set(float64(m.memory.text))
-		p.Memory.Data.Set(float64(m.memory.data))
-		p.Memory.MajorPageFaults.Set(float64(m.memory.majorPageFaults))
-		p.Memory.MinorPageFaults.Set(float64(m.memory.minorPageFaults))
+		p.memory.available.Set(float64(m.memory.available))
+		p.memory.size.Set(float64(m.memory.size))
+		p.memory.resident.Set(float64(m.memory.resident))
+		p.memory.shared.Set(float64(m.memory.shared))
+		p.memory.text.Set(float64(m.memory.text))
+		p.memory.data.Set(float64(m.memory.data))
+		p.memory.majorPageFaults.Set(float64(m.memory.majorPageFaults))
+		p.memory.minorPageFaults.Set(float64(m.memory.minorPageFaults))
 
 		// Files
-		p.Files.Open.Set(float64(m.files.open))
-		p.Files.Max.Set(float64(m.files.max))
+		p.files.open.Set(float64(m.files.open))
+		p.files.max.Set(float64(m.files.max))
 
 		// Threads
-		p.Threads.Num.Set(float64(m.threads.num))
-		p.Threads.VoluntaryContextSwitches.Set(float64(m.threads.voluntaryContextSwitches))
-		p.Threads.InvoluntaryContextSwitches.Set(float64(m.threads.involuntaryContextSwitches))
+		p.threads.num.Set(float64(m.threads.num))
+		p.threads.voluntaryContextSwitches.Set(float64(m.threads.voluntaryContextSwitches))
+		p.threads.involuntaryContextSwitches.Set(float64(m.threads.involuntaryContextSwitches))
 	}
 }
 
-func makeCPU(eng *stats.Engine, tags ...stats.Tag) (cpu CPU) {
-	n := len(tags)
-	tags = append(tags, stats.Tag{})
-
-	tags[n] = stats.Tag{"type", "user"}
-	cpu.User = stats.MakeCounter(eng, "cpu.usage.seconds", tags...)
-
-	tags[n] = stats.Tag{"type", "sys"}
-	cpu.Sys = stats.MakeCounter(eng, "cpu.usage.seconds", tags...)
-
-	return cpu
-}
-
-func makeMemory(eng *stats.Engine, tags ...stats.Tag) Memory {
-	mem := Memory{
-		Available: stats.MakeGauge(eng, "memory.available.bytes", tags...),
-		Size:      stats.MakeGauge(eng, "memory.total.bytes", tags...),
-	}
-
-	n := len(tags)
-	tags = append(tags, stats.Tag{})
-
-	tags[n] = stats.Tag{"type", "resident"}
-	mem.Resident = stats.MakeGauge(eng, "memory.usage.bytes", tags...)
-
-	tags[n] = stats.Tag{"type", "shared"}
-	mem.Shared = stats.MakeGauge(eng, "memory.usage.bytes", tags...)
-
-	tags[n] = stats.Tag{"type", "text"}
-	mem.Text = stats.MakeGauge(eng, "memory.usage.bytes", tags...)
-
-	tags[n] = stats.Tag{"type", "data"}
-	mem.Data = stats.MakeGauge(eng, "memory.usage.bytes", tags...)
-
-	tags[n] = stats.Tag{"type", "major"}
-	mem.MajorPageFaults = stats.MakeCounter(eng, "memory.pagefault.count", tags...)
-
-	tags[n] = stats.Tag{"type", "minor"}
-	mem.MinorPageFaults = stats.MakeCounter(eng, "memory.pagefault.count", tags...)
-
-	return mem
-}
-
-func makeFiles(eng *stats.Engine, tags ...stats.Tag) Files {
-	return Files{
-		Open: stats.MakeGauge(eng, "files.open.count", tags...),
-		Max:  stats.MakeGauge(eng, "files.open.max", tags...),
-	}
-}
-
-func makeThreads(eng *stats.Engine, tags ...stats.Tag) Threads {
-	threads := Threads{
-		Num: stats.MakeGauge(eng, "thread.count", tags...),
-	}
-
-	n := len(tags)
-	tags = append(tags, stats.Tag{})
-
-	tags[n] = stats.Tag{"type", "voluntary"}
-	threads.VoluntaryContextSwitches = stats.MakeCounter(eng, "thread.switch.count", tags...)
-
-	tags[n] = stats.Tag{"type", "involuntary"}
-	threads.InvoluntaryContextSwitches = stats.MakeCounter(eng, "thread.switch.count", tags...)
-
-	return threads
-}
+// =============================================================================
+// These structs are used by the platform-specific implementations as a bridge
+// to the high-level API.
 
 type proc struct {
-	cpu     cpu
-	memory  memory
-	files   files
-	threads threads
+	cpu
+	memory
+	files
+	threads
 }
 
 type cpu struct {
@@ -192,3 +154,5 @@ type threads struct {
 	voluntaryContextSwitches   uint64
 	involuntaryContextSwitches uint64
 }
+
+// =============================================================================

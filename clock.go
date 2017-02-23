@@ -18,17 +18,18 @@ func (c *Clock) Name() string {
 
 // Tags returns the list of tags set on the clock.
 //
-// The returned slice is a copy of the internal slice maintained by the clock,
-// the program owns it and can safely modify it without affecting the clock.
+// The method returns a reference to the clock's internal tag slice, it does
+// not make a copy. It's expected that the program will treat this value as a
+// read-only list and won't modify its content.
 func (c *Clock) Tags() []Tag {
 	return c.metric.Tags()
 }
 
-// Clone returns a copy of the clock, potentially setting tags on the returned
+// WithTags returns a copy of the clock, potentially setting tags on the returned
 // object.
-func (c *Clock) Clone(tags ...Tag) *Clock {
+func (c *Clock) WithTags(tags ...Tag) *Clock {
 	return &Clock{
-		metric: c.metric.Clone(tags...),
+		metric: *c.metric.WithTags(tags...),
 		last:   c.last,
 	}
 }
@@ -69,9 +70,6 @@ func (c *Clock) StopAt(now time.Time) {
 
 func (c *Clock) observe(stamp string, now time.Time) {
 	h := c.metric
-	h.key += "&stamp=" + stamp
-	h.tags = make([]Tag, 0, len(c.metric.tags)+1)
-	h.tags = append(h.tags, c.metric.tags...)
 	h.tags = append(h.tags, Tag{"stamp", stamp})
 	h.Observe(now.Sub(c.last).Seconds())
 	c.last = now

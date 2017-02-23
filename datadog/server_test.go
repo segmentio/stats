@@ -11,7 +11,7 @@ import (
 )
 
 func TestServer(t *testing.T) {
-	engine := stats.NewDefaultEngine()
+	engine := stats.NewEngine("datadog.test")
 
 	a := uint32(0)
 	b := uint32(0)
@@ -34,33 +34,29 @@ func TestServer(t *testing.T) {
 	}))
 	defer closer.Close()
 
-	client := NewClient(ClientConfig{
-		Address:       addr,
-		Engine:        engine,
-		FlushInterval: time.Millisecond,
-	})
+	client := NewClient(addr)
 	defer client.Close()
+	engine.Register(client)
 
-	ma := stats.MakeCounter(engine, "A")
+	ma := engine.Counter("A")
 	ma.Incr()
 	ma.Incr()
-
-	// Test that the counter properly computes the delta between flushes of the
-	// client.
-	time.Sleep(10 * time.Millisecond)
 	ma.Incr()
 
-	mb := stats.MakeGauge(engine, "B")
+	mb := engine.Gauge("B")
 	mb.Set(1)
 	mb.Set(2)
 	mb.Set(3)
 
-	mc := stats.MakeHistogram(engine, "C")
+	mc := engine.Histogram("C")
 	mc.Observe(1)
 	mc.Observe(2)
 	mc.Observe(3)
 
-	time.Sleep(10 * time.Millisecond)
+	engine.Flush()
+
+	// Give time for the server to receive the metrics.
+	time.Sleep(100 * time.Millisecond)
 
 	if n := atomic.LoadUint32(&a); n != 3 { // two increments (+1, +1, +1)
 		t.Error("datadog.test.A: bad value:", n)

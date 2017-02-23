@@ -11,152 +11,148 @@ import (
 	"time"
 
 	"github.com/segmentio/stats"
-	"github.com/segmentio/stats/iostats"
 )
 
-type Metrics struct {
-	eng     *stats.Engine
-	reqTags []stats.Tag
-	resTags []stats.Tag
+type nullBody struct{}
+
+func (n *nullBody) Close() error { return nil }
+
+func (n *nullBody) Read(b []byte) (int, error) { return 0, io.EOF }
+
+type requestBody struct {
+	body  io.ReadCloser
+	eng   *stats.Engine
+	req   *http.Request
+	bytes int
+	op    string
+	once  sync.Once
 }
 
-func MakeClientMetrics(eng *stats.Engine, tags ...stats.Tag) Metrics {
-	return makeMetrics(eng, "write", "read", tags...)
-}
-
-func MakeServerMetrics(eng *stats.Engine, tags ...stats.Tag) Metrics {
-	return makeMetrics(eng, "read", "write", tags...)
-}
-
-func makeMetrics(eng *stats.Engine, reqOp string, resOp string, tags ...stats.Tag) Metrics {
-	reqTags := make([]stats.Tag, 0, len(tags)+2)
-	reqTags = append(reqTags, tags...)
-	reqTags = append(reqTags, stats.Tag{"type", "request"}, stats.Tag{"operation", reqOp})
-
-	resTags := make([]stats.Tag, 0, len(tags)+2)
-	resTags = append(resTags, tags...)
-	resTags = append(resTags, stats.Tag{"type", "response"}, stats.Tag{"operation", resOp})
-
-	return Metrics{
-		eng:     eng,
-		reqTags: reqTags,
-		resTags: resTags,
-	}
-}
-
-func (m Metrics) ObserveRequest(req *http.Request) (body io.ReadCloser, tags []stats.Tag) {
-	now := time.Now()
-
-	tags = make([]stats.Tag, 0, len(m.reqTags)+10)
-	tags = append(tags, m.reqTags...)
-	tags = appendRequestTags(tags, req)
-
-	rawTags := stats.MakeRawTags(tags)
-
-	m.incrMessageCounter(tags, rawTags, now)
-	m.observeHeaderSize(len(req.Header), tags, rawTags, now)
-	m.observeHeaderLength(requestHeaderLength(req), tags, rawTags, now)
-
-	body = newMessageBody(m, req.Body, tags, rawTags)
+func (r *requestBody) Close() (err error) {
+	err = r.body.Close()
+	r.close()
 	return
 }
 
-func (m Metrics) ObserveResponse(res *http.Response) (body io.ReadCloser, tags []stats.Tag) {
-	now := time.Now()
+func (r *requestBody) Read(b []byte) (n int, err error) {
+	if n, err = r.body.Read(b); n > 0 {
+		r.bytes += n
+	}
+	return
+}
 
-	tags = make([]stats.Tag, 0, len(m.resTags)+20)
-	tags = append(tags, m.resTags...)
-	tags = appendResponseTags(tags, res)
+func (r *requestBody) close() {
+	r.once.Do(r.complete)
+}
+
+func (r *requestBody) complete() {
+	m := metrics{r.eng}
+	m.observeRequest(r.req, r.op, r.bytes)
+}
+
+type responseBody struct {
+	eng   *stats.Engine
+	res   *http.Response
+	body  io.ReadCloser
+	bytes int
+	op    string
+	start time.Time
+	once  sync.Once
+}
+
+func (r *responseBody) Close() (err error) {
+	err = r.body.Close()
+	r.once.Do(r.complete)
+	return
+}
+
+func (r *responseBody) Read(b []byte) (n int, err error) {
+	if n, err = r.body.Read(b); n > 0 {
+		r.bytes += n
+	}
+	return
+}
+
+func (r *responseBody) complete() {
+	m := metrics{r.eng}
+	m.observeResponse(r.res, r.op, r.bytes, time.Now().Sub(r.start))
+}
+
+type metrics struct {
+	eng *stats.Engine
+}
+
+func (m metrics) incrMessageCount(tags ...stats.Tag) {
+	m.eng.Incr("http.message.count", tags...)
+}
+
+func (m metrics) incrErrorCount(tags ...stats.Tag) {
+	m.eng.Incr("http.error.count", tags...)
+}
+
+func (m metrics) observeHeaderSize(size int, tags ...stats.Tag) {
+	m.eng.Observe("http.message.header.size", float64(size), tags...)
+}
+
+func (m metrics) observeHeaderLength(len int, tags ...stats.Tag) {
+	m.eng.Observe("http.message.header.bytes", float64(len), tags...)
+}
+
+func (m metrics) observeBodyLength(len int, tags ...stats.Tag) {
+	m.eng.Observe("http.message.body.bytes", float64(len), tags...)
+}
+
+func (m metrics) observeRTT(rtt time.Duration, tags ...stats.Tag) {
+	m.eng.Observe("http.rtt.seconds", rtt.Seconds(), tags...)
+}
+
+func (m metrics) observeRequest(req *http.Request, op string, bodyLen int) {
+	var a [10]stats.Tag
+	var t = a[:0]
+
+	t = append(t, stats.Tag{"type", "request"})
+	t = append(t, stats.Tag{"operation", op})
+	t = appendRequestTags(t, req)
+
+	m.incrMessageCount(t...)
+	m.observeHeaderSize(len(req.Header), t...)
+	m.observeHeaderLength(requestHeaderLength(req), t...)
+	m.observeBodyLength(bodyLen, t...)
+}
+
+func (m metrics) observeResponse(res *http.Response, op string, bodyLen int, rtt time.Duration) {
+	var a [20]stats.Tag
+	var t = a[:0]
+
+	t = append(t, stats.Tag{"type", "response"})
+	t = append(t, stats.Tag{"operation", op})
+	t = appendResponseTags(t, res)
 
 	if req := res.Request; req != nil {
-		tags = appendRequestTags(tags, req)
+		t = appendRequestTags(t, req)
 	}
 
-	rawTags := stats.MakeRawTags(tags)
-
-	m.incrMessageCounter(tags, rawTags, now)
-	m.observeHeaderSize(len(res.Header), tags, rawTags, now)
-	m.observeHeaderLength(responseHeaderLength(res), tags, rawTags, now)
-
-	body = newMessageBody(m, res.Body, tags, rawTags)
-	return
+	m.incrMessageCount(t...)
+	m.observeHeaderSize(len(res.Header), t...)
+	m.observeHeaderLength(responseHeaderLength(res), t...)
+	m.observeBodyLength(bodyLen, t...)
+	m.observeRTT(rtt, t...)
 }
 
-func (m Metrics) incrErrorCounter(tags []stats.Tag, rawTags stats.RawTags, now time.Time) {
-	const name = "http.errors.count"
-	m.eng.Add(
-		stats.CounterType,
-		stats.RawMetricKey(name, rawTags),
-		name,
-		tags,
-		1,
-		now,
-	)
-}
+func (m metrics) observeError(req *http.Request, op string) {
+	var a [10]stats.Tag
+	var t = a[:0]
 
-func (m Metrics) incrMessageCounter(tags []stats.Tag, rawTags stats.RawTags, now time.Time) {
-	const name = "http.message.count"
-	m.eng.Add(
-		stats.CounterType,
-		stats.RawMetricKey(name, rawTags),
-		name,
-		tags,
-		1,
-		now,
-	)
-}
+	t = append(t, stats.Tag{"type", "request"})
+	t = append(t, stats.Tag{"operation", op})
+	t = appendRequestTags(t, req)
 
-func (m Metrics) observeHeaderSize(size int, tags []stats.Tag, rawTags stats.RawTags, now time.Time) {
-	const name = "http.message.header.sizes"
-	m.eng.Observe(
-		stats.HistogramType,
-		stats.RawMetricKey(name, rawTags),
-		name,
-		tags,
-		float64(size),
-		now,
-	)
-}
-
-func (m Metrics) observeHeaderLength(len int, tags []stats.Tag, rawTags stats.RawTags, now time.Time) {
-	const name = "http.message.header.bytes"
-	m.eng.Observe(
-		stats.HistogramType,
-		stats.RawMetricKey(name, rawTags),
-		name,
-		tags,
-		float64(len),
-		now,
-	)
-}
-
-func (m Metrics) observeBodyLength(len int, tags []stats.Tag, rawTags stats.RawTags, now time.Time) {
-	const name = "http.message.body.bytes"
-	m.eng.Observe(
-		stats.HistogramType,
-		stats.RawMetricKey(name, rawTags),
-		name,
-		tags,
-		float64(len),
-		now,
-	)
-}
-
-func (m Metrics) observeRTT(rtt time.Duration, tags []stats.Tag, rawTags stats.RawTags, now time.Time) {
-	const name = "http.rtt.seconds"
-	m.eng.Observe(
-		stats.HistogramType,
-		stats.RawMetricKey(name, rawTags),
-		name,
-		tags,
-		rtt.Seconds(),
-		now,
-	)
+	m.incrErrorCount(t...)
 }
 
 func appendRequestTags(tags []stats.Tag, req *http.Request) []stats.Tag {
 	ctype, charset := contentType(req.Header)
-	return append(tags, // sorted
+	return append(tags,
 		stats.Tag{"http_req_content_charset", charset},
 		stats.Tag{"http_req_content_encoding", contentEncoding(req.Header)},
 		stats.Tag{"http_req_content_type", ctype},
@@ -170,7 +166,7 @@ func appendRequestTags(tags []stats.Tag, req *http.Request) []stats.Tag {
 
 func appendResponseTags(tags []stats.Tag, res *http.Response) []stats.Tag {
 	ctype, charset := contentType(res.Header)
-	return append(tags, // sorted
+	return append(tags,
 		stats.Tag{"http_res_content_charset", charset},
 		stats.Tag{"http_res_content_encoding", contentEncoding(res.Header)},
 		stats.Tag{"http_res_content_type", ctype},
@@ -270,7 +266,7 @@ func requestHost(req *http.Request) (host string) {
 func responseStatusBucket(status int) string {
 	switch {
 	case status < 100 || status >= 600:
-		return "???"
+		return ""
 
 	case status < 200:
 		return "1xx"
@@ -300,7 +296,7 @@ func contentEncoding(h http.Header) string {
 func transferEncoding(te []string) string {
 	switch len(te) {
 	case 0:
-		return ""
+		return "identity"
 	case 1:
 		return te[0]
 	default:
@@ -328,38 +324,3 @@ func parseHeaderToken(s string) (token string, next string) {
 	}
 	return
 }
-
-type messageBody struct {
-	iostats.CountReader
-	io.Closer
-	metrics Metrics
-	tags    []stats.Tag
-	rawTags stats.RawTags
-	once    sync.Once
-}
-
-func newMessageBody(metrics Metrics, body io.ReadCloser, tags []stats.Tag, rawTags stats.RawTags) *messageBody {
-	return &messageBody{
-		CountReader: iostats.CountReader{R: body},
-		Closer:      body,
-		metrics:     metrics,
-		tags:        tags,
-		rawTags:     rawTags,
-	}
-}
-
-func (m *messageBody) Close() (err error) {
-	err = m.Closer.Close()
-	m.complete()
-	return
-}
-
-func (m *messageBody) complete() {
-	m.once.Do(func() { m.metrics.observeBodyLength(m.N, m.tags, m.rawTags, time.Now()) })
-}
-
-type nullBody struct{}
-
-func (n *nullBody) Close() error { return nil }
-
-func (n *nullBody) Read(b []byte) (int, error) { return 0, io.EOF }

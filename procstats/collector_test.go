@@ -7,14 +7,26 @@ import (
 	"github.com/segmentio/stats"
 )
 
+type handler struct {
+	metrics []stats.Metric
+}
+
+func (h *handler) HandleMetric(m *stats.Metric) {
+	c := *m
+	c.Tags = append([]stats.Tag{}, m.Tags...)
+	c.Time = time.Time{} // discard because it's unpredicatable
+	h.metrics = append(h.metrics, c)
+}
+
 func TestCollector(t *testing.T) {
-	engine := stats.NewDefaultEngine()
-	defer engine.Close()
+	h := &handler{}
+	e := stats.NewEngine("")
+	e.Register(h)
 
 	c := StartCollectorWith(Config{
 		CollectInterval: 100 * time.Microsecond,
 		Collector: MultiCollector(
-			NewGoMetrics(engine),
+			NewGoMetricsWith(e),
 		),
 	})
 
@@ -22,12 +34,7 @@ func TestCollector(t *testing.T) {
 	time.Sleep(time.Millisecond)
 	c.Close()
 
-	// Let the engine process the metrics.
-	time.Sleep(10 * time.Millisecond)
-
-	metrics, _ := engine.State(0)
-
-	if len(metrics) == 0 {
+	if len(h.metrics) == 0 {
 		t.Error("no metrics were reported by the stats collector")
 	}
 }

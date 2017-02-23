@@ -2,80 +2,59 @@ package stats
 
 import "time"
 
-// Timer is an immutable data strcture that can be used to represent metrics
-// that accumulate values.
+// A Timer is a special case for a histogram that reports durations.
 type Timer struct {
-	eng  *Engine // the parent engine
-	key  string  // cached metric key
+	eng  *Engine // the engine to produce metrics on
 	name string  // the name of the timer
 	tags []Tag   // the tags set on the timer
 }
 
-// T returns a new timer that produces metrics on the default engine.
-func T(name string, tags ...Tag) Timer {
-	return MakeTimer(nil, name, tags...)
-}
-
-// MakeTimer returns a new timer that produces metrics on the given engine.
-func MakeTimer(engine *Engine, name string, tags ...Tag) Timer {
-	return makeTimer(engine, name, copyTags(tags))
-}
-
 // Name returns the name of the timer.
-func (t Timer) Name() string {
+func (t *Timer) Name() string {
 	return t.name
 }
 
 // Tags returns the list of tags set on the timer.
 //
-// The returned slice is a copy of the internal slice maintained by the timer,
-// the program owns it and can safely modify it without affecting the timer.
-func (t Timer) Tags() []Tag {
-	return copyTags(t.tags)
+// The method returns a reference to the timer's internal tag slice, it does
+// not make a copy. It's expected that the program will treat this value as a
+// read-only list and won't modify its content.
+func (t *Timer) Tags() []Tag {
+	return t.tags
 }
 
-// Clone returns a copy of the timer, potentially setting tags on the returned
+// WithTags returns a copy of the timer, potentially setting tags on the returned
 // object.
-func (t Timer) Clone(tags ...Tag) Timer {
-	if len(tags) == 0 {
-		return t
+func (t *Timer) WithTags(tags ...Tag) *Timer {
+	return &Timer{
+		eng:  t.eng,
+		name: t.name,
+		tags: concatTags(t.tags, tags),
 	}
-	return makeTimer(t.eng, t.name, concatTags(t.tags, tags))
-}
-
-// Duration is used to report a precomputed duration d on the timer t.
-func (t Timer) Duration(d time.Duration) {
-	t0 := time.Time{}
-	t1 := t0.Add(d)
-	t.StartAt(t0).StopAt(t1)
 }
 
 // Start the timer, returning a clock object that should be used to publish the
 // timer metrics.
-func (t Timer) Start() *Clock {
+func (t *Timer) Start() *Clock {
 	return t.StartAt(time.Now())
 }
 
 // StartAt the timer with a predefined start time, returning a clock object that
 // should be used to publish the timer metrics.
-func (t Timer) StartAt(now time.Time) *Clock {
+func (t *Timer) StartAt(now time.Time) *Clock {
+	var tags []Tag
+
+	if len(t.tags) != 0 {
+		tags = make([]Tag, len(t.tags), len(t.tags)+1)
+		copy(tags, t.tags)
+	}
+
 	return &Clock{
 		metric: Histogram{
 			eng:  t.eng,
-			key:  t.key,
 			name: t.name,
-			tags: t.tags,
+			tags: tags,
 		},
 		last: now,
-	}
-}
-
-func makeTimer(eng *Engine, name string, tags []Tag) Timer {
-	sortTags(tags)
-	return Timer{
-		eng:  eng,
-		key:  MetricKey(name, tags),
-		name: name,
-		tags: tags,
 	}
 }

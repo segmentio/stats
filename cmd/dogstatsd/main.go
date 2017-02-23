@@ -88,7 +88,7 @@ func client(cmd string, args ...string) {
 		}
 	}
 
-	dd := datadog.NewClient(datadog.ClientConfig{Address: addr})
+	dd := datadog.NewClient(addr)
 	defer dd.Close()
 
 	switch cmd {

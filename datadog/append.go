@@ -7,8 +7,8 @@ import (
 )
 
 func appendMetric(b []byte, m Metric) []byte {
-	if len(m.Namespace.Name) != 0 {
-		b = append(b, m.Namespace.Name...)
+	if len(m.Namespace) != 0 {
+		b = append(b, m.Namespace...)
 		b = append(b, '.')
 	}
 
@@ -23,17 +23,8 @@ func appendMetric(b []byte, m Metric) []byte {
 		b = strconv.AppendFloat(b, m.Rate, 'g', -1, 64)
 	}
 
-	n1 := len(m.Namespace.Tags)
-	n2 := len(m.Tags)
-
-	if n1 != 0 || n2 != 0 {
+	if n := len(m.Tags); n != 0 {
 		b = append(b, '|', '#')
-		b = appendTags(b, m.Namespace.Tags)
-
-		if n1 != 0 && n2 != 0 {
-			b = append(b, ',')
-		}
-
 		b = appendTags(b, m.Tags)
 	}
 
