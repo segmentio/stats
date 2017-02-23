@@ -20,9 +20,9 @@ func (n *nullBody) Close() error { return nil }
 func (n *nullBody) Read(b []byte) (int, error) { return 0, io.EOF }
 
 type requestBody struct {
+	body  io.ReadCloser
 	eng   *stats.Engine
 	req   *http.Request
-	body  io.ReadCloser
 	bytes int
 	op    string
 	once  sync.Once

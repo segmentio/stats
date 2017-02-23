@@ -31,9 +31,9 @@ type handler struct {
 
 func (h *handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	b := &requestBody{
+		body: req.Body,
 		eng:  h.eng,
 		req:  req,
-		body: req.Body,
 		op:   "read",
 	}
 	defer b.close()
@@ -46,7 +46,7 @@ func (h *handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	}
 	defer w.complete()
 
-	res.Body = b
+	req.Body = b
 	h.handler.ServeHTTP(w, req)
 }
 
