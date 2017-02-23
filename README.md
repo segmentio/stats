@@ -29,7 +29,7 @@ import (
 )
 
 func main() {
-    // Creates a new datadog client publishing emtrics to localhost:8125
+    // Creates a new datadog client publishing metrics to localhost:8125
     dd := datadog.NewClient("localhost:8125")
 
     // Register the client so it receives metrics from the default engine.
