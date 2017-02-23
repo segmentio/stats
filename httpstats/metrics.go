@@ -30,7 +30,7 @@ type requestBody struct {
 
 func (r *requestBody) Close() (err error) {
 	err = r.body.Close()
-	r.once.Do(r.complete)
+	r.close()
 	return
 }
 
@@ -39,6 +39,10 @@ func (r *requestBody) Read(b []byte) (n int, err error) {
 		r.bytes += n
 	}
 	return
+}
+
+func (r *requestBody) close() {
+	r.once.Do(r.complete)
 }
 
 func (r *requestBody) complete() {

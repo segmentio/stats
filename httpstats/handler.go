@@ -30,12 +30,14 @@ type handler struct {
 }
 
 func (h *handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	req.Body = &requestBody{
+	b := &requestBody{
 		eng:  h.eng,
 		req:  req,
 		body: req.Body,
 		op:   "read",
 	}
+	defer b.close()
+
 	w := &responseWriter{
 		ResponseWriter: res,
 		eng:            h.eng,
@@ -43,6 +45,8 @@ func (h *handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		start:          time.Now(),
 	}
 	defer w.complete()
+
+	res.Body = b
 	h.handler.ServeHTTP(w, req)
 }
 
@@ -90,6 +94,7 @@ func (w *responseWriter) complete() {
 	if w.wroteStats {
 		return
 	}
+	w.wroteStats = true
 
 	if !w.wroteHeader {
 		w.wroteHeader = true
@@ -108,7 +113,4 @@ func (w *responseWriter) complete() {
 
 	m := metrics{w.eng}
 	m.observeResponse(res, "write", w.bytes, now.Sub(w.start))
-
-	w.req.Body.Close()
-	w.wroteStats = true
 }
