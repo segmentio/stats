@@ -29,7 +29,7 @@ func TestEngineRegister(t *testing.T) {
 	}
 }
 
-func TestEngineClone(t *testing.T) {
+func TestEngineWithTags(t *testing.T) {
 	h1 := &handler{}
 	h2 := &handler{}
 	h3 := &handler{}
@@ -38,7 +38,7 @@ func TestEngineClone(t *testing.T) {
 	eng1.Register(h1)
 	eng1.Register(h2)
 
-	eng2 := eng1.Clone(
+	eng2 := eng1.WithTags(
 		Tag{"A", "1"},
 		Tag{"B", "2"},
 		Tag{"C", "3"},

@@ -91,10 +91,10 @@ func TestCounterSet(t *testing.T) {
 	}
 }
 
-func TestCounterClone(t *testing.T) {
+func TestCounterWithTags(t *testing.T) {
 	e := NewEngine("E")
 	c1 := e.Counter("A", Tag{"base", "tag"})
-	c2 := c1.Clone(Tag{"extra", "tag"})
+	c2 := c1.WithTags(Tag{"extra", "tag"})
 
 	if name := c2.Name(); name != "A" {
 		t.Error("bad counter name:", name)

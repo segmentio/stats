@@ -23,9 +23,9 @@ func (t *Timer) Tags() []Tag {
 	return t.tags
 }
 
-// Clone returns a copy of the timer, potentially setting tags on the returned
+// WithTags returns a copy of the timer, potentially setting tags on the returned
 // object.
-func (t *Timer) Clone(tags ...Tag) *Timer {
+func (t *Timer) WithTags(tags ...Tag) *Timer {
 	return &Timer{
 		eng:  t.eng,
 		name: t.name,

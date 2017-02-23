@@ -30,11 +30,11 @@ func (c *Counter) Value() float64 {
 	return c.value
 }
 
-// Clone returns a copy of the counter, potentially setting tags on the returned
+// WithTags returns a copy of the counter, potentially setting tags on the returned
 // object.
 //
 // The internal value of the returned counter is set to zero.
-func (c *Counter) Clone(tags ...Tag) *Counter {
+func (c *Counter) WithTags(tags ...Tag) *Counter {
 	return &Counter{
 		eng:  c.eng,
 		name: c.name,

@@ -115,10 +115,10 @@ func TestGaugeSet(t *testing.T) {
 	}
 }
 
-func TestGaugeClone(t *testing.T) {
+func TestGaugeWithTags(t *testing.T) {
 	e := NewEngine("E")
 	c1 := e.Gauge("A", Tag{"base", "tag"})
-	c2 := c1.Clone(Tag{"extra", "tag"})
+	c2 := c1.WithTags(Tag{"extra", "tag"})
 
 	if name := c2.Name(); name != "A" {
 		t.Error("bad gauge name:", name)

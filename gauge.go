@@ -30,11 +30,11 @@ func (g *Gauge) Value() float64 {
 	return g.value
 }
 
-// Clone returns a copy of the gauge, potentially setting tags on the returned
+// WithTags returns a copy of the gauge, potentially setting tags on the returned
 // object.
 //
 // The internal value of the returned gauge is set to zero.
-func (g *Gauge) Clone(tags ...Tag) *Gauge {
+func (g *Gauge) WithTags(tags ...Tag) *Gauge {
 	return &Gauge{
 		eng:  g.eng,
 		name: g.name,

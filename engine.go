@@ -65,9 +65,9 @@ func (eng *Engine) Register(handler Handler) {
 	eng.hmutex.Unlock()
 }
 
-// Clone creates a new engine which inherits the properties and handlers,
+// WithTags creates a new engine which inherits the properties and handlers,
 // potentially adding tags to the returned engine.
-func (eng *Engine) Clone(tags ...Tag) *Engine {
+func (eng *Engine) WithTags(tags ...Tag) *Engine {
 	return &Engine{
 		name:     eng.name,
 		tags:     concatTags(eng.tags, tags),

@@ -52,10 +52,10 @@ func TestHistogramSet(t *testing.T) {
 	}
 }
 
-func TestHistogramClone(t *testing.T) {
+func TestHistogramWithTags(t *testing.T) {
 	e := NewEngine("E")
 	c1 := e.Histogram("A", Tag{"base", "tag"})
-	c2 := c1.Clone(Tag{"extra", "tag"})
+	c2 := c1.WithTags(Tag{"extra", "tag"})
 
 	if name := c2.Name(); name != "A" {
 		t.Error("bad histogram name:", name)

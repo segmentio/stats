@@ -25,11 +25,11 @@ func (c *Clock) Tags() []Tag {
 	return c.metric.Tags()
 }
 
-// Clone returns a copy of the clock, potentially setting tags on the returned
+// WithTags returns a copy of the clock, potentially setting tags on the returned
 // object.
-func (c *Clock) Clone(tags ...Tag) *Clock {
+func (c *Clock) WithTags(tags ...Tag) *Clock {
 	return &Clock{
-		metric: *c.metric.Clone(tags...),
+		metric: *c.metric.WithTags(tags...),
 		last:   c.last,
 	}
 }

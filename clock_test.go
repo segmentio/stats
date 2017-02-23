@@ -54,11 +54,11 @@ func TestClockStart(t *testing.T) {
 	}
 }
 
-func TestClockClone(t *testing.T) {
+func TestClockWithTags(t *testing.T) {
 	e := NewEngine("E")
 	m := e.Timer("A", Tag{"base", "tag"})
 	c1 := m.Start()
-	c2 := c1.Clone(Tag{"extra", "tag"})
+	c2 := c1.WithTags(Tag{"extra", "tag"})
 
 	if name := c2.Name(); name != "A" {
 		t.Error("bad clock name:", name)

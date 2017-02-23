@@ -22,10 +22,10 @@ func TestTimerStart(t *testing.T) {
 	}
 }
 
-func TestTimerClone(t *testing.T) {
+func TestTimerWithTags(t *testing.T) {
 	e := NewEngine("E")
 	c1 := e.Timer("A", Tag{"base", "tag"})
-	c2 := c1.Clone(Tag{"extra", "tag"})
+	c2 := c1.WithTags(Tag{"extra", "tag"})
 
 	if name := c2.Name(); name != "A" {
 		t.Error("bad timer name:", name)

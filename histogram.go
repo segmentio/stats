@@ -22,9 +22,9 @@ func (h *Histogram) Tags() []Tag {
 	return h.tags
 }
 
-// Clone returns a copy of the histogram, potentially setting tags on the
+// WithTags returns a copy of the histogram, potentially setting tags on the
 // returned object.
-func (h *Histogram) Clone(tags ...Tag) *Histogram {
+func (h *Histogram) WithTags(tags ...Tag) *Histogram {
 	return &Histogram{
 		eng:  h.eng,
 		name: h.name,
