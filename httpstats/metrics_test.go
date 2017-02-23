@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -14,14 +15,25 @@ import (
 )
 
 type metricHandler struct {
+	sync.Mutex
 	metrics []stats.Metric
 }
 
 func (h *metricHandler) HandleMetric(m *stats.Metric) {
+	h.Lock()
 	c := *m
 	c.Tags = append([]stats.Tag{}, m.Tags...)
 	c.Time = time.Time{} // discard because it's unpredicatable
 	h.metrics = append(h.metrics, c)
+	h.Unlock()
+}
+
+func (h *metricHandler) Metrics() []stats.Metric {
+	h.Lock()
+	m := make([]stats.Metric, len(h.metrics))
+	copy(m, h.metrics)
+	h.Unlock()
+	return m
 }
 
 func TestResponseStatusBucket(t *testing.T) {

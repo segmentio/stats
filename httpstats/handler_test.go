@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/segmentio/stats"
@@ -53,14 +52,10 @@ func TestHandlerHijack(t *testing.T) {
 	e := stats.NewEngine("")
 	e.Register(h)
 
-	m := &sync.Mutex{}
-	m.Lock()
-
 	server := httptest.NewServer(NewHandlerWith(e, http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		// make sure the response writer supports hijacking
 		conn, _, _ := res.(http.Hijacker).Hijack()
 		conn.Close()
-		m.Unlock()
 	})))
 	defer server.Close()
 
@@ -68,10 +63,7 @@ func TestHandlerHijack(t *testing.T) {
 		t.Error("no error was reported by the http client")
 	}
 
-	m.Lock()
-	m.Unlock()
-
-	if len(h.metrics) == 0 {
+	if len(h.Metrics()) == 0 {
 		t.Error("no metrics reported by hijacked http handler")
 	}
 }
