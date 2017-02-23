@@ -87,15 +87,15 @@ func (m metrics) incrErrorCount(tags ...stats.Tag) {
 }
 
 func (m metrics) observeHeaderSize(size int, tags ...stats.Tag) {
-	m.eng.Observe("http.header.size", float64(size), tags...)
+	m.eng.Observe("http.message.header.size", float64(size), tags...)
 }
 
 func (m metrics) observeHeaderLength(len int, tags ...stats.Tag) {
-	m.eng.Observe("http.header.bytes", float64(len), tags...)
+	m.eng.Observe("http.message.header.bytes", float64(len), tags...)
 }
 
 func (m metrics) observeBodyLength(len int, tags ...stats.Tag) {
-	m.eng.Observe("http.body.bytes", float64(len), tags...)
+	m.eng.Observe("http.message.body.bytes", float64(len), tags...)
 }
 
 func (m metrics) observeRTT(rtt time.Duration, tags ...stats.Tag) {
