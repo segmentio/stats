@@ -124,6 +124,26 @@ func (eng *Engine) Timer(name string, tags ...Tag) *Timer {
 	}
 }
 
+// Clock creates a new clock producing metrics with name and tags.
+//
+// The method is similar to `.Timer()`, except it will start the clock
+// at `time.Now()`, this allows you to time functions nicely with `defer`:
+//
+// 			defer stats.Clock("myfunc").Stop()
+//
+// The method also allows you to time a series of operations, like so:
+//
+// 			c := stats.Clock("myfunc")
+// 			...
+// 			c.Stamp("download")
+// 			...
+// 			c.Stamp("process")
+// 			c.Stop()
+//
+func (eng *Engine) Clock(name string, tags ...Tag) *Clock {
+	return eng.Timer(name, tags...).Start()
+}
+
 // Incr increments by 1 the counter with name and tags on eng.
 func (eng *Engine) Incr(name string, tags ...Tag) {
 	eng.handle(CounterType, name, 1, tags, time.Time{})
