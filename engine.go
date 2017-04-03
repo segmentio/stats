@@ -28,7 +28,7 @@ var (
 	DefaultEngine = NewEngine(progname())
 )
 
-// NewEngine creates and returns an engine with tag and tags.
+// NewEngine creates and returns an engine with name and tags.
 func NewEngine(name string, tags ...Tag) *Engine {
 	return &Engine{
 		name: name,
