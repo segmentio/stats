@@ -8,7 +8,7 @@ import (
 	"github.com/segmentio/stats"
 )
 
-// NewHandler returns a netx.Handler object that warps handler and produces
+// NewHandler returns a netx.Handler object that wraps handler and produces
 // metrics on eng.
 //
 // If eng is nil, the default engine is used instead.
