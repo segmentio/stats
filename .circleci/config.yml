@@ -1,0 +1,21 @@
+
+version: 2
+jobs:
+  build:
+    working_directory: /go/src/github.com/segmentio/stats
+
+    docker:
+      - image: golang
+
+    steps:
+      - checkout
+
+      - run:
+          name: Dependencies
+          command: |
+            go get -t ./...
+
+      - run:
+          name: Test
+          command: |
+            go test -race -cover ./...
