@@ -5,7 +5,7 @@ jobs:
     working_directory: /go/src/github.com/segmentio/stats
 
     docker:
-      - image: golang
+      - image: segment/golang:latest
 
     steps:
       - checkout
