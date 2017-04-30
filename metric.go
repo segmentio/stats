@@ -19,6 +19,20 @@ const (
 	HistogramType
 )
 
+// String satisfies the fmt.Stringer interface.
+func (t MetricType) String() string {
+	switch t {
+	case CounterType:
+		return "counter"
+	case GaugeType:
+		return "gauge"
+	case HistogramType:
+		return "histogram"
+	default:
+		return "unknown"
+	}
+}
+
 // Metric is a universal representation of the state of a metric.
 //
 // No operations are available on this data type, instead it carries the state
