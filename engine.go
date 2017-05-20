@@ -255,6 +255,12 @@ func Time(name string, start time.Time, tags ...Tag) *Clock {
 	return DefaultEngine.Timer(name, tags...).StartAt(start)
 }
 
+// WithTags creates a new engine which inherits the properties and handlers,
+// potentially adding tags to the returned engine.
+func WithTags(tags ...Tag) *Engine {
+	return DefaultEngine.WithTags(tags...)
+}
+
 // Register adds handler to the default engine.
 func Register(handler Handler) {
 	DefaultEngine.Register(handler)
