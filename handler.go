@@ -29,9 +29,3 @@ type Flusher interface {
 	// or buffered internally.
 	Flush()
 }
-
-func copyHandlers(h []Handler) []Handler {
-	c := make([]Handler, len(h))
-	copy(c, h)
-	return c
-}
