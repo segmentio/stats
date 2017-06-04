@@ -65,13 +65,23 @@ func (eng *Engine) Register(handler Handler) {
 	eng.hmutex.Unlock()
 }
 
+// WithName creates a new engine which inherits the properties and handlers
+// of eng and uses the given name.
+func (eng *Engine) WithName(name string) *Engine {
+	return &Engine{
+		name:     name,
+		tags:     eng.tags,
+		handlers: eng.Handlers(),
+	}
+}
+
 // WithTags creates a new engine which inherits the properties and handlers,
-// potentially adding tags to the returned engine.
+// adding the given tags to the returned engine.
 func (eng *Engine) WithTags(tags ...Tag) *Engine {
 	return &Engine{
 		name:     eng.name,
 		tags:     concatTags(eng.tags, tags),
-		handlers: copyHandlers(eng.handlers),
+		handlers: eng.Handlers(),
 	}
 }
 
@@ -255,8 +265,14 @@ func Time(name string, start time.Time, tags ...Tag) *Clock {
 	return DefaultEngine.Timer(name, tags...).StartAt(start)
 }
 
-// WithTags creates a new engine which inherits the properties and handlers,
-// potentially adding tags to the returned engine.
+// WithName creates a new engine which inherits the properties and handlers of
+// the default handler and uses the given name.
+func WithName(name string) *Engine {
+	return DefaultEngine.WithName(name)
+}
+
+// WithTags creates a new engine which inherits the properties and handlers of
+// the default handler and adds the given tags.
 func WithTags(tags ...Tag) *Engine {
 	return DefaultEngine.WithTags(tags...)
 }
