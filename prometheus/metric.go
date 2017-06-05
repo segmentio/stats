@@ -1,6 +1,8 @@
 package prometheus
 
 import (
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -56,6 +58,24 @@ type metric struct {
 	labels labels
 }
 
+func metricNameOf(namespace string, name string) string {
+	if len(namespace) == 0 {
+		return name
+	}
+	b := make([]byte, 0, len(namespace)+len(name)+1)
+	b = appendMetricName(b, namespace)
+	b = append(b, '_')
+	b = appendMetricName(b, name)
+	return string(b)
+}
+
+func (m metric) rootName() string {
+	if m.mtype == histogram {
+		return m.name[:strings.LastIndexByte(m.name, '_')]
+	}
+	return m.name
+}
+
 type metricStore struct {
 	mutex   sync.RWMutex
 	entries map[string]*metricEntry
@@ -87,10 +107,10 @@ func (store *metricStore) lookup(mtype metricType, name string, help string) *me
 	return entry
 }
 
-func (store *metricStore) update(metric metric) {
+func (store *metricStore) update(metric metric, buckets []float64) {
 	entry := store.lookup(metric.mtype, metric.name, metric.help)
 	state := entry.lookup(metric.labels)
-	state.update(metric.mtype, metric.value, metric.time)
+	state.update(metric.mtype, metric.value, metric.time, buckets)
 }
 
 func (store *metricStore) collect(metrics []metric) []metric {
@@ -109,16 +129,29 @@ type metricEntry struct {
 	mtype  metricType
 	name   string
 	help   string
+	bucket string
+	sum    string
+	count  string
 	states metricStateMap
 }
 
 func newMetricEntry(mtype metricType, name string, help string) *metricEntry {
-	return &metricEntry{
+	entry := &metricEntry{
 		mtype:  mtype,
 		name:   name,
 		help:   help,
 		states: make(metricStateMap),
 	}
+
+	if mtype == histogram {
+		// Here we cache those metric names to avoid having to recompute them
+		// every time we collect the state of the metrics.
+		entry.bucket = name + "_bucket"
+		entry.sum = name + "_sum"
+		entry.count = name + "_count"
+	}
+
+	return entry
 }
 
 func (entry *metricEntry) lookup(labels labels) *metricState {
@@ -146,19 +179,10 @@ func (entry *metricEntry) collect(metrics []metric) []metric {
 	entry.mutex.RLock()
 
 	if len(entry.states) != 0 {
-		zero := len(metrics)
-
 		for _, states := range entry.states {
 			for _, state := range states {
-				metrics = state.collect(metrics)
+				metrics = state.collect(metrics, entry.mtype, entry.name, entry.help, entry.bucket, entry.sum, entry.count)
 			}
-		}
-
-		for i := range metrics[zero:] {
-			m := &metrics[zero+i]
-			m.mtype = entry.mtype
-			m.name = entry.name
-			m.help = entry.help
 		}
 	}
 
@@ -170,9 +194,12 @@ type metricState struct {
 	// immutable
 	labels labels
 	// mutable
-	mutex sync.Mutex
-	value float64
-	time  time.Time
+	mutex   sync.Mutex
+	buckets metricBuckets
+	value   float64
+	sum     float64
+	count   uint64
+	time    time.Time
 }
 
 func newMetricState(labels labels) *metricState {
@@ -181,7 +208,7 @@ func newMetricState(labels labels) *metricState {
 	}
 }
 
-func (state *metricState) update(mtype metricType, value float64, time time.Time) {
+func (state *metricState) update(mtype metricType, value float64, time time.Time, buckets []float64) {
 	state.mutex.Lock()
 
 	switch mtype {
@@ -192,20 +219,64 @@ func (state *metricState) update(mtype metricType, value float64, time time.Time
 		state.value = value
 
 	case histogram:
-		// TODO
+		if len(state.buckets) != len(buckets) {
+			state.buckets = makeMetricBuckets(buckets, state.labels)
+		}
+		state.buckets.update(value)
+		state.sum += value
+		state.count++
 	}
 
 	state.time = time
 	state.mutex.Unlock()
 }
 
-func (state *metricState) collect(metrics []metric) []metric {
+func (state *metricState) collect(metrics []metric, mtype metricType, name, help, bucketName, sumName, countName string) []metric {
 	state.mutex.Lock()
-	metrics = append(metrics, metric{
-		value:  state.value,
-		time:   state.time,
-		labels: state.labels,
-	})
+
+	switch mtype {
+	case histogram:
+		for _, bucket := range state.buckets {
+			metrics = append(metrics, metric{
+				mtype:  mtype,
+				name:   bucketName,
+				help:   help,
+				value:  float64(bucket.count),
+				time:   state.time,
+				labels: bucket.labels,
+			})
+		}
+		metrics = append(metrics,
+			metric{
+				mtype:  mtype,
+				name:   sumName,
+				help:   help,
+				value:  state.sum,
+				time:   state.time,
+				labels: state.labels,
+			},
+			metric{
+				mtype:  mtype,
+				name:   countName,
+				help:   help,
+				value:  float64(state.count),
+				time:   state.time,
+				labels: state.labels,
+			},
+		)
+
+	default:
+		metrics = append(metrics, metric{
+			mtype:  mtype,
+			name:   name,
+			help:   help,
+			value:  state.value,
+			time:   state.time,
+			labels: state.labels,
+		})
+
+	}
+
 	state.mutex.Unlock()
 	return metrics
 }
@@ -226,4 +297,50 @@ func (m metricStateMap) find(key uint64, labels labels) *metricState {
 	}
 
 	return nil
+}
+
+type metricBucket struct {
+	limit  float64
+	count  uint64
+	labels labels
+}
+
+type metricBuckets []metricBucket
+
+func makeMetricBuckets(buckets []float64, labels labels) metricBuckets {
+	b := make(metricBuckets, len(buckets))
+	for i := range buckets {
+		b[i].limit = buckets[i]
+		b[i].labels = labels.copyAppend(label{"le", ftoa(buckets[i])})
+	}
+	return b
+}
+
+func (m metricBuckets) update(value float64) {
+	for i := range m {
+		if value <= m[i].limit {
+			m[i].count++
+			break
+		}
+	}
+}
+
+func ftoa(f float64) string {
+	return strconv.FormatFloat(f, 'g', -1, 64)
+}
+
+type byNameAndLabels []metric
+
+func (metrics byNameAndLabels) Len() int {
+	return len(metrics)
+}
+
+func (metrics byNameAndLabels) Swap(i int, j int) {
+	metrics[i], metrics[j] = metrics[j], metrics[i]
+}
+
+func (metrics byNameAndLabels) Less(i int, j int) bool {
+	m1 := &metrics[i]
+	m2 := &metrics[j]
+	return m1.name < m2.name || (m1.name == m2.name && m1.labels.less(m2.labels))
 }

@@ -37,12 +37,13 @@ hello_world 42
 	{
 		scenario: "simple histogram metric",
 		metric: metric{
-			mtype: histogram,
-			name:  "hello_world",
-			value: 42,
+			mtype:  histogram,
+			name:   "hello_world_bucket",
+			value:  42,
+			labels: labels{{"le", "0.5"}},
 		},
 		string: `# TYPE hello_world histogram
-hello_world 42
+hello_world_bucket{le="0.5"} 42
 `,
 	},
 

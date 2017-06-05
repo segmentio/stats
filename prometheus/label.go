@@ -1,6 +1,10 @@
 package prometheus
 
-import "github.com/segmentio/stats"
+import (
+	"sort"
+
+	"github.com/segmentio/stats"
+)
 
 type label struct {
 	name  string
@@ -30,25 +34,20 @@ func makeLabels(l ...label) labels {
 	return m
 }
 
-func (l labels) appendTags(t ...stats.Tag) labels {
-	c := cap(l)
-	n := len(l)
-
-	// This is an optimization to prevent making more than one dynamic memory
-	// allocation.
-	if (c - n) < len(t) {
-		x := make(labels, n, n+len(t))
-		copy(x, l)
-		l = x
-	}
-
+func makeLabelsFromTags(t ...stats.Tag) labels {
+	l := make(labels, len(t))
 	for i := range t {
-		l = append(l, label{
-			name:  t[i].Name,
-			value: t[i].Value,
-		})
+		l[i] = label{name: t[i].Name, value: t[i].Value}
 	}
+	sort.Sort(l)
 	return l
+}
+
+func (l labels) copyAppend(m ...label) labels {
+	c := make(labels, 0, len(l)+len(m))
+	c = append(c, l...)
+	c = append(c, m...)
+	return c
 }
 
 func (l labels) copy() labels {

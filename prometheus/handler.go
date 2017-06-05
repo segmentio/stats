@@ -18,6 +18,15 @@ import (
 // Typically, a program creates one Handler, registers it to the stats package,
 // and adds it to the muxer used by the application under the /metrics path.
 type Handler struct {
+	// A map of metric name to histograms buckets used by the handler to record
+	// observed values.
+	//
+	// The buckets are of list of upper limits used to group the observed
+	// values.
+	//
+	// If a bucket is missing for a metric name the observed value is ignored.
+	HistgramBuckets map[string][]float64
+
 	// MetricTimeout defines how long the handler exposes metrics that aren't
 	// receiving updates.
 	//
@@ -35,17 +44,14 @@ func (h *Handler) HandleMetric(m *stats.Metric) {
 		mtime = time.Now()
 	}
 
-	labels := (labels{}).appendTags(m.Tags...)
-	sort.Sort(labels)
-
 	h.metrics.update(metric{
 		mtype:  metricTypeOf(m.Type),
-		name:   m.Namespace + "_" + m.Name,
+		name:   metricNameOf(m.Namespace, m.Name),
 		help:   "",
 		value:  m.Value,
 		time:   mtime,
-		labels: labels,
-	})
+		labels: makeLabelsFromTags(m.Tags...),
+	}, h.HistgramBuckets[m.Name])
 
 	// Every 10K updates we cleanup the metric store of outdated entries to
 	// having memory leaks if the program has generated metrics for a pair of
@@ -69,6 +75,7 @@ func (h *Handler) timeout() time.Duration {
 // ServeHTTP satsifies the http.Handler interface.
 func (h *Handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	metrics := h.metrics.collect(make([]metric, 0, 10000))
+	sort.Sort(byNameAndLabels(metrics))
 
 	w := io.Writer(res)
 	res.Header().Set("Content-Type", "text/plain; version=0.0.4")
@@ -82,10 +89,23 @@ func (h *Handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 
 	b := make([]byte, 1024)
 
-	for _, m := range metrics {
-		b = appendMetric(b[:0], m)
-		b = append(b, '\n')
-		w.Write(b)
+	var lastMetricName string
+	for i, m := range metrics {
+		b = b[:0]
+		name := m.rootName()
+
+		if name == lastMetricName {
+			// Silence the repeated output of type for values belonging to the
+			// same metric.
+			m.mtype, m.help = untyped, ""
+		} else if i != 0 {
+			// After every metric we want to output an empty line to make the
+			// output easier to read.
+			b = append(b, '\n')
+		}
+
+		w.Write(appendMetric(b, m))
+		lastMetricName = name
 	}
 }
 
@@ -96,4 +116,21 @@ func acceptEncoding(accept string, check string) bool {
 		}
 	}
 	return false
+}
+
+func forEachMetric(metrics []metric, do func([]metric)) {
+	if n := len(metrics); n != 0 {
+		for i := 0; i != n; {
+
+		}
+	}
+}
+
+func lastMetricIndex(metrics []metric, name string) int {
+	for i, metric := range metrics {
+		if metric.rootName() != name {
+			return i
+		}
+	}
+	return len(metrics)
 }

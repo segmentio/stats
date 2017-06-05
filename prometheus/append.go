@@ -5,21 +5,20 @@ import (
 	"strings"
 )
 
+func appendMetricName(b []byte, s string) []byte {
+	i := len(b)
+	b = append(b, s...)
+	replaceInvalidMetricBytes(b[i:])
+	return b
+}
+
 func appendMetric(b []byte, metric metric) []byte {
 	if len(metric.help) != 0 {
-		b = append(b, "# HELP "...)
-		b = append(b, metric.name...)
-		b = append(b, ' ')
-		b = appendEscapedString(b, metric.help, indexOfSpecialHelpByte)
-		b = append(b, '\n')
+		b = appendMetricHelp(b, metric.rootName(), metric.help)
 	}
 
 	if metric.mtype != untyped {
-		b = append(b, "# TYPE "...)
-		b = append(b, metric.name...)
-		b = append(b, ' ')
-		b = append(b, metric.mtype.String()...)
-		b = append(b, '\n')
+		b = appendMetricType(b, metric.rootName(), metric.mtype.String())
 	}
 
 	b = append(b, metric.name...)
@@ -34,6 +33,22 @@ func appendMetric(b []byte, metric metric) []byte {
 		b = strconv.AppendInt(b, t, 10)
 	}
 
+	return append(b, '\n')
+}
+
+func appendMetricHelp(b []byte, name string, help string) []byte {
+	b = append(b, "# HELP "...)
+	b = append(b, name...)
+	b = append(b, ' ')
+	b = appendEscapedString(b, help, indexOfSpecialHelpByte)
+	return append(b, '\n')
+}
+
+func appendMetricType(b []byte, name string, mtype string) []byte {
+	b = append(b, "# TYPE "...)
+	b = append(b, name...)
+	b = append(b, ' ')
+	b = append(b, mtype...)
 	return append(b, '\n')
 }
 
@@ -54,10 +69,17 @@ func appendLabels(b []byte, labels ...label) []byte {
 }
 
 func appendLabel(b []byte, label label) []byte {
-	b = append(b, label.name...)
+	b = appendLabelName(b, label.name)
 	b = append(b, '=', '"')
 	b = appendEscapedString(b, label.value, indexOfSpecialLabelValueByte)
 	return append(b, '"')
+}
+
+func appendLabelName(b []byte, s string) []byte {
+	i := len(b)
+	b = append(b, s...)
+	replaceInvalidLabelBytes(b[i:])
+	return b
 }
 
 func appendEscapedString(b []byte, s string, indexOfSpecialByte func(string) int) []byte {
@@ -100,4 +122,68 @@ func indexOf(s string, bytes ...byte) int {
 	}
 
 	return i
+}
+
+func replaceInvalidMetricBytes(b []byte) {
+	if len(b) != 0 {
+		if !isValidFirstMetricByte(b[0]) {
+			b[0] = '_'
+		}
+		c := b[1:]
+		for i := range c {
+			if !isValidMetricByte(c[i]) {
+				c[i] = '_'
+			}
+		}
+	}
+}
+
+func replaceInvalidLabelBytes(b []byte) {
+	if len(b) != 0 {
+		if !isValidFirstLabelByte(b[0]) {
+			b[0] = '_'
+		}
+		c := b[1:]
+		for i := range c {
+			if !isValidLabelByte(c[i]) {
+				c[i] = '_'
+			}
+		}
+	}
+}
+
+func isLower(c byte) bool {
+	return c >= 'a' && c <= 'z'
+}
+
+func isUpper(c byte) bool {
+	return c >= 'A' && c <= 'Z'
+}
+
+func isAlpha(c byte) bool {
+	return isLower(c) || isUpper(c)
+}
+
+func isDigit(c byte) bool {
+	return c >= '0' && c <= '9'
+}
+
+func isAlphanum(c byte) bool {
+	return isAlpha(c) || isDigit(c)
+}
+
+func isValidFirstMetricByte(c byte) bool {
+	return isAlpha(c) || (c == '_') || (c == ':')
+}
+
+func isValidMetricByte(c byte) bool {
+	return isAlphanum(c) || (c == '_') || (c == ':')
+}
+
+func isValidFirstLabelByte(c byte) bool {
+	return isAlpha(c) || (c == '_')
+}
+
+func isValidLabelByte(c byte) bool {
+	return isAlphanum(c) || (c == '_')
 }
