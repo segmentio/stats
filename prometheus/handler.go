@@ -117,20 +117,3 @@ func acceptEncoding(accept string, check string) bool {
 	}
 	return false
 }
-
-func forEachMetric(metrics []metric, do func([]metric)) {
-	if n := len(metrics); n != 0 {
-		for i := 0; i != n; {
-
-		}
-	}
-}
-
-func lastMetricIndex(metrics []metric, name string) int {
-	for i, metric := range metrics {
-		if metric.rootName() != name {
-			return i
-		}
-	}
-	return len(metrics)
-}
