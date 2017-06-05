@@ -54,3 +54,24 @@ func TestHandlerFunc(t *testing.T) {
 		t.Error("bad metrics reported:", r)
 	}
 }
+
+func TestHandlerStripTags(t *testing.T) {
+	metrics := []*Metric{}
+	handler := StripTags(HandlerFunc(func(m *Metric) { metrics = append(metrics, m) }), "tag1", "tag2")
+
+	handler.HandleMetric(&Metric{Name: "A", Value: 1, Tags: []Tag{{"tag1", "1"}, {"id", "123"}}})
+	handler.HandleMetric(&Metric{Name: "B", Value: 2, Tags: []Tag{{"tag1", "2"}}})
+	handler.HandleMetric(&Metric{Name: "C", Value: 3, Tags: []Tag{{"tag1", "1"}, {"tag2", "2"}}})
+
+	if !reflect.DeepEqual(metrics, []*Metric{
+		&Metric{Name: "A", Value: 1, Tags: []Tag{{"id", "123"}}},
+		&Metric{Name: "B", Value: 2, Tags: []Tag{}},
+		&Metric{Name: "C", Value: 3, Tags: []Tag{}},
+	}) {
+		t.Error("bad metrics:")
+
+		for _, m := range metrics {
+			t.Logf("%#v", m)
+		}
+	}
+}

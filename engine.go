@@ -182,26 +182,20 @@ func (eng *Engine) ObserveDuration(name string, value time.Duration, tags ...Tag
 
 func (eng *Engine) handle(typ MetricType, name string, value float64, tags []Tag, time time.Time) {
 	metric := metricPool.Get().(*Metric)
-
-	metric.Namespace = eng.name
-	metric.Type = typ
-	metric.Name = name
-	metric.Value = value
-	metric.Tags = append(metric.Tags, eng.tags...)
-	metric.Tags = append(metric.Tags, tags...)
-	metric.Time = time
-
 	eng.hmutex.RLock()
 
 	for _, handler := range eng.handlers {
+		metric.Namespace = eng.name
+		metric.Type = typ
+		metric.Name = name
+		metric.Value = value
+		metric.Tags = append(metric.Tags[:0], eng.tags...)
+		metric.Tags = append(metric.Tags, tags...)
+		metric.Time = time
 		handler.HandleMetric(metric)
 	}
 
 	eng.hmutex.RUnlock()
-
-	metric.Namespace = ""
-	metric.Name = ""
-	metric.Tags = metric.Tags[:0]
 	metricPool.Put(metric)
 }
 
