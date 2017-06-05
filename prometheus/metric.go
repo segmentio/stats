@@ -235,6 +235,16 @@ func (state *metricState) collect(metrics []metric, mtype metricType, name, help
 	state.mutex.Lock()
 
 	switch mtype {
+	case counter, gauge:
+		metrics = append(metrics, metric{
+			mtype:  mtype,
+			name:   name,
+			help:   help,
+			value:  state.value,
+			time:   state.time,
+			labels: state.labels,
+		})
+
 	case histogram:
 		for _, bucket := range state.buckets {
 			metrics = append(metrics, metric{
@@ -264,17 +274,6 @@ func (state *metricState) collect(metrics []metric, mtype metricType, name, help
 				labels: state.labels,
 			},
 		)
-
-	default:
-		metrics = append(metrics, metric{
-			mtype:  mtype,
-			name:   name,
-			help:   help,
-			value:  state.value,
-			time:   state.time,
-			labels: state.labels,
-		})
-
 	}
 
 	state.mutex.Unlock()
