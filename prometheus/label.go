@@ -11,13 +11,6 @@ type label struct {
 	value string
 }
 
-func (l label) hash() uint64 {
-	h := offset64
-	h = hashS(h, l.name)
-	h = hashS(h, l.value)
-	return h
-}
-
 func (l1 label) equal(l2 label) bool {
 	return l1.name == l2.name && l1.value == l2.value
 }

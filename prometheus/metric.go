@@ -59,12 +59,11 @@ type metric struct {
 }
 
 func metricNameOf(namespace string, name string) string {
-	if len(namespace) == 0 {
-		return name
-	}
 	b := make([]byte, 0, len(namespace)+len(name)+1)
-	b = appendMetricName(b, namespace)
-	b = append(b, '_')
+	if len(namespace) != 0 {
+		b = appendMetricName(b, namespace)
+		b = append(b, '_')
+	}
 	b = appendMetricName(b, name)
 	return string(b)
 }
@@ -122,6 +121,24 @@ func (store *metricStore) collect(metrics []metric) []metric {
 
 	store.mutex.RUnlock()
 	return metrics
+}
+
+func (store *metricStore) cleanup(exp time.Time) {
+	store.mutex.RLock()
+
+	for name, entry := range store.entries {
+		store.mutex.RUnlock()
+
+		entry.cleanup(exp, func() {
+			store.mutex.Lock()
+			delete(store.entries, name)
+			store.mutex.Unlock()
+		})
+
+		store.mutex.RLock()
+	}
+
+	store.mutex.RUnlock()
 }
 
 type metricEntry struct {
@@ -188,6 +205,42 @@ func (entry *metricEntry) collect(metrics []metric) []metric {
 
 	entry.mutex.RUnlock()
 	return metrics
+}
+
+func (entry *metricEntry) cleanup(exp time.Time, empty func()) {
+	// TODO: there may be high contention on this mutex, maybe not, it would be
+	// a good idea to measure.
+	entry.mutex.Lock()
+
+	for hash, states := range entry.states {
+		i := 0
+
+		for j, state := range states {
+			states[j] = nil
+			state.mutex.Lock()
+
+			// We expire all entries that have been last updated before exp,
+			// they don't get copied back into the state slice.
+			if exp.Before(state.time) {
+				states[i] = state
+				i++
+			}
+
+			state.mutex.Unlock()
+		}
+
+		if states = states[:i]; len(states) == 0 {
+			delete(entry.states, hash)
+		} else {
+			entry.states[hash] = states
+		}
+	}
+
+	if len(entry.states) == 0 {
+		empty()
+	}
+
+	entry.mutex.Unlock()
 }
 
 type metricState struct {

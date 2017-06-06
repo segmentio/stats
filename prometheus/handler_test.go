@@ -55,7 +55,7 @@ func TestServeHTTP(t *testing.T) {
 	now := time.Date(2017, 6, 4, 22, 12, 0, 0, time.UTC)
 
 	handler := &Handler{
-		HistgramBuckets: map[string][]float64{"C": {0.25, 0.5, 0.75, 1.0}},
+		HistogramBuckets: map[string][]float64{"C": {0.25, 0.5, 0.75, 1.0}},
 	}
 
 	input := []stats.Metric{

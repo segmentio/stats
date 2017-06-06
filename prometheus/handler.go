@@ -25,7 +25,7 @@ type Handler struct {
 	// values.
 	//
 	// If a bucket is missing for a metric name the observed value is ignored.
-	HistgramBuckets map[string][]float64
+	HistogramBuckets map[string][]float64
 
 	// MetricTimeout defines how long the handler exposes metrics that aren't
 	// receiving updates.
@@ -51,18 +51,14 @@ func (h *Handler) HandleMetric(m *stats.Metric) {
 		value:  m.Value,
 		time:   mtime,
 		labels: makeLabelsFromTags(m.Tags...),
-	}, h.HistgramBuckets[m.Name])
+	}, h.HistogramBuckets[m.Name])
 
 	// Every 10K updates we cleanup the metric store of outdated entries to
 	// having memory leaks if the program has generated metrics for a pair of
 	// metric name and labels that won't be seen again.
 	if (atomic.AddUint64(&h.opcount, 1) % 10000) == 0 {
-		h.cleanup()
+		h.metrics.cleanup(time.Now().Add(-h.timeout()))
 	}
-}
-
-func (h *Handler) cleanup() {
-	// TODO:
 }
 
 func (h *Handler) timeout() time.Duration {
