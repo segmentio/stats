@@ -29,3 +29,27 @@ type Flusher interface {
 	// or buffered internally.
 	Flush()
 }
+
+// StripTags returns a decorated version of handler that filters out the given
+// list of tag names from all handled metrics.
+func StripTags(handler Handler, tags ...string) Handler {
+	index := make(map[string]struct{}, len(tags))
+
+	for _, tag := range tags {
+		index[tag] = struct{}{}
+	}
+
+	return HandlerFunc(func(m *Metric) {
+		i := 0
+
+		for _, tag := range m.Tags {
+			if _, strip := index[tag.Name]; !strip {
+				m.Tags[i] = tag
+				i++
+			}
+		}
+
+		m.Tags = m.Tags[:i]
+		handler.HandleMetric(m)
+	})
+}
