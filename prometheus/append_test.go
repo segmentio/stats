@@ -51,15 +51,16 @@ hello_world_bucket{le="0.5"} 42
 		scenario: "counter metric with help, floating point value, labels, and timestamp",
 		metric: metric{
 			mtype:  counter,
+			scope:  "global",
 			name:   "hello_world",
 			help:   "This is a great metric!\n",
 			value:  0.5,
 			labels: []label{{"question", "\"???\"\n"}, {"answer", "42"}},
 			time:   time.Date(2017, 6, 4, 22, 12, 0, 0, time.UTC),
 		},
-		string: `# HELP hello_world This is a great metric!\n
-# TYPE hello_world counter
-hello_world{question="\"???\"\n",answer="42"} 0.5 1496614320000
+		string: `# HELP global_hello_world This is a great metric!\n
+# TYPE global_hello_world counter
+global_hello_world{question="\"???\"\n",answer="42"} 0.5 1496614320000
 `,
 	},
 }

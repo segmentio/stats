@@ -1,14 +1,17 @@
 package prometheus
 
-import (
-	"sort"
-
-	"github.com/segmentio/stats"
-)
+import "github.com/segmentio/stats"
 
 type label struct {
 	name  string
 	value string
+}
+
+func (l label) hash() uint64 {
+	h := offset64
+	h = hashS(h, l.name)
+	h = hashS(h, l.value)
+	return h
 }
 
 func (l1 label) equal(l2 label) bool {
@@ -25,15 +28,6 @@ func makeLabels(l ...label) labels {
 	m := make(labels, len(l))
 	copy(m, l)
 	return m
-}
-
-func makeLabelsFromTags(t ...stats.Tag) labels {
-	l := make(labels, len(t))
-	for i := range t {
-		l[i] = label{name: t[i].Name, value: t[i].Value}
-	}
-	sort.Sort(l)
-	return l
 }
 
 func (l labels) copyAppend(m ...label) labels {
@@ -83,14 +77,9 @@ func (l1 labels) less(l2 labels) bool {
 	return n1 < n2
 }
 
-func (l labels) Len() int {
-	return len(l)
-}
-
-func (l labels) Swap(i int, j int) {
-	l[i], l[j] = l[j], l[i]
-}
-
-func (l labels) Less(i int, j int) bool {
-	return l[i].less(l[j])
+func (l labels) appendTags(tags ...stats.Tag) labels {
+	for _, t := range tags {
+		l = append(l, label{name: t.Name, value: t.Value})
+	}
+	return l
 }

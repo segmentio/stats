@@ -66,7 +66,7 @@ func TestServeHTTP(t *testing.T) {
 		{Type: stats.CounterType, Name: "A", Value: 4, Time: now, Tags: []stats.Tag{{"id", "123"}}},
 		{Type: stats.GaugeType, Name: "B", Value: 42, Time: now, Tags: []stats.Tag{{"a", "1"}}},
 		{Type: stats.HistogramType, Name: "C", Value: 0.1, Time: now},
-		{Type: stats.GaugeType, Name: "B", Value: 21, Time: now, Tags: []stats.Tag{{"a", "1"}, {"b", "2"}}},
+		{Type: stats.GaugeType, Name: "B", Value: 21, Time: now, Tags: []stats.Tag{{"b", "2"}, {"a", "1"}}},
 		{Type: stats.HistogramType, Name: "C", Value: 0.5, Time: now},
 		{Type: stats.HistogramType, Name: "C", Value: 10, Time: now},
 	}
@@ -110,5 +110,27 @@ C_sum 10.7 1496614320000
 		t.Error("bad output:")
 		t.Log("expected:", expects)
 		t.Log("found:", s)
+	}
+}
+
+func BenchmarkHandleMetric(b *testing.B) {
+	now := time.Now()
+	tags := []stats.Tag{{"a", "1"}, {"b", "2"}}
+
+	metrics := []stats.Metric{
+		{Type: stats.CounterType, Name: "A", Value: 1, Time: now, Tags: tags},
+		{Type: stats.GaugeType, Name: "B", Value: 1, Time: now, Tags: tags},
+		{Type: stats.HistogramType, Name: "C", Value: 0.1, Time: now, Tags: tags},
+	}
+
+	for _, metric := range metrics {
+		b.Run(metric.Type.String(), func(b *testing.B) {
+			handler := &Handler{
+				HistogramBuckets: map[string][]float64{"C": {0.25, 0.5, 0.75, 1.0}},
+			}
+			for i := 0; i != b.N; i++ {
+				handler.HandleMetric(&metric)
+			}
+		})
 	}
 }

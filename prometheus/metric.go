@@ -49,8 +49,14 @@ func (t metricType) String() string {
 	}
 }
 
+type metricKey struct {
+	scope string
+	name  string
+}
+
 type metric struct {
 	mtype  metricType
+	scope  string
 	name   string
 	help   string
 	value  float64
@@ -58,14 +64,8 @@ type metric struct {
 	labels labels
 }
 
-func metricNameOf(namespace string, name string) string {
-	b := make([]byte, 0, len(namespace)+len(name)+1)
-	if len(namespace) != 0 {
-		b = appendMetricName(b, namespace)
-		b = append(b, '_')
-	}
-	b = appendMetricName(b, name)
-	return string(b)
+func (m metric) key() metricKey {
+	return metricKey{scope: m.scope, name: m.name}
 }
 
 func (m metric) rootName() string {
@@ -77,12 +77,12 @@ func (m metric) rootName() string {
 
 type metricStore struct {
 	mutex   sync.RWMutex
-	entries map[string]*metricEntry
+	entries map[metricKey]*metricEntry
 }
 
-func (store *metricStore) lookup(mtype metricType, name string, help string) *metricEntry {
+func (store *metricStore) lookup(mtype metricType, key metricKey, help string) *metricEntry {
 	store.mutex.RLock()
-	entry := store.entries[name]
+	entry := store.entries[key]
 	store.mutex.RUnlock()
 
 	// The program may choose to change the type of a metric, this is likely a
@@ -92,12 +92,12 @@ func (store *metricStore) lookup(mtype metricType, name string, help string) *me
 		store.mutex.Lock()
 
 		if store.entries == nil {
-			store.entries = make(map[string]*metricEntry)
+			store.entries = make(map[metricKey]*metricEntry)
 		}
 
-		if entry = store.entries[name]; entry == nil || entry.mtype != mtype {
-			entry = newMetricEntry(mtype, name, help)
-			store.entries[name] = entry
+		if entry = store.entries[key]; entry == nil || entry.mtype != mtype {
+			entry = newMetricEntry(mtype, key.scope, key.name, help)
+			store.entries[key] = entry
 		}
 
 		store.mutex.Unlock()
@@ -107,7 +107,7 @@ func (store *metricStore) lookup(mtype metricType, name string, help string) *me
 }
 
 func (store *metricStore) update(metric metric, buckets []float64) {
-	entry := store.lookup(metric.mtype, metric.name, metric.help)
+	entry := store.lookup(metric.mtype, metric.key(), metric.help)
 	state := entry.lookup(metric.labels)
 	state.update(metric.mtype, metric.value, metric.time, buckets)
 }
@@ -144,6 +144,7 @@ func (store *metricStore) cleanup(exp time.Time) {
 type metricEntry struct {
 	mutex  sync.RWMutex
 	mtype  metricType
+	scope  string
 	name   string
 	help   string
 	bucket string
@@ -152,9 +153,10 @@ type metricEntry struct {
 	states metricStateMap
 }
 
-func newMetricEntry(mtype metricType, name string, help string) *metricEntry {
+func newMetricEntry(mtype metricType, scope string, name string, help string) *metricEntry {
 	entry := &metricEntry{
 		mtype:  mtype,
+		scope:  scope,
 		name:   name,
 		help:   help,
 		states: make(metricStateMap),
@@ -198,7 +200,7 @@ func (entry *metricEntry) collect(metrics []metric) []metric {
 	if len(entry.states) != 0 {
 		for _, states := range entry.states {
 			for _, state := range states {
-				metrics = state.collect(metrics, entry.mtype, entry.name, entry.help, entry.bucket, entry.sum, entry.count)
+				metrics = state.collect(metrics, entry)
 			}
 		}
 	}
@@ -284,15 +286,16 @@ func (state *metricState) update(mtype metricType, value float64, time time.Time
 	state.mutex.Unlock()
 }
 
-func (state *metricState) collect(metrics []metric, mtype metricType, name, help, bucketName, sumName, countName string) []metric {
+func (state *metricState) collect(metrics []metric, entry *metricEntry) []metric {
 	state.mutex.Lock()
 
-	switch mtype {
+	switch entry.mtype {
 	case counter, gauge:
 		metrics = append(metrics, metric{
-			mtype:  mtype,
-			name:   name,
-			help:   help,
+			mtype:  entry.mtype,
+			scope:  entry.scope,
+			name:   entry.name,
+			help:   entry.help,
 			value:  state.value,
 			time:   state.time,
 			labels: state.labels,
@@ -301,9 +304,9 @@ func (state *metricState) collect(metrics []metric, mtype metricType, name, help
 	case histogram:
 		for _, bucket := range state.buckets {
 			metrics = append(metrics, metric{
-				mtype:  mtype,
-				name:   bucketName,
-				help:   help,
+				mtype:  entry.mtype,
+				name:   entry.bucket,
+				help:   entry.help,
 				value:  float64(bucket.count),
 				time:   state.time,
 				labels: bucket.labels,
@@ -311,17 +314,17 @@ func (state *metricState) collect(metrics []metric, mtype metricType, name, help
 		}
 		metrics = append(metrics,
 			metric{
-				mtype:  mtype,
-				name:   sumName,
-				help:   help,
+				mtype:  entry.mtype,
+				name:   entry.sum,
+				help:   entry.help,
 				value:  state.sum,
 				time:   state.time,
 				labels: state.labels,
 			},
 			metric{
-				mtype:  mtype,
-				name:   countName,
-				help:   help,
+				mtype:  entry.mtype,
+				name:   entry.count,
+				help:   entry.help,
 				value:  float64(state.count),
 				time:   state.time,
 				labels: state.labels,

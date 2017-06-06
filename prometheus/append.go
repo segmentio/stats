@@ -12,16 +12,24 @@ func appendMetricName(b []byte, s string) []byte {
 	return b
 }
 
+func appendMetricScopedName(b []byte, scope string, name string) []byte {
+	if len(scope) != 0 {
+		b = appendMetricName(b, scope)
+		b = append(b, '_')
+	}
+	return appendMetricName(b, name)
+}
+
 func appendMetric(b []byte, metric metric) []byte {
 	if len(metric.help) != 0 {
-		b = appendMetricHelp(b, metric.rootName(), metric.help)
+		b = appendMetricHelp(b, metric.scope, metric.rootName(), metric.help)
 	}
 
 	if metric.mtype != untyped {
-		b = appendMetricType(b, metric.rootName(), metric.mtype.String())
+		b = appendMetricType(b, metric.scope, metric.rootName(), metric.mtype.String())
 	}
 
-	b = append(b, metric.name...)
+	b = appendMetricScopedName(b, metric.scope, metric.name)
 	b = appendLabels(b, metric.labels...)
 	b = append(b, ' ')
 	b = strconv.AppendFloat(b, metric.value, 'g', -1, 64)
@@ -36,17 +44,17 @@ func appendMetric(b []byte, metric metric) []byte {
 	return append(b, '\n')
 }
 
-func appendMetricHelp(b []byte, name string, help string) []byte {
+func appendMetricHelp(b []byte, scope string, name string, help string) []byte {
 	b = append(b, "# HELP "...)
-	b = append(b, name...)
+	b = appendMetricScopedName(b, scope, name)
 	b = append(b, ' ')
 	b = appendEscapedString(b, help, indexOfSpecialHelpByte)
 	return append(b, '\n')
 }
 
-func appendMetricType(b []byte, name string, mtype string) []byte {
+func appendMetricType(b []byte, scope string, name string, mtype string) []byte {
 	b = append(b, "# TYPE "...)
-	b = append(b, name...)
+	b = appendMetricScopedName(b, scope, name)
 	b = append(b, ' ')
 	b = append(b, mtype...)
 	return append(b, '\n')

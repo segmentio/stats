@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -44,14 +45,21 @@ func (h *Handler) HandleMetric(m *stats.Metric) {
 		mtime = time.Now()
 	}
 
+	cache := handleMetricPool.Get().(*handleMetricCache)
+	cache.labels = cache.labels.appendTags(m.Tags...)
+	sort.Sort(cache)
+
 	h.metrics.update(metric{
 		mtype:  metricTypeOf(m.Type),
-		name:   metricNameOf(m.Namespace, m.Name),
-		help:   "",
+		scope:  m.Namespace,
+		name:   m.Name,
 		value:  m.Value,
 		time:   mtime,
-		labels: makeLabelsFromTags(m.Tags...),
+		labels: cache.labels,
 	}, h.HistogramBuckets[m.Name])
+
+	cache.labels = cache.labels[:0]
+	handleMetricPool.Put(cache)
 
 	// Every 10K updates we cleanup the metric store of outdated entries to
 	// having memory leaks if the program has generated metrics for a pair of
@@ -112,4 +120,26 @@ func acceptEncoding(accept string, check string) bool {
 		}
 	}
 	return false
+}
+
+type handleMetricCache struct {
+	labels labels
+}
+
+var handleMetricPool = sync.Pool{
+	New: func() interface{} {
+		return &handleMetricCache{labels: make(labels, 0, 8)}
+	},
+}
+
+func (cache *handleMetricCache) Len() int {
+	return len(cache.labels)
+}
+
+func (cache *handleMetricCache) Swap(i int, j int) {
+	cache.labels[i], cache.labels[j] = cache.labels[j], cache.labels[i]
+}
+
+func (cache *handleMetricCache) Less(i int, j int) bool {
+	return cache.labels[i].less(cache.labels[j])
 }
