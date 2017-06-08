@@ -159,6 +159,11 @@ func (eng *Engine) Incr(name string, tags ...Tag) {
 	eng.handle(CounterType, name, 1, tags, time.Time{})
 }
 
+// IncrBy increments by `n` the counter with name and tags on eng.
+func (eng *Engine) IncrBy(name string, n int, tags ...Tag) {
+	eng.handle(CounterType, name, float64(n), tags, time.Time{})
+}
+
 // Add adds value to the counter with name and tags on eng.
 func (eng *Engine) Add(name string, value float64, tags ...Tag) {
 	eng.handle(CounterType, name, value, tags, time.Time{})
