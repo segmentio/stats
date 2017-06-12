@@ -57,6 +57,10 @@ type Metric struct {
 
 	// Time is unused for now, reserved for future extensions.
 	Time time.Time
+
+	// For histograms, this field provides the buckets used to distribute the
+	// observed values.
+	Buckets []float64
 }
 
 // metricPool is used as an internal store to cache metric objects.

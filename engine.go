@@ -3,6 +3,7 @@ package stats
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 	"time"
 )
@@ -17,6 +18,7 @@ type Engine struct {
 	name     string
 	tags     []Tag
 	handlers []Handler
+	buckets  map[string][]float64
 	hmutex   sync.RWMutex
 }
 
@@ -31,8 +33,9 @@ var (
 // NewEngine creates and returns an engine with name and tags.
 func NewEngine(name string, tags ...Tag) *Engine {
 	return &Engine{
-		name: name,
-		tags: copyTags(tags),
+		name:    name,
+		tags:    copyTags(tags),
+		buckets: make(map[string][]float64),
 	}
 }
 
@@ -65,6 +68,41 @@ func (eng *Engine) Register(handler Handler) {
 	eng.hmutex.Unlock()
 }
 
+// HistogramBuckets returns a map of metric names to buckets used to distribute
+// hitogram values.
+//
+// The buckets are of list of upper limits used to group the observed values.
+func (eng *Engine) HistogramBuckets() map[string][]float64 {
+	eng.hmutex.RLock()
+	buckets := make(map[string][]float64, len(eng.buckets))
+
+	for name, bucket := range eng.buckets {
+		bucketCopy := make([]float64, len(bucket))
+		copy(bucketCopy, bucket)
+		buckets[name] = bucketCopy
+	}
+
+	eng.hmutex.RUnlock()
+	return buckets
+}
+
+// SetHistogramBucket sets the bucket used for a histogram metrics with name.
+//
+// Not all stats handler will respect the value distribution set with this
+// method, refer to the documentation of the handler for more details.
+func (eng *Engine) SetHistogramBucket(name string, bucket ...float64) {
+	if !sort.Float64sAreSorted(bucket) {
+		panic("histogram buckets must be a sorted set of values")
+	}
+
+	bucketCopy := make([]float64, len(bucket))
+	copy(bucketCopy, bucket)
+
+	eng.hmutex.Lock()
+	eng.buckets[name] = bucketCopy
+	eng.hmutex.Unlock()
+}
+
 // WithName creates a new engine which inherits the properties and handlers
 // of eng and uses the given name.
 func (eng *Engine) WithName(name string) *Engine {
@@ -72,6 +110,7 @@ func (eng *Engine) WithName(name string) *Engine {
 		name:     name,
 		tags:     eng.tags,
 		handlers: eng.Handlers(),
+		buckets:  eng.HistogramBuckets(),
 	}
 }
 
@@ -82,6 +121,7 @@ func (eng *Engine) WithTags(tags ...Tag) *Engine {
 		name:     eng.name,
 		tags:     concatTags(eng.tags, tags),
 		handlers: eng.Handlers(),
+		buckets:  eng.HistogramBuckets(),
 	}
 }
 
@@ -181,8 +221,14 @@ func (eng *Engine) ObserveDuration(name string, value time.Duration, tags ...Tag
 }
 
 func (eng *Engine) handle(typ MetricType, name string, value float64, tags []Tag, time time.Time) {
+	var buckets []float64
+
 	metric := metricPool.Get().(*Metric)
 	eng.hmutex.RLock()
+
+	if typ == HistogramType {
+		buckets = eng.buckets[name]
+	}
 
 	for _, handler := range eng.handlers {
 		metric.Namespace = eng.name
@@ -192,6 +238,7 @@ func (eng *Engine) handle(typ MetricType, name string, value float64, tags []Tag
 		metric.Tags = append(metric.Tags[:0], eng.tags...)
 		metric.Tags = append(metric.Tags, tags...)
 		metric.Time = time
+		metric.Buckets = buckets
 		handler.HandleMetric(metric)
 	}
 

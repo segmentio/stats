@@ -13,6 +13,47 @@ import (
 	"github.com/segmentio/stats"
 )
 
+func init() {
+	stats.DefaultEngine.SetHistogramBucket("http.message.header.size",
+		5,
+		10,
+		20,
+		40,
+		80,
+		math.Inf(+1),
+	)
+
+	stats.DefaultEngine.SetHistogramBucket("http.message.header.bytes",
+		1e2, // 100 B
+		1e3, // 1 KB
+		1e4, // 10 KB
+		1e5, // 100 KB
+		1e6, // 1 MB
+		math.Inf(+1),
+	)
+
+	stats.DefaultEngine.SetHistogramBucket("http.message.body.bytes",
+		1e2, // 100 B
+		1e3, // 1 KB
+		1e4, // 10 KB
+		1e5, // 100 KB
+		1e6, // 1 MB
+		1e7, // 10 MB
+		1e8, // 100 MB
+		1e9, // 1 GB
+		math.Inf(+1),
+	)
+
+	stats.DefaultEngine.SetHistogramBucket("http.rtt.seconds",
+		1e-3, // 1ms
+		1e-2, // 10ms
+		1e-1, // 100ms
+		1,    // 1s
+		10,   // 10s
+		math.Inf(+1),
+	)
+}
+
 type nullBody struct{}
 
 func (n *nullBody) Close() error { return nil }

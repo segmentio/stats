@@ -1,12 +1,26 @@
 package procstats
 
 import (
+	"math"
 	"runtime"
 	"runtime/debug"
 	"time"
 
 	"github.com/segmentio/stats"
 )
+
+func init() {
+	stats.DefaultEngine.SetHistogramBucket("go.memstats.gc_pause.seconds",
+		1e-6,  // 1us
+		10e-5, // 10us
+		10e-4, // 100us
+		10e-3, // 1ms
+		10e-2, // 10ms
+		10e-1, // 100ms
+		1,     // 1s
+		math.Inf(+1),
+	)
+}
 
 // GoMetrics is a metric collector that reports metrics from the Go runtime.
 type GoMetrics struct {
