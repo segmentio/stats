@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	stats.DefaultEngine.SetHistogramBucket("conn.read.bytes",
+	stats.DefaultEngine.SetHistogramBuckets("conn.read.bytes",
 		1e2, // 100 B
 		1e3, // 1 KB
 		1e4, // 10 KB
@@ -20,7 +20,7 @@ func init() {
 		math.Inf(+1),
 	)
 
-	stats.DefaultEngine.SetHistogramBucket("conn.write.bytes",
+	stats.DefaultEngine.SetHistogramBuckets("conn.write.bytes",
 		1e2, // 100 B
 		1e3, // 1 KB
 		1e4, // 10 KB

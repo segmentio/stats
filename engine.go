@@ -15,11 +15,14 @@ import (
 // DefaultEngine, which is implicitly used by all top-level functions of the
 // package.
 type Engine struct {
-	name     string
-	tags     []Tag
+	// immutable fields
+	name string
+	tags []Tag
+
+	// mutable fields, synchronized on mutex
+	mutex    sync.RWMutex
 	handlers []Handler
 	buckets  map[string][]float64
-	hmutex   sync.RWMutex
 }
 
 var (
@@ -51,10 +54,10 @@ func (eng *Engine) Tags() []Tag {
 
 // Handlers returns a slice containing the handlers currently set on the engine.
 func (eng *Engine) Handlers() []Handler {
-	eng.hmutex.RLock()
+	eng.mutex.RLock()
 	handlers := make([]Handler, len(eng.handlers))
 	copy(handlers, eng.handlers)
-	eng.hmutex.RUnlock()
+	eng.mutex.RUnlock()
 	return handlers
 }
 
@@ -63,9 +66,9 @@ func (eng *Engine) Handlers() []Handler {
 // To prevent any deadlock from happening this method should never be called
 // from the handler's HandleMetric method.
 func (eng *Engine) Register(handler Handler) {
-	eng.hmutex.Lock()
+	eng.mutex.Lock()
 	eng.handlers = append(eng.handlers, handler)
-	eng.hmutex.Unlock()
+	eng.mutex.Unlock()
 }
 
 // HistogramBuckets returns a map of metric names to buckets used to distribute
@@ -73,34 +76,29 @@ func (eng *Engine) Register(handler Handler) {
 //
 // The buckets are of list of upper limits used to group the observed values.
 func (eng *Engine) HistogramBuckets() map[string][]float64 {
-	eng.hmutex.RLock()
+	eng.mutex.RLock()
 	buckets := make(map[string][]float64, len(eng.buckets))
 
-	for name, bucket := range eng.buckets {
-		bucketCopy := make([]float64, len(bucket))
-		copy(bucketCopy, bucket)
-		buckets[name] = bucketCopy
+	for k, v := range eng.buckets {
+		buckets[k] = copyBuckets(v)
 	}
 
-	eng.hmutex.RUnlock()
+	eng.mutex.RUnlock()
 	return buckets
 }
 
-// SetHistogramBucket sets the bucket used for a histogram metrics with name.
+// SetHistogramBuckets sets the buckets used for a histogram metric.
 //
 // Not all stats handler will respect the value distribution set with this
 // method, refer to the documentation of the handler for more details.
-func (eng *Engine) SetHistogramBucket(name string, bucket ...float64) {
-	if !sort.Float64sAreSorted(bucket) {
+func (eng *Engine) SetHistogramBuckets(name string, buckets ...float64) {
+	if !sort.Float64sAreSorted(buckets) {
 		panic("histogram buckets must be a sorted set of values")
 	}
-
-	bucketCopy := make([]float64, len(bucket))
-	copy(bucketCopy, bucket)
-
-	eng.hmutex.Lock()
-	eng.buckets[name] = bucketCopy
-	eng.hmutex.Unlock()
+	buckets = copyBuckets(buckets)
+	eng.mutex.Lock()
+	eng.buckets[name] = buckets
+	eng.mutex.Unlock()
 }
 
 // WithName creates a new engine which inherits the properties and handlers
@@ -127,7 +125,7 @@ func (eng *Engine) WithTags(tags ...Tag) *Engine {
 
 // Flush flushes all handlers of eng that implement the Flusher interface.
 func (eng *Engine) Flush() {
-	eng.hmutex.RLock()
+	eng.mutex.RLock()
 
 	for _, h := range eng.handlers {
 		if f, ok := h.(Flusher); ok {
@@ -135,7 +133,7 @@ func (eng *Engine) Flush() {
 		}
 	}
 
-	eng.hmutex.RUnlock()
+	eng.mutex.RUnlock()
 }
 
 // Counter creates a new counter producing a metric with name and tag on eng.
@@ -224,7 +222,7 @@ func (eng *Engine) handle(typ MetricType, name string, value float64, tags []Tag
 	var buckets []float64
 
 	metric := metricPool.Get().(*Metric)
-	eng.hmutex.RLock()
+	eng.mutex.RLock()
 
 	if typ == HistogramType {
 		buckets = eng.buckets[name]
@@ -242,7 +240,7 @@ func (eng *Engine) handle(typ MetricType, name string, value float64, tags []Tag
 		handler.HandleMetric(metric)
 	}
 
-	eng.hmutex.RUnlock()
+	eng.mutex.RUnlock()
 	metricPool.Put(metric)
 }
 
@@ -333,4 +331,8 @@ func progname() (name string) {
 		name = filepath.Base(args[0])
 	}
 	return
+}
+
+func copyBuckets(buckets []float64) []float64 {
+	return append(make([]float64, 0, len(buckets)), buckets...)
 }

@@ -14,7 +14,7 @@ import (
 )
 
 func init() {
-	stats.DefaultEngine.SetHistogramBucket("http.message.header.size",
+	stats.DefaultEngine.SetHistogramBuckets("http.message.header.size",
 		5,
 		10,
 		20,
@@ -23,7 +23,7 @@ func init() {
 		math.Inf(+1),
 	)
 
-	stats.DefaultEngine.SetHistogramBucket("http.message.header.bytes",
+	stats.DefaultEngine.SetHistogramBuckets("http.message.header.bytes",
 		1e2, // 100 B
 		1e3, // 1 KB
 		1e4, // 10 KB
@@ -32,7 +32,7 @@ func init() {
 		math.Inf(+1),
 	)
 
-	stats.DefaultEngine.SetHistogramBucket("http.message.body.bytes",
+	stats.DefaultEngine.SetHistogramBuckets("http.message.body.bytes",
 		1e2, // 100 B
 		1e3, // 1 KB
 		1e4, // 10 KB
@@ -44,7 +44,7 @@ func init() {
 		math.Inf(+1),
 	)
 
-	stats.DefaultEngine.SetHistogramBucket("http.rtt.seconds",
+	stats.DefaultEngine.SetHistogramBuckets("http.rtt.seconds",
 		1e-3, // 1ms
 		1e-2, // 10ms
 		1e-1, // 100ms

@@ -10,7 +10,7 @@ import (
 )
 
 func init() {
-	stats.DefaultEngine.SetHistogramBucket("go.memstats.gc_pause.seconds",
+	stats.DefaultEngine.SetHistogramBuckets("go.memstats.gc_pause.seconds",
 		1e-6, // 1us
 		1e-5, // 10us
 		1e-4, // 100us
