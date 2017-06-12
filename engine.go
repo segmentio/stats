@@ -72,7 +72,7 @@ func (eng *Engine) Register(handler Handler) {
 }
 
 // HistogramBuckets returns a map of metric names to buckets used to distribute
-// hitogram values.
+// histogram values.
 //
 // The buckets are of list of upper limits used to group the observed values.
 func (eng *Engine) HistogramBuckets() map[string][]float64 {
