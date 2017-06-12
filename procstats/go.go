@@ -11,13 +11,13 @@ import (
 
 func init() {
 	stats.DefaultEngine.SetHistogramBucket("go.memstats.gc_pause.seconds",
-		1e-6,  // 1us
-		10e-5, // 10us
-		10e-4, // 100us
-		10e-3, // 1ms
-		10e-2, // 10ms
-		10e-1, // 100ms
-		1,     // 1s
+		1e-6, // 1us
+		1e-5, // 10us
+		1e-4, // 100us
+		1e-3, // 1ms
+		1e-2, // 10ms
+		1e-1, // 100ms
+		1,    // 1s
 		math.Inf(+1),
 	)
 }
