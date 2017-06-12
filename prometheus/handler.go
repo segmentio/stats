@@ -18,16 +18,9 @@ import (
 //
 // Typically, a program creates one Handler, registers it to the stats package,
 // and adds it to the muxer used by the application under the /metrics path.
+//
+// The handle ignores histograms that have no buckets set.
 type Handler struct {
-	// A map of metric name to histograms buckets used by the handler to record
-	// observed values.
-	//
-	// The buckets are of list of upper limits used to group the observed
-	// values.
-	//
-	// If a bucket is missing for a metric name the observed value is ignored.
-	HistogramBuckets map[string][]float64
-
 	// MetricTimeout defines how long the handler exposes metrics that aren't
 	// receiving updates.
 	//
@@ -56,7 +49,7 @@ func (h *Handler) HandleMetric(m *stats.Metric) {
 		value:  m.Value,
 		time:   mtime,
 		labels: cache.labels,
-	}, h.HistogramBuckets[m.Name])
+	}, m.Buckets)
 
 	cache.labels = cache.labels[:0]
 	handleMetricPool.Put(cache)

@@ -2,6 +2,7 @@ package netstats
 
 import (
 	"io"
+	"math"
 	"net"
 	"sync"
 	"time"
@@ -9,6 +10,24 @@ import (
 	"github.com/segmentio/netx"
 	"github.com/segmentio/stats"
 )
+
+func init() {
+	stats.DefaultEngine.SetHistogramBuckets("conn.read.bytes",
+		1e2, // 100 B
+		1e3, // 1 KB
+		1e4, // 10 KB
+		1e5, // 100 KB
+		math.Inf(+1),
+	)
+
+	stats.DefaultEngine.SetHistogramBuckets("conn.write.bytes",
+		1e2, // 100 B
+		1e3, // 1 KB
+		1e4, // 10 KB
+		1e5, // 100 KB
+		math.Inf(+1),
+	)
+}
 
 // NewConn returns a net.Conn object that wraps c and produces metrics on the
 // default engine.
