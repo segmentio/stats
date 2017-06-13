@@ -1,7 +1,7 @@
 package prometheus
 
 import (
-	"github.com/segmentio/fasthash/fnv1a"
+	"github.com/segmentio/fasthash/jody"
 	"github.com/segmentio/stats"
 )
 
@@ -11,9 +11,9 @@ type label struct {
 }
 
 func (l label) hash() uint64 {
-	h := fnv1a.Init64
-	h = fnv1a.AddString64(h, l.name)
-	h = fnv1a.AddString64(h, l.value)
+	h := jody.Init64
+	h = jody.AddString64(h, l.name)
+	h = jody.AddString64(h, l.value)
 	return h
 }
 
@@ -45,11 +45,11 @@ func (l labels) copy() labels {
 }
 
 func (l labels) hash() uint64 {
-	h := fnv1a.Init64
+	h := jody.Init64
 
 	for i := range l {
-		h = fnv1a.AddString64(h, l[i].name)
-		h = fnv1a.AddString64(h, l[i].value)
+		h = jody.AddString64(h, l[i].name)
+		h = jody.AddString64(h, l[i].value)
 	}
 
 	return h
