@@ -302,12 +302,17 @@ func (state *metricState) collect(metrics []metric, entry *metricEntry) []metric
 		})
 
 	case histogram:
+		// Prometheus' scraper expects for histogram buckets to be cumulative.
+		// [1] https://prometheus.io/docs/practices/histograms/#apdex-score
+		// [2] https://en.wikipedia.org/wiki/Histogram#Cumulative_histogram
+		var cumulativeCount uint64
 		for _, bucket := range state.buckets {
+			cumulativeCount += bucket.count
 			metrics = append(metrics, metric{
 				mtype:  entry.mtype,
 				name:   entry.bucket,
 				help:   entry.help,
-				value:  float64(bucket.count),
+				value:  float64(cumulativeCount),
 				time:   state.time,
 				labels: bucket.labels,
 			})
