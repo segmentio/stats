@@ -310,6 +310,7 @@ func (state *metricState) collect(metrics []metric, entry *metricEntry) []metric
 			cumulativeCount += bucket.count
 			metrics = append(metrics, metric{
 				mtype:  entry.mtype,
+				scope:  entry.scope,
 				name:   entry.bucket,
 				help:   entry.help,
 				value:  float64(cumulativeCount),
@@ -320,6 +321,7 @@ func (state *metricState) collect(metrics []metric, entry *metricEntry) []metric
 		metrics = append(metrics,
 			metric{
 				mtype:  entry.mtype,
+				scope:  entry.scope,
 				name:   entry.sum,
 				help:   entry.help,
 				value:  state.sum,
@@ -328,6 +330,7 @@ func (state *metricState) collect(metrics []metric, entry *metricEntry) []metric
 			},
 			metric{
 				mtype:  entry.mtype,
+				scope:  entry.scope,
 				name:   entry.count,
 				help:   entry.help,
 				value:  float64(state.count),
