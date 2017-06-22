@@ -37,9 +37,9 @@ func TestMetricStore(t *testing.T) {
 		{mtype: gauge, name: "B", value: 42, labels: labels{{"a", "1"}}},
 		{mtype: gauge, name: "B", value: 21, labels: labels{{"a", "1"}, {"b", "2"}}},
 		{mtype: histogram, name: "C_bucket", value: 2, labels: labels{{"le", "0.25"}}},
-		{mtype: histogram, name: "C_bucket", value: 1, labels: labels{{"le", "0.5"}}},
-		{mtype: histogram, name: "C_bucket", value: 0, labels: labels{{"le", "0.75"}}},
-		{mtype: histogram, name: "C_bucket", value: 0, labels: labels{{"le", "1"}}},
+		{mtype: histogram, name: "C_bucket", value: 3, labels: labels{{"le", "0.5"}}},
+		{mtype: histogram, name: "C_bucket", value: 3, labels: labels{{"le", "0.75"}}},
+		{mtype: histogram, name: "C_bucket", value: 3, labels: labels{{"le", "1"}}},
 		{mtype: histogram, name: "C_count", value: 4, labels: labels{}},
 		{mtype: histogram, name: "C_sum", value: 10.7, labels: labels{}},
 	}
