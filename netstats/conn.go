@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/segmentio/netx"
 	"github.com/segmentio/stats"
 )
 
@@ -123,7 +122,7 @@ func (c *conn) error(op string, err error) {
 		// this is expected to happen when connections are closed
 	default:
 		// only report serious errors, others should be handled gracefully
-		if !netx.IsTemporary(err) {
+		if !isTemporary(err) {
 			c.eng.Incr("conn.error.count", stats.Tag{"protocol", c.proto}, stats.Tag{"operation", op})
 		}
 	}

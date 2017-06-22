@@ -9,7 +9,7 @@ import (
 )
 
 func TestListener(t *testing.T) {
-	h := &handler{}
+	h := &metricHandler{}
 	e := stats.NewEngine("netstats.test")
 	e.Register(h)
 
@@ -45,7 +45,7 @@ func TestListener(t *testing.T) {
 }
 
 func TestListenerError(t *testing.T) {
-	h := &handler{}
+	h := &metricHandler{}
 	e := stats.NewEngine("netstats.test")
 	e.Register(h)
 
