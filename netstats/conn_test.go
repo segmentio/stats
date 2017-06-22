@@ -9,15 +9,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/segmentio/netx"
 	"github.com/segmentio/stats"
 )
 
-type handler struct {
+type metricHandler struct {
 	metrics []stats.Metric
 }
 
-func (h *handler) HandleMetric(m *stats.Metric) {
+func (h *metricHandler) HandleMetric(m *stats.Metric) {
 	c := *m
 	c.Tags = append([]stats.Tag{}, m.Tags...)
 	c.Time = time.Time{} // discard because it's unpredicatable
@@ -28,13 +27,13 @@ func TestBaseConn(t *testing.T) {
 	c1 := &testConn{}
 	c2 := &conn{Conn: c1}
 
-	if base := netx.BaseConn(c2); base != c1 {
+	if base := c2.BaseConn(); base != c1 {
 		t.Error("bad base:", base)
 	}
 }
 
 func TestConn(t *testing.T) {
-	h := &handler{}
+	h := &metricHandler{}
 	e := stats.NewEngine("netstats.test")
 	e.Register(h)
 
@@ -80,7 +79,7 @@ func TestConn(t *testing.T) {
 }
 
 func TestConnError(t *testing.T) {
-	h := &handler{}
+	h := &metricHandler{}
 	e := stats.NewEngine("netstats.test")
 	e.Register(h)
 

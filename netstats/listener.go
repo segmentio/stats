@@ -4,7 +4,6 @@ import (
 	"net"
 	"sync/atomic"
 
-	"github.com/segmentio/netx"
 	"github.com/segmentio/stats"
 )
 
@@ -49,10 +48,17 @@ func (l *listener) Addr() net.Addr {
 }
 
 func (l *listener) error(op string, err error) {
-	if !netx.IsTemporary(err) {
+	if !isTemporary(err) {
 		l.eng.Incr("conn.error.count",
 			stats.Tag{"protocol", l.Addr().Network()},
 			stats.Tag{"operation", op},
 		)
 	}
+}
+
+func isTemporary(err error) bool {
+	e, ok := err.(interface {
+		Temporary() bool
+	})
+	return ok && e.Temporary()
 }

@@ -4,20 +4,24 @@ import (
 	"context"
 	"net"
 	"testing"
-
-	"github.com/segmentio/netx"
 )
+
+type testHandler struct {
+	ok bool
+}
+
+func (h *testHandler) ServeConn(ctx context.Context, conn net.Conn) {
+	h.ok = true
+}
 
 func TestHandler(t *testing.T) {
 	conn := &testConn{}
-	ok := false
+	test := &testHandler{}
 
-	handler := NewHandler(netx.HandlerFunc(func(ctx context.Context, conn net.Conn) {
-		ok = true
-	}))
+	handler := NewHandler(test)
 	handler.ServeConn(context.Background(), conn)
 
-	if !ok {
+	if !test.ok {
 		t.Error("the connection handler wasn't called")
 	}
 }
