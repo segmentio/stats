@@ -21,6 +21,20 @@ import (
 //
 // The handle ignores histograms that have no buckets set.
 type Handler struct {
+	// Setting this field will trim this prefix from metric namespaces of the
+	// metrics received by this handler.
+	//
+	// Unlike statsd-like systems, it is common for prometheus metrics to not
+	// be prefixed and instead use labels to identify which service or group
+	// of services the metrics are coming from. The intent of this field is to
+	// provide support for this use case.
+	//
+	// Note that triming only applies to the metric namespace, the metric
+	// name will always be left untouched.
+	//
+	// If empty, no prefix trimming is done.
+	TrimPrefix string
+
 	// MetricTimeout defines how long the handler exposes metrics that aren't
 	// receiving updates.
 	//
@@ -44,7 +58,7 @@ func (h *Handler) HandleMetric(m *stats.Metric) {
 
 	h.metrics.update(metric{
 		mtype:  metricTypeOf(m.Type),
-		scope:  m.Namespace,
+		scope:  strings.TrimPrefix(m.Namespace, h.TrimPrefix),
 		name:   m.Name,
 		value:  m.Value,
 		time:   mtime,
@@ -71,6 +85,13 @@ func (h *Handler) timeout() time.Duration {
 
 // ServeHTTP satsifies the http.Handler interface.
 func (h *Handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
+	switch req.Method {
+	case "GET", "HEAD":
+	default:
+		res.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
 	metrics := h.metrics.collect(make([]metric, 0, 10000))
 	sort.Sort(byNameAndLabels(metrics))
 
@@ -135,4 +156,10 @@ func (cache *handleMetricCache) Swap(i int, j int) {
 
 func (cache *handleMetricCache) Less(i int, j int) bool {
 	return cache.labels[i].less(cache.labels[j])
+}
+
+// DefaultHandler is a prometheus handler configured to trim the default metric
+// namespace off of metrics that it handles.
+var DefaultHandler = &Handler{
+	TrimPrefix: stats.DefaultEngine.Name(),
 }
