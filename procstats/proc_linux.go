@@ -9,7 +9,7 @@ import (
 
 func getpagesize() uint64 { return uint64(syscall.Getpagesize()) }
 
-func collectProcMetrics(pid int) (m proc, err error) {
+func collectProcInfo(pid int) (info ProcInfo, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
 
 	memoryLimit, err := linux.GetMemoryLimit(pid)
@@ -33,33 +33,108 @@ func collectProcMetrics(pid int) (m proc, err error) {
 	pagesize := getpagesize()
 	clockTicks := getclktck()
 
-	m = proc{
-		cpu: cpu{
-			user: (time.Duration(stat.Utime) * time.Nanosecond) / time.Duration(clockTicks),
-			sys:  (time.Duration(stat.Stime) * time.Nanosecond) / time.Duration(clockTicks),
+	info = ProcInfo{
+		CPU: CPUInfo{
+			User: (time.Duration(stat.Utime) * time.Nanosecond) / time.Duration(clockTicks),
+			Sys:  (time.Duration(stat.Stime) * time.Nanosecond) / time.Duration(clockTicks),
 		},
 
-		memory: memory{
-			available:       memoryLimit,
-			size:            pagesize * statm.Size,
-			resident:        pagesize * statm.Resident,
-			shared:          pagesize * statm.Share,
-			text:            pagesize * statm.Text,
-			data:            pagesize * statm.Data,
-			majorPageFaults: stat.Majflt,
-			minorPageFaults: stat.Minflt,
+		Memory: MemoryInfo{
+			Available:       memoryLimit,
+			Size:            pagesize * statm.Size,
+			Resident:        pagesize * statm.Resident,
+			Shared:          pagesize * statm.Share,
+			Text:            pagesize * statm.Text,
+			Data:            pagesize * statm.Data,
+			MajorPageFaults: stat.Majflt,
+			MinorPageFaults: stat.Minflt,
 		},
 
-		files: files{
-			open: fds,
-			max:  limits.OpenFiles.Soft,
+		Files: FileInfo{
+			Open: fds,
+			Max:  limits.OpenFiles.Soft,
 		},
 
-		threads: threads{
-			num: uint64(stat.NumThreads),
-			voluntaryContextSwitches:   sched.NRVoluntarySwitches,
-			involuntaryContextSwitches: sched.NRInvoluntarySwitches,
+		Threads: ThreadInfo{
+			Num: uint64(stat.NumThreads),
+			VoluntaryContextSwitches:   sched.NRVoluntarySwitches,
+			InvoluntaryContextSwitches: sched.NRInvoluntarySwitches,
 		},
+	}
+	return
+}
+
+func collectCPUInfo(pid int) (info CPUInfo, err error) {
+	defer func() { err = convertPanicToError(recover()) }()
+
+	stat, err := linux.GetProcStat(pid)
+	check(err)
+
+	clockTicks := getclktck()
+
+	info = CPUInfo{
+		User: (time.Duration(stat.Utime) * time.Nanosecond) / time.Duration(clockTicks),
+		Sys:  (time.Duration(stat.Stime) * time.Nanosecond) / time.Duration(clockTicks),
+	}
+	return
+}
+
+func collectMemoryInfo(pid int) (info MemoryInfo, err error) {
+	defer func() { err = convertPanicToError(recover()) }()
+
+	memoryLimit, err := linux.GetMemoryLimit(pid)
+	check(err)
+
+	stat, err := linux.GetProcStat(pid)
+	check(err)
+
+	statm, err := linux.GetProcStatm(pid)
+	check(err)
+
+	pagesize := getpagesize()
+
+	info = MemoryInfo{
+		Available:       memoryLimit,
+		Size:            pagesize * statm.Size,
+		Resident:        pagesize * statm.Resident,
+		Shared:          pagesize * statm.Share,
+		Text:            pagesize * statm.Text,
+		Data:            pagesize * statm.Data,
+		MajorPageFaults: stat.Majflt,
+		MinorPageFaults: stat.Minflt,
+	}
+	return
+}
+
+func collectFileInfo(pid int) (info FileInfo, err error) {
+	defer func() { err = convertPanicToError(recover()) }()
+
+	limits, err := linux.GetProcLimits(pid)
+	check(err)
+
+	fds, err := linux.GetOpenFileCount(pid)
+	check(err)
+
+	info = FileInfo{
+		Open: fds,
+		Max:  limits.OpenFiles.Soft,
+	}
+	return
+}
+
+func collectThreadInfo(pid int) (info ThreadInfo, err error) {
+	defer func() { err = convertPanicToError(recover()) }()
+
+	stat, err := linux.GetProcStat(pid)
+	check(err)
+
+	sched, err := linux.GetProcSched(pid)
+	check(err)
+
+	info = ThreadInfo{
+		Num: uint64(stat.NumThreads),
+		VoluntaryContextSwitches:   sched.NRVoluntarySwitches,
+		InvoluntaryContextSwitches: sched.NRInvoluntarySwitches,
 	}
 	return
 }
