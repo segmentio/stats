@@ -90,69 +90,83 @@ func NewProcMetricsWith(eng *stats.Engine, pid int) *ProcMetrics {
 
 // Collect satsifies the Collector interface.
 func (p *ProcMetrics) Collect() {
-	if m, err := collectProcMetrics(p.pid); err == nil {
+	if m, err := CollectProcInfo(p.pid); err == nil {
 		// CPU
-		p.cpu.user.Set(m.cpu.user.Seconds())
-		p.cpu.sys.Set(m.cpu.sys.Seconds())
+		p.cpu.user.Set(m.CPU.User.Seconds())
+		p.cpu.sys.Set(m.CPU.Sys.Seconds())
 
 		// Memory
-		p.memory.available.Set(float64(m.memory.available))
-		p.memory.size.Set(float64(m.memory.size))
-		p.memory.resident.Set(float64(m.memory.resident))
-		p.memory.shared.Set(float64(m.memory.shared))
-		p.memory.text.Set(float64(m.memory.text))
-		p.memory.data.Set(float64(m.memory.data))
-		p.memory.majorPageFaults.Set(float64(m.memory.majorPageFaults))
-		p.memory.minorPageFaults.Set(float64(m.memory.minorPageFaults))
+		p.memory.available.Set(float64(m.Memory.Available))
+		p.memory.size.Set(float64(m.Memory.Size))
+		p.memory.resident.Set(float64(m.Memory.Resident))
+		p.memory.shared.Set(float64(m.Memory.Shared))
+		p.memory.text.Set(float64(m.Memory.Text))
+		p.memory.data.Set(float64(m.Memory.Data))
+		p.memory.majorPageFaults.Set(float64(m.Memory.MajorPageFaults))
+		p.memory.minorPageFaults.Set(float64(m.Memory.MinorPageFaults))
 
 		// Files
-		p.files.open.Set(float64(m.files.open))
-		p.files.max.Set(float64(m.files.max))
+		p.files.open.Set(float64(m.Files.Open))
+		p.files.max.Set(float64(m.Files.Max))
 
 		// Threads
-		p.threads.num.Set(float64(m.threads.num))
-		p.threads.voluntaryContextSwitches.Set(float64(m.threads.voluntaryContextSwitches))
-		p.threads.involuntaryContextSwitches.Set(float64(m.threads.involuntaryContextSwitches))
+		p.threads.num.Set(float64(m.Threads.Num))
+		p.threads.voluntaryContextSwitches.Set(float64(m.Threads.VoluntaryContextSwitches))
+		p.threads.involuntaryContextSwitches.Set(float64(m.Threads.InvoluntaryContextSwitches))
 	}
 }
 
-// =============================================================================
-// These structs are used by the platform-specific implementations as a bridge
-// to the high-level API.
-
-type proc struct {
-	cpu
-	memory
-	files
-	threads
+type ProcInfo struct {
+	CPU     CPUInfo
+	Memory  MemoryInfo
+	Files   FileInfo
+	Threads ThreadInfo
 }
 
-type cpu struct {
-	user time.Duration
-	sys  time.Duration
+func CollectProcInfo(pid int) (ProcInfo, error) {
+	return collectProcInfo(pid)
 }
 
-type memory struct {
-	available uint64
-	size      uint64
-	resident  uint64
-	shared    uint64
-	text      uint64
-	data      uint64
-
-	majorPageFaults uint64
-	minorPageFaults uint64
+type CPUInfo struct {
+	User time.Duration // user cpu time used by the process
+	Sys  time.Duration // system cpu time used by the process
 }
 
-type files struct {
-	open uint64
-	max  uint64
+func CollectCPUInfo(pid int) (CPUInfo, error) {
+	return collectCPUInfo(pid)
 }
 
-type threads struct {
-	num                        uint64
-	voluntaryContextSwitches   uint64
-	involuntaryContextSwitches uint64
+type MemoryInfo struct {
+	Available uint64 // amound of RAM available to the process
+	Size      uint64 // total program memory (including virtual mappings)
+	Resident  uint64 // resident set size
+	Shared    uint64 // shared pages (i.e., backed by a file)
+	Text      uint64 // text (code)
+	Data      uint64 // data + stack
+
+	MajorPageFaults uint64
+	MinorPageFaults uint64
 }
 
-// =============================================================================
+func CollectMemoryInfo(pid int) (MemoryInfo, error) {
+	return collectMemoryInfo(pid)
+}
+
+type FileInfo struct {
+	Open uint64 // fds opened by the process
+	Max  uint64 // max number of fds the process can open
+}
+
+func CollectFileInfo(pid int) (FileInfo, error) {
+	return collectFileInfo(pid)
+}
+
+type ThreadInfo struct {
+	Num                        uint64
+	VoluntaryContextSwitches   uint64
+	InvoluntaryContextSwitches uint64
+}
+
+func CollectThreadInfo(pid int) (ThreadInfo, error) {
+	return collectThreadInfo(pid)
+}
