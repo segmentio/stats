@@ -98,7 +98,7 @@ func (h *Handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	w := io.Writer(res)
 	res.Header().Set("Content-Type", "text/plain; version=0.0.4")
 
-	if acceptEncoding(req.Header.Get("Accept-Endoing"), "gzip") {
+	if acceptEncoding(req.Header.Get("Accept-Encoding"), "gzip") {
 		res.Header().Set("Content-Encoding", "gzip")
 		zw := gzip.NewWriter(w)
 		defer zw.Close()
