@@ -412,7 +412,7 @@ func le(buckets []float64) string {
 		if i != 0 {
 			b = append(b, ':')
 		}
-		b = ftoa(b, v)
+		b = appendFloat(b, v)
 	}
 
 	return *(*string)(unsafe.Pointer(&reflect.StringHeader{
@@ -430,7 +430,7 @@ func nextLe(s string) (head string, tail string) {
 	return
 }
 
-func ftoa(b []byte, f float64) []byte {
+func appendFloat(b []byte, f float64) []byte {
 	return strconv.AppendFloat(b, f, 'g', -1, 64)
 }
 
