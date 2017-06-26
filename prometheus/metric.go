@@ -1,10 +1,12 @@
 package prometheus
 
 import (
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+	"unsafe"
 
 	"github.com/segmentio/stats"
 )
@@ -372,10 +374,15 @@ type metricBuckets []metricBucket
 
 func makeMetricBuckets(buckets []float64, labels labels) metricBuckets {
 	b := make(metricBuckets, len(buckets))
+	s := le(buckets)
+
 	for i := range buckets {
+		var le string
+		le, s = nextLe(s)
 		b[i].limit = buckets[i]
-		b[i].labels = labels.copyAppend(label{"le", ftoa(buckets[i])})
+		b[i].labels = labels.copyAppend(label{"le", le})
 	}
+
 	return b
 }
 
@@ -388,8 +395,43 @@ func (m metricBuckets) update(value float64) {
 	}
 }
 
-func ftoa(f float64) string {
-	return strconv.FormatFloat(f, 'g', -1, 64)
+// This function builds a string of column-separated float representations of
+// the given list of buckets, which is then split by calls to nextLe to generate
+// the values of the "le" label for each bucket of a histogram.
+//
+// The intent is to keep the number of dynamic memory allocations constant
+// instead of increasing linearly with the number of buckets.
+func le(buckets []float64) string {
+	if len(buckets) == 0 {
+		return ""
+	}
+
+	b := make([]byte, 0, 8*len(buckets))
+
+	for i, v := range buckets {
+		if i != 0 {
+			b = append(b, ':')
+		}
+		b = appendFloat(b, v)
+	}
+
+	return *(*string)(unsafe.Pointer(&reflect.StringHeader{
+		Data: uintptr(unsafe.Pointer(&b[0])),
+		Len:  len(b),
+	}))
+}
+
+func nextLe(s string) (head string, tail string) {
+	if i := strings.IndexByte(s, ':'); i >= 0 {
+		head, tail = s[:i], s[i+1:]
+	} else {
+		head = s
+	}
+	return
+}
+
+func appendFloat(b []byte, f float64) []byte {
+	return strconv.AppendFloat(b, f, 'g', -1, 64)
 }
 
 type byNameAndLabels []metric

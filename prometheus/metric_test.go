@@ -1,6 +1,7 @@
 package prometheus
 
 import (
+	"math"
 	"reflect"
 	"sort"
 	"sync"
@@ -161,5 +162,20 @@ func TestMetricStoreCleanup(t *testing.T) {
 		{mtype: counter, name: "E", value: 1, time: now.Add(time.Second), labels: labels{}},
 	}) {
 		t.Errorf("bad metrics: %#v", metrics)
+	}
+}
+
+func BenchmarkLE(b *testing.B) {
+	buckets := []float64{
+		0.001,
+		0.01,
+		0.1,
+		1,
+		10,
+		math.Inf(+1),
+	}
+
+	for i := 0; i != b.N; i++ {
+		le(buckets)
 	}
 }
