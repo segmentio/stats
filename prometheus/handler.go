@@ -41,6 +41,22 @@ type Handler struct {
 	// The default is to use a 2 minutes metric timeout.
 	MetricTimeout time.Duration
 
+	// Prometheus identifies unique time series by the combination of the metric
+	// name and labels. Technically labels may be provided in any order, so they
+	// need to be sorted to be properly matched against each other. However this
+	// may be a expensive in high rate services, if a program can ensure it will
+	// always present metrics with label names in the same order it may skip the
+	// sorting step by setting this flag to true.
+	//
+	// Note that in the context of the stats package tags are usually always
+	// presented in the same order since the APIs receive a slice of stats.Tag
+	// which preserves the order in which they're passed. Unless the program is
+	// dynamically gneerating the slice of tags it's very likely that it will be
+	// able to take advantage of skipping the sorting step.
+	//
+	// By default this flag is set to false to ensure correctness in every case.
+	UseUnsortedLabels bool
+
 	opcount uint64
 	metrics metricStore
 }
@@ -54,7 +70,10 @@ func (h *Handler) HandleMetric(m *stats.Metric) {
 
 	cache := handleMetricPool.Get().(*handleMetricCache)
 	cache.labels = cache.labels.appendTags(m.Tags...)
-	sort.Sort(cache)
+
+	if !h.UseUnsortedLabels {
+		sort.Sort(cache)
+	}
 
 	h.metrics.update(metric{
 		mtype:  metricTypeOf(m.Type),
