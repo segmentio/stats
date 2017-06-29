@@ -49,10 +49,9 @@ type Handler struct {
 	// sorting step by setting this flag to true.
 	//
 	// Note that in the context of the stats package tags are usually always
-	// presented in the same order since the APIs receive a slice of stats.Tag
-	// which preserves the order in which they're passed. Unless the program is
-	// dynamically gneerating the slice of tags it's very likely that it will be
-	// able to take advantage of skipping the sorting step.
+	// presented in the same order since the APIs receive a slice of stats.Tag.
+	// Unless the program is dynamically gneerating the slice of tags it's very
+	// likely that it will be able to take advantage of skipping the sort.
 	//
 	// By default this flag is set to false to ensure correctness in every case.
 	UseUnsortedLabels bool
