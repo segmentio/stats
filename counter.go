@@ -1,11 +1,8 @@
 package stats
 
-import "sync"
-
 // A Counter represent a metric that is monotonically increasing.
 type Counter struct {
-	mutex sync.Mutex
-	value float64 // current value of the counter
+	value f64     // current value of the counter
 	eng   *Engine // the engine to produce metrics on
 	name  string  // the name of the counter
 	tags  []Tag   // the tags set on the counter
@@ -27,7 +24,7 @@ func (c *Counter) Tags() []Tag {
 
 // Value returns the current value of the counter.
 func (c *Counter) Value() float64 {
-	return c.value
+	return c.value.float()
 }
 
 // WithTags returns a copy of the counter, potentially setting tags on the returned
@@ -52,9 +49,7 @@ func (c *Counter) Incr() {
 // Note that most data collection systems expect counters to be monotonically
 // increasing so the program should not call this method with negative values.
 func (c *Counter) Add(value float64) {
-	c.mutex.Lock()
-	c.value += value
-	c.mutex.Unlock()
+	c.value.add(value)
 	c.eng.Add(c.name, value, c.tags...)
 }
 
@@ -67,12 +62,9 @@ func (c *Counter) Add(value float64) {
 // This method is useful for reporting values of counters that aren't managed
 // by the application itself, like CPU ticks for example.
 func (c *Counter) Set(value float64) {
-	c.mutex.Lock()
-	if value < c.value {
-		c.value = value
-	} else {
-		c.value, value = value, value-c.value
+	_, value = c.value.set(value)
+	if value < 0 {
+		value = -value
 	}
-	c.mutex.Unlock()
 	c.eng.Add(c.name, value, c.tags...)
 }
