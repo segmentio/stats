@@ -62,9 +62,9 @@ func (c *Counter) Add(value float64) {
 // This method is useful for reporting values of counters that aren't managed
 // by the application itself, like CPU ticks for example.
 func (c *Counter) Set(value float64) {
-	_, value = c.value.set(value)
-	if value < 0 {
-		value = -value
+	_, delta := c.value.set(value)
+	if delta >= 0 {
+		value = delta
 	}
 	c.eng.Add(c.name, value, c.tags...)
 }
