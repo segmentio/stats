@@ -11,53 +11,53 @@ import (
 )
 
 func TestHandler(t *testing.T) {
-	metricHandler := &testMetricHandler{}
+	m := &testMetricHandler{}
 	e := stats.NewEngine("")
-	e.Register(metricHandler)
+	e.Register(m)
 
-	wrappedRedisHandler := NewHandlerWith(e, &testRedisHandler{})
+	h := NewHandlerWith(e, &testRedisHandler{})
 
-	wrappedRedisHandler.ServeRedis(&testResponseWriter{},
+	h.ServeRedis(&testResponseWriter{},
 		redis.NewRequest("127.0.0.1:6379", "SET", redis.List("foo", "bar")))
-	wrappedRedisHandler.ServeRedis(&testResponseWriter{},
+	h.ServeRedis(&testResponseWriter{},
 		redis.NewRequest("127.0.0.1:6379", "GET", redis.List("foo", "bar")))
 
-	wrappedRedisHandler.ServeRedis(&testResponseWriter{err: &net.OpError{Op: "read"}},
+	h.ServeRedis(&testResponseWriter{err: &net.OpError{Op: "read"}},
 		redis.NewRequest("127.0.0.1:6379", "GET", redis.List("foo")))
 
-	wrappedRedisHandler.ServeRedis(&testResponseWriter{err: errors.New("fail")},
+	h.ServeRedis(&testResponseWriter{err: errors.New("fail")},
 		redis.NewRequest("127.0.0.1:6379", "SET", redis.List("foo", "bar")))
 
-	if len(metricHandler.metrics) == 0 {
+	if len(m.metrics) == 0 {
 		t.Error("no metrics reported by http handler")
 	}
 
-	validateMetric(t, metricHandler.metrics[0], "commands",
-		[]stats.Tag{{Name: "name", Value: "SET"}}, stats.CounterType)
+	validateMetric(t, m.metrics[0], "requests",
+		[]stats.Tag{{Name: "command", Value: "SET"}}, stats.CounterType)
 
-	validateMetric(t, metricHandler.metrics[1], "roundTripTime",
+	validateMetric(t, m.metrics[1], "request.rtt.seconds",
 		[]stats.Tag{{Name: "command", Value: "SET"}}, stats.HistogramType)
 
-	validateMetric(t, metricHandler.metrics[2], "commands",
-		[]stats.Tag{{Name: "name", Value: "GET"}}, stats.CounterType)
+	validateMetric(t, m.metrics[2], "requests",
+		[]stats.Tag{{Name: "command", Value: "GET"}}, stats.CounterType)
 
-	validateMetric(t, metricHandler.metrics[3], "roundTripTime",
+	validateMetric(t, m.metrics[3], "request.rtt.seconds",
 		[]stats.Tag{{Name: "command", Value: "GET"}}, stats.HistogramType)
 
-	validateMetric(t, metricHandler.metrics[4], "commands",
-		[]stats.Tag{{Name: "name", Value: "GET"}}, stats.CounterType)
+	validateMetric(t, m.metrics[4], "requests",
+		[]stats.Tag{{Name: "command", Value: "GET"}}, stats.CounterType)
 
-	validateMetric(t, metricHandler.metrics[5], "errors",
+	validateMetric(t, m.metrics[5], "errors",
 		[]stats.Tag{
 			{Name: "command", Value: "GET"},
 			{Name: "type", Value: "network"},
 			{Name: "operation", Value: "read"},
 		}, stats.CounterType)
 
-	validateMetric(t, metricHandler.metrics[6], "commands",
-		[]stats.Tag{{Name: "name", Value: "SET"}}, stats.CounterType)
+	validateMetric(t, m.metrics[6], "requests",
+		[]stats.Tag{{Name: "command", Value: "SET"}}, stats.CounterType)
 
-	validateMetric(t, metricHandler.metrics[7], "errors",
+	validateMetric(t, m.metrics[7], "errors",
 		[]stats.Tag{
 			{Name: "command", Value: "SET"},
 		}, stats.CounterType)
@@ -66,7 +66,7 @@ func TestHandler(t *testing.T) {
 type testRedisHandler struct{}
 
 func (*testRedisHandler) ServeRedis(res redis.ResponseWriter, req *redis.Request) {
-	res.Write("+OK\r\n")
+	res.Write("OK")
 }
 
 type testResponseWriter struct {

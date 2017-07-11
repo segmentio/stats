@@ -247,9 +247,9 @@ func main() {
     stats.Register(datadog.NewClient("localhost:8125"))
     defer stats.Flush()
 
-    handler := redis.Handler{}
-
-    // Implement handler functions here
+    handler := redis.HandlerFunc(func(res redis.ResponseWriter, req *redis.Request) {
+      // Implement handler function here
+    })
 
     server := redis.Server{
         Handler: redisstats.NewHandler(&handler),

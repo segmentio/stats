@@ -32,7 +32,7 @@ type transport struct {
 
 // RoundTrip performs the request req, and returns the associated response.
 func (t *transport) RoundTrip(req *redis.Request) (*redis.Response, error) {
-	t.engine.Incr("commands", stats.Tag{Name: "name", Value: req.Cmd})
+	t.engine.Incr("requests", stats.Tag{Name: "command", Value: req.Cmd})
 
 	// Instrument wrapped method call
 	startTime := time.Now()
@@ -41,7 +41,7 @@ func (t *transport) RoundTrip(req *redis.Request) (*redis.Response, error) {
 
 	switch e := err.(type) {
 	case nil:
-		t.engine.ObserveDuration("roundTripTime", endTime.Sub(startTime),
+		t.engine.ObserveDuration("request.rtt.seconds", endTime.Sub(startTime),
 			stats.Tag{Name: "command", Value: req.Cmd},
 			stats.Tag{Name: "upstream", Value: req.Addr})
 	case *resp.Error:

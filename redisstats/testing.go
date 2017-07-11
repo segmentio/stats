@@ -22,8 +22,7 @@ func (h *testMetricHandler) HandleMetric(m *stats.Metric) {
 	h.Unlock()
 }
 
-func validateMetric(t *testing.T, metric stats.Metric, name string,
-	tags []stats.Tag, metricType stats.MetricType) {
+func validateMetric(t *testing.T, metric stats.Metric, name string, tags []stats.Tag, metricType stats.MetricType) {
 	if name != metric.Name {
 		t.Errorf("Expected metric name '%s', found '%s'", name, metric.Name)
 	}

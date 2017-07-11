@@ -11,9 +11,9 @@ import (
 )
 
 func TestTransport(t *testing.T) {
-	metricHandler := &testMetricHandler{}
+	m := &testMetricHandler{}
 	e := stats.NewEngine("")
-	e.Register(metricHandler)
+	e.Register(m)
 
 	client := redis.Client{
 		Addr:      "127.0.0.1",
@@ -43,51 +43,51 @@ func TestTransport(t *testing.T) {
 	readErrorClient.Do(redis.NewRequest("9.9.9.9:6379", "GET", redis.List("foo")))
 	writeErrorClient.Do(redis.NewRequest("9.9.9.9:6379", "SET", redis.List("foo", "bar")))
 
-	if len(metricHandler.metrics) == 0 {
+	if len(m.metrics) == 0 {
 		t.Error("no metrics reported by http handler")
 	}
 
-	validateMetric(t, metricHandler.metrics[0], "commands",
-		[]stats.Tag{{Name: "name", Value: "SET"}}, stats.CounterType)
+	validateMetric(t, m.metrics[0], "requests",
+		[]stats.Tag{{Name: "command", Value: "SET"}}, stats.CounterType)
 
-	validateMetric(t, metricHandler.metrics[1], "roundTripTime",
+	validateMetric(t, m.metrics[1], "request.rtt.seconds",
 		[]stats.Tag{
 			{Name: "command", Value: "SET"},
 			{Name: "upstream", Value: "1.2.3.4:6379"},
 		}, stats.HistogramType)
 
-	validateMetric(t, metricHandler.metrics[2], "commands",
-		[]stats.Tag{{Name: "name", Value: "GET"}}, stats.CounterType)
+	validateMetric(t, m.metrics[2], "requests",
+		[]stats.Tag{{Name: "command", Value: "GET"}}, stats.CounterType)
 
-	validateMetric(t, metricHandler.metrics[3], "roundTripTime",
+	validateMetric(t, m.metrics[3], "request.rtt.seconds",
 		[]stats.Tag{
 			{Name: "command", Value: "GET"},
 			{Name: "upstream", Value: "5.6.7.8:6379"},
 		}, stats.HistogramType)
 
-	validateMetric(t, metricHandler.metrics[4], "commands",
-		[]stats.Tag{{Name: "name", Value: "GET"}}, stats.CounterType)
+	validateMetric(t, m.metrics[4], "requests",
+		[]stats.Tag{{Name: "command", Value: "GET"}}, stats.CounterType)
 
-	validateMetric(t, metricHandler.metrics[5], "errors",
+	validateMetric(t, m.metrics[5], "errors",
 		[]stats.Tag{
 			{Name: "type", Value: "response"},
 			{Name: "upstream", Value: "9.9.9.9:6379"},
 		}, stats.CounterType)
 
-	validateMetric(t, metricHandler.metrics[6], "commands",
-		[]stats.Tag{{Name: "name", Value: "GET"}}, stats.CounterType)
+	validateMetric(t, m.metrics[6], "requests",
+		[]stats.Tag{{Name: "command", Value: "GET"}}, stats.CounterType)
 
-	validateMetric(t, metricHandler.metrics[7], "errors",
+	validateMetric(t, m.metrics[7], "errors",
 		[]stats.Tag{
 			{Name: "type", Value: "network"},
 			{Name: "operation", Value: "read"},
 			{Name: "upstream", Value: "9.9.9.9:6379"},
 		}, stats.CounterType)
 
-	validateMetric(t, metricHandler.metrics[8], "commands",
-		[]stats.Tag{{Name: "name", Value: "SET"}}, stats.CounterType)
+	validateMetric(t, m.metrics[8], "requests",
+		[]stats.Tag{{Name: "command", Value: "SET"}}, stats.CounterType)
 
-	validateMetric(t, metricHandler.metrics[9], "errors",
+	validateMetric(t, m.metrics[9], "errors",
 		[]stats.Tag{
 			{Name: "type", Value: "network"},
 			{Name: "operation", Value: "write"},

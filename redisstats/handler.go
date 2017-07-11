@@ -32,7 +32,7 @@ type instrumentedRedisHandler struct {
 // ServeRedis implements the redis.Handler interface.
 // It records a metric for each request.
 func (h *instrumentedRedisHandler) ServeRedis(res redis.ResponseWriter, req *redis.Request) {
-	h.engine.Incr("commands", stats.Tag{Name: "name", Value: req.Cmd})
+	h.engine.Incr("requests", stats.Tag{Name: "command", Value: req.Cmd})
 
 	w := &errorWrappedResponseWriter{
 		w: res,
@@ -50,7 +50,7 @@ func (h *instrumentedRedisHandler) ServeRedis(res redis.ResponseWriter, req *red
 			stats.Tag{Name: "operation", Value: e.Op})
 	default:
 		if e == nil {
-			h.engine.ObserveDuration("roundTripTime", endTime.Sub(startTime),
+			h.engine.ObserveDuration("request.rtt.seconds", endTime.Sub(startTime),
 				stats.Tag{Name: "command", Value: req.Cmd})
 		} else {
 			h.engine.Incr("errors",
