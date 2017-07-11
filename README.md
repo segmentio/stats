@@ -15,7 +15,7 @@ Quick Start
 ### Engine
 
 A core concept of the `stats` package is the `Engine`. Every program importing
-the package gets a default engine where all metrics produced are aggregated.  
+the package gets a default engine where all metrics produced are aggregated.
 The program then has to instantiate clients that will consume from the engine
 at regular time intervals and report the state of the engine to metrics
 collection platforms.
@@ -193,6 +193,69 @@ func main() {
 
     // Wraps the default HTTP client's transport.
     http.DefaultClient.Transport = httpstats.NewTransport(http.DefaultClient.Transport)
+
+    // ...
+}
+```
+
+### Redis
+
+The [github.com/segmentio/stats/redisstats](https://godoc.org/github.com/segmentio/stats/redisstats)
+package exposes:
+
+* a decorator of
+  [`redis.RoundTripper`](https://godoc.org/github.com/segmentio/redis-go#RoundTripper)
+  which collects metrics for client requests, and
+* a decorator or
+  [`redis.ServeRedis`](https://godoc.org/github.com/segmentio/redis-go#HandlerFunc.ServeRedis)
+  which collects metrics for server requests.
+
+Here's an exmaple of how to use the decorator on the client side:
+```go
+package main
+
+import (
+    "github.com/segmentio/redis-go"
+    "github.com/segmentio/stats/redisstats"
+)
+
+func main() {
+    stats.Register(datadog.NewClient("localhost:8125"))
+    defer stats.Flush()
+
+    client := redis.Client{
+        Addr:      "127.0.0.1:6379",
+        Transport: redisstats.NewTransport(&redis.Transport{}),
+        Timeout:   0,
+    }
+
+    // ...
+}
+```
+
+And on the server side:
+
+```go
+package main
+
+import (
+    "github.com/segmentio/redis-go"
+    "github.com/segmentio/stats/redisstats"
+)
+
+func main() {
+    stats.Register(datadog.NewClient("localhost:8125"))
+    defer stats.Flush()
+
+    handler := redis.Handler{}
+
+    // Implement handler functions here
+
+    server := redis.Server{
+        Handler: redisstats.NewHandler(&handler),
+    }
+
+    server.ListenAndServe()
 
     // ...
 }
