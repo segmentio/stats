@@ -1,11 +1,8 @@
 package stats
 
-import "sync"
-
 // A Gauge represent a metric that reports a single value.
 type Gauge struct {
-	mutex sync.Mutex
-	value float64 // current value of the gauge
+	value f64     // current value of the gauge
 	eng   *Engine // the engine to produce metrics on
 	name  string  // the name of the gauge
 	tags  []Tag   // the tags set on the gauge
@@ -27,7 +24,7 @@ func (g *Gauge) Tags() []Tag {
 
 // Value returns the current value of the gauge.
 func (g *Gauge) Value() float64 {
-	return g.value
+	return g.value.float()
 }
 
 // WithTags returns a copy of the gauge, potentially setting tags on the returned
@@ -54,16 +51,12 @@ func (g *Gauge) Decr() {
 
 // Add adds a value to the gauge.
 func (g *Gauge) Add(value float64) {
-	g.mutex.Lock()
-	g.value += value
-	g.eng.Set(g.name, g.value, g.tags...)
-	g.mutex.Unlock()
+	value = g.value.add(value)
+	g.eng.Set(g.name, value, g.tags...)
 }
 
 // Set sets the gauge to value.
 func (g *Gauge) Set(value float64) {
-	g.mutex.Lock()
-	g.value = value
+	value, _ = g.value.set(value)
 	g.eng.Set(g.name, value, g.tags...)
-	g.mutex.Unlock()
 }
