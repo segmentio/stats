@@ -1,6 +1,7 @@
 package redisstats
 
 import (
+	"sync"
 	"time"
 
 	"net"
@@ -32,31 +33,94 @@ type transport struct {
 
 // RoundTrip performs the request req, and returns the associated response.
 func (t *transport) RoundTrip(req *redis.Request) (*redis.Response, error) {
-	t.engine.Incr("requests", stats.Tag{Name: "command", Value: req.Cmd})
+	t.engine.Incr("redis.request.count")
+	t.engine.Observe("redis.request.size", float64(len(req.Cmds)))
 
-	// Instrument wrapped method call
+	for _, cmd := range req.Cmds {
+		tags := []stats.Tag{{"command", cmd.Cmd}}
+		t.engine.Incr("redis.command.count", tags...)
+		t.engine.Observe("redis.command_arguments.size", float64(argsLen(cmd.Args)), tags...)
+	}
+
 	startTime := time.Now()
 	res, err := t.rt.RoundTrip(req)
-	endTime := time.Now()
 
-	switch e := err.(type) {
-	case nil:
-		t.engine.ObserveDuration("request.rtt.seconds", endTime.Sub(startTime),
-			stats.Tag{Name: "command", Value: req.Cmd},
-			stats.Tag{Name: "upstream", Value: req.Addr})
-	case *resp.Error:
-		t.engine.Incr("errors",
-			stats.Tag{Name: "type", Value: "response"},
-			stats.Tag{Name: "upstream", Value: req.Addr})
-	case *net.OpError:
-		t.engine.Incr("errors",
-			stats.Tag{Name: "type", Value: "network"},
-			stats.Tag{Name: "operation", Value: e.Op},
-			stats.Tag{Name: "upstream", Value: req.Addr})
-	default:
-		t.engine.Incr("errors",
-			stats.Tag{Name: "upstream", Value: req.Addr})
+	if res != nil && res.Args != nil {
+		res.Args = &args{
+			Args:   res.Args,
+			start:  startTime,
+			req:    req,
+			engine: t.engine,
+		}
+	}
+
+	if res != nil && res.TxArgs != nil {
+		res.TxArgs = &txArgs{
+			TxArgs: res.TxArgs,
+			start:  startTime,
+			req:    req,
+			engine: t.engine,
+		}
 	}
 
 	return res, err
+}
+
+type args struct {
+	redis.Args
+	start  time.Time
+	once   sync.Once
+	req    *redis.Request
+	engine *stats.Engine
+}
+
+func (a *args) Close() error {
+	err := a.Args.Close()
+	a.once.Do(func() { observeResponse(a.engine, a.req, err, time.Now().Sub(a.start)) })
+	return err
+}
+
+type txArgs struct {
+	redis.TxArgs
+	start  time.Time
+	once   sync.Once
+	req    *redis.Request
+	engine *stats.Engine
+}
+
+func (a *txArgs) Close() error {
+	err := a.TxArgs.Close()
+	a.once.Do(func() { observeResponse(a.engine, a.req, err, time.Now().Sub(a.start)) })
+	return err
+}
+
+func observeResponse(eng *stats.Engine, req *redis.Request, err error, rtt time.Duration) {
+	for _, cmd := range req.Cmds {
+		switch e := err.(type) {
+		case *net.OpError:
+			eng.Incr("redis.error.count",
+				stats.Tag{"command", cmd.Cmd},
+				stats.Tag{"operation", e.Op},
+				stats.Tag{"type", "network"})
+
+		case *resp.Error:
+			eng.Incr("redis.error.count",
+				stats.Tag{"command", cmd.Cmd},
+				stats.Tag{"type", e.Type()})
+
+		default:
+			eng.Incr("redis.error.count",
+				stats.Tag{"command", cmd.Cmd})
+		}
+
+		tags := []stats.Tag{{"command", cmd.Cmd}}
+		eng.ObserveDuration("redis.command.rtt.seconds", rtt, tags...)
+	}
+}
+
+func argsLen(args redis.Args) int {
+	if args == nil {
+		return 0
+	}
+	return args.Len()
 }
