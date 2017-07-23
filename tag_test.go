@@ -5,8 +5,6 @@ import (
 	"reflect"
 	"sort"
 	"testing"
-
-	"github.com/segmentio/stats"
 )
 
 func TestCopyTags(t *testing.T) {
@@ -147,7 +145,7 @@ func BenchmarkSortTags(b *testing.B) {
 		{"C", ""},
 	}
 
-	t1 := make([]stats.Tag, len(t0.tags))
+	t1 := make([]Tag, len(t0.tags))
 
 	for i := 0; i != b.N; i++ {
 		copy(t1, t0)
