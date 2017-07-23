@@ -1,8 +1,12 @@
 package stats
 
 import (
+	"fmt"
 	"reflect"
+	"sort"
 	"testing"
+
+	"github.com/segmentio/stats"
 )
 
 func TestCopyTags(t *testing.T) {
@@ -72,5 +76,81 @@ func TestConcatTags(t *testing.T) {
 				t.Errorf("concatTags => %#v != %#v", tags, test.t3)
 			}
 		})
+	}
+}
+
+func TestTagsAreSorted(t *testing.T) {
+	tests := []struct {
+		tags   []Tag
+		sorted bool
+	}{
+		{
+			tags:   nil,
+			sorted: true,
+		},
+		{
+			tags:   []Tag{{"A", ""}},
+			sorted: true,
+		},
+		{
+			tags:   []Tag{{"A", ""}, {"B", ""}, {"C", ""}},
+			sorted: true,
+		},
+		{
+			tags:   []Tag{{"C", ""}, {"A", ""}, {"B", ""}},
+			sorted: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("%v", test.tags), func(t *testing.T) {
+			if sorted := TagsAreSorted(test.tags); sorted != test.sorted {
+				t.Error(sorted)
+			}
+		})
+	}
+}
+
+func BenchmarkTagsOrder(b *testing.B) {
+	b.Run("TagsAreSorted", func(b *testing.B) {
+		benchmarkTagsOrder(b, TagsAreSorted)
+	})
+	b.Run("sort.IsSorted(tags)", func(b *testing.B) {
+		benchmarkTagsOrder(b, func(tags []Tag) bool { return sort.IsSorted(tagsByName(tags)) })
+	})
+}
+
+func benchmarkTagsOrder(b *testing.B, isSorted func([]Tag) bool) {
+	tags := []Tag{
+		{"A", ""},
+		{"B", ""},
+		{"C", ""},
+		{"answer", "42"},
+		{"hello", "world"},
+		{"some long tag name", "!"},
+		{"some longer tag name", "1234"},
+	}
+
+	for i := 0; i != b.N; i++ {
+		isSorted(tags)
+	}
+}
+
+func BenchmarkSortTags(b *testing.B) {
+	t0 := []Tag{
+		{"hello", "world"},
+		{"answer", "42"},
+		{"some long tag name", "!"},
+		{"some longer tag name", "1234"},
+		{"A", ""},
+		{"B", ""},
+		{"C", ""},
+	}
+
+	t1 := make([]stats.Tag, len(t0.tags))
+
+	for i := 0; i != b.N; i++ {
+		copy(t1, t0)
+		SortTags(t1)
 	}
 }
