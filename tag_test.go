@@ -145,7 +145,7 @@ func BenchmarkSortTags(b *testing.B) {
 		{"C", ""},
 	}
 
-	t1 := make([]Tag, len(t0.tags))
+	t1 := make([]Tag, len(t0))
 
 	for i := 0; i != b.N; i++ {
 		copy(t1, t0)
