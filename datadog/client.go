@@ -30,6 +30,16 @@ type ClientConfig struct {
 
 	// BufferSize is the size of the output buffer used by the client.
 	BufferSize int
+
+	// Datadog has complained numerous times that the request paths
+	// generate too many custom metrics on their side, setting this
+	// flag to true strips out the http_req_path tag found in metrics.
+	//
+	// Programs that know they won't produce high-cardinality tags for
+	// http_req_path can enable the tag.
+	//
+	// The default value is false.
+	EnableHttpPathTag bool
 }
 
 // Client represents a datadog client that pulls metrics from a stats engine and
@@ -37,6 +47,8 @@ type ClientConfig struct {
 type Client struct {
 	conn *Conn
 	once sync.Once
+
+	enableHttpPathTag bool
 }
 
 // NewClient creates and returns a new datadog client publishing metrics to the
@@ -61,7 +73,8 @@ func NewClientWith(config ClientConfig) *Client {
 	}
 
 	return &Client{
-		conn: conn,
+		conn:              conn,
+		enableHttpPathTag: config.EnableHttpPathTag,
 	}
 }
 
@@ -87,6 +100,9 @@ func (c *Client) Flush() {
 // HandleMetric satisfies the stats.Handler interface.
 func (c *Client) HandleMetric(m *stats.Metric) {
 	if c.conn != nil {
+		if !c.enableHttpPathTag {
+			stripHttpPathTag(m)
+		}
 		buf := bufferPool.Get().(*buffer)
 		buf.b = appendMetric(buf.b[:0], Metric{
 			Type:      metricType(m),
@@ -99,5 +115,22 @@ func (c *Client) HandleMetric(m *stats.Metric) {
 			log.Printf("stats/datadog: sending metric %s to %s failed: %s", m.Name, c.conn.RemoteAddr(), err)
 		}
 		bufferPool.Put(buf)
+	}
+}
+
+func stripHttpPathTag(m *stats.Metric) {
+	for i, tag := range m.Tags {
+		// fast path: no writes in the common case where the tag doesn't exist.
+		if tag.Name == "http_req_path" {
+			n := i
+			for _, tag := range m.Tags[i:] {
+				if tag.Name != "http_req_path" {
+					m.Tags[n] = tag
+					n++
+				}
+			}
+			m.Tags = m.Tags[:n]
+			break
+		}
 	}
 }
