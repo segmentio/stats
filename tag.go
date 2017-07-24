@@ -1,10 +1,40 @@
 package stats
 
+import "sort"
+
 // Tag represents a single tag that can be set on a metric.
 type Tag struct {
 	Name  string
 	Value string
 }
+
+// TagsAreSorted returns true if the given list of tags is sorted by tag name,
+// false otherwise.
+func TagsAreSorted(tags []Tag) bool {
+	if len(tags) > 1 {
+		min := tags[0].Name
+		for _, tag := range tags[1:] {
+			if tag.Name < min {
+				return false
+			}
+			min = tag.Name
+		}
+	}
+	return true
+}
+
+// SortTags sorts the slice of tags.
+func SortTags(tags []Tag) {
+	// TODO: optimize to get rid of the dynamic memory allocation that occurs
+	// to construct the interface value.
+	sort.Sort(tagsByName(tags))
+}
+
+type tagsByName []Tag
+
+func (t tagsByName) Len() int               { return len(t) }
+func (t tagsByName) Less(i int, j int) bool { return t[i].Name < t[j].Name }
+func (t tagsByName) Swap(i int, j int)      { t[i], t[j] = t[j], t[i] }
 
 func concatTags(t1 []Tag, t2 []Tag) []Tag {
 	n := len(t1) + len(t2)
