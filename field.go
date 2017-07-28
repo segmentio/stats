@@ -1,0 +1,59 @@
+package stats
+
+// A Field is a key/value type that represents a single metric in a Measure.
+type Field struct {
+	Name  string
+	Value Value
+}
+
+// MakeField constructs and returns a new Field from name, value, and ftype.
+func MakeField(name string, value interface{}, ftype FieldType) Field {
+	f := Field{Name: name, Value: ValueOf(value)}
+	f.setType(ftype)
+	return f
+}
+
+// Type returns the type of f.
+func (f Field) Type() FieldType {
+	return FieldType(f.Value.pad)
+}
+
+func (f *Field) setType(t FieldType) {
+	// We pack the field type into the value's padding space to make copies and
+	// assignments of fields more time efficent.
+	// Here are the results of a microbenchmark showing the performance of
+	// a simple assignment for a Field type of 40 bytes (with a Type field) vs
+	// an assignment of a Tag type (32 bytes).
+	//
+	// $ go test -v -bench . -run _
+	// BenchmarkAssign40BytesStruct-4   	1000000000	         2.20 ns/op
+	// BenchmarkAssign32BytesStruct-4   	2000000000	         0.31 ns/op
+	//
+	// There's an order of magnitude difference, so the optimization is worth it.
+	f.Value.pad = int32(t)
+}
+
+// FieldType is an enumeration of the different metric types that may be set on
+// a Field value.
+type FieldType int32
+
+const (
+	// Counter represents incrementing counter metrics.
+	Counter FieldType = iota
+
+	// Guage represents metrics that snapshot a value that may increase and
+	// decrease.
+	Gauge
+
+	// Histogram represents metrics to observe the distribution of values.
+	Histogram
+)
+
+func copyFields(fields []Field) []Field {
+	if len(fields) == 0 {
+		return nil
+	}
+	cfields := make([]Field, len(fields))
+	copy(cfields, fields)
+	return cfields
+}
