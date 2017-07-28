@@ -11,6 +11,7 @@ import (
 	"github.com/segmentio/stats"
 	"github.com/segmentio/stats/datadog"
 	"github.com/segmentio/stats/influxdb"
+	"github.com/segmentio/stats/prometheus"
 )
 
 func TestEngine(t *testing.T) {
@@ -307,6 +308,10 @@ func BenchmarkEngine(b *testing.B) {
 			value: stats.Engine{Handler: influxdb.NewClientWith(influxdb.ClientConfig{
 				Transport: &discardTransport{},
 			})},
+		},
+		{
+			name:  "prometheus",
+			value: stats.Engine{Handler: &prometheus.Handler{}},
 		},
 	}
 

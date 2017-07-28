@@ -49,6 +49,18 @@ const (
 	Histogram
 )
 
+func (t FieldType) String() string {
+	switch t {
+	case Counter:
+		return "counter"
+	case Gauge:
+		return "gauge"
+	case Histogram:
+		return "histogram"
+	}
+	return ""
+}
+
 func copyFields(fields []Field) []Field {
 	if len(fields) == 0 {
 		return nil

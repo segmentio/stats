@@ -2,6 +2,7 @@ package stats
 
 import (
 	"math"
+	"strconv"
 	"time"
 )
 
@@ -150,6 +151,25 @@ func (v Value) Interface() interface{} {
 		return v.Duration()
 	default:
 		panic("unknown type found in a stats.Value")
+	}
+}
+
+func (v Value) String() string {
+	switch v.Type() {
+	case Null:
+		return "<nil>"
+	case Bool:
+		return strconv.FormatBool(v.Bool())
+	case Int:
+		return strconv.FormatInt(v.Int(), 10)
+	case Uint:
+		return strconv.FormatUint(v.Uint(), 10)
+	case Float:
+		return strconv.FormatFloat(v.Float(), 'g', -1, 64)
+	case Duration:
+		return v.Duration().String()
+	default:
+		return "<unknown>"
 	}
 }
 
