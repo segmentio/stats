@@ -1,7 +1,8 @@
 package influxdb
 
 import (
-	"encoding/json"
+	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -10,10 +11,9 @@ import (
 	"net/url"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
-	"unsafe"
 
+	"github.com/segmentio/objconv/json"
 	"github.com/segmentio/stats"
 )
 
@@ -25,13 +25,9 @@ const (
 	// DefaultDatabase is the default database used by the InfluxDB client.
 	DefaultDatabase = "stats"
 
-	// DefaultBatchSize is the default size for batches of metrics sent to
+	// DefaultBufferSize is the default size for batches of metrics sent to
 	// InfluxDB.
-	DefaultBatchSize = 1000
-
-	// DefaultFlushInterval is the default value used to configure the interval
-	// at which batches of metrics are flushed to InfluxDB.
-	DefaultFlushInterval = 10 * time.Second
+	DefaultBufferSize = 2 * 1024 * 1024 // 2 MB
 
 	// DefaultTimeout is the default timeout value used when sending requests to
 	// InfluxDB.
@@ -47,9 +43,7 @@ type ClientConfig struct {
 	Database string
 
 	// Maximum size of batch of events sent to InfluxDB.
-	BatchSize int
-
-	FlushInterval time.Duration
+	BufferSize int
 
 	// Maximum amount of time that requests to InfluxDB may take.
 	Timeout time.Duration
@@ -62,22 +56,15 @@ type ClientConfig struct {
 // Client represents an InfluxDB client that implements the stats.Handler
 // interface.
 type Client struct {
-	url        *url.URL
-	httpClient http.Client
-	metrics    unsafe.Pointer
-	pool       sync.Pool
-	join       sync.WaitGroup
-	once       sync.Once
-	done       chan struct{}
-	flushedAt  int64
+	serializer
+	buffer stats.Buffer
 }
 
 // NewClient creates and returns a new InfluxDB client publishing metrics to the
 // server running at addr.
 func NewClient(addr string) *Client {
 	return NewClientWith(ClientConfig{
-		Address:       addr,
-		FlushInterval: DefaultFlushInterval,
+		Address: addr,
 	})
 }
 
@@ -92,8 +79,8 @@ func NewClientWith(config ClientConfig) *Client {
 		config.Database = DefaultDatabase
 	}
 
-	if config.BatchSize == 0 {
-		config.BatchSize = DefaultBatchSize
+	if config.BufferSize == 0 {
+		config.BufferSize = DefaultBufferSize
 	}
 
 	if config.Timeout == 0 {
@@ -101,19 +88,18 @@ func NewClientWith(config ClientConfig) *Client {
 	}
 
 	c := &Client{
-		url: makeURL(config.Address, config.Database),
-		httpClient: http.Client{
-			Timeout:   config.Timeout,
-			Transport: config.Transport,
+		serializer: serializer{
+			url:  makeURL(config.Address, config.Database),
+			done: make(chan struct{}),
+			http: http.Client{
+				Timeout:   config.Timeout,
+				Transport: config.Transport,
+			},
 		},
-		pool: sync.Pool{New: func() interface{} { return newMetrics(config.BatchSize) }},
-		done: make(chan struct{}),
 	}
 
-	if config.FlushInterval != 0 {
-		go c.run(config.FlushInterval)
-	}
-
+	c.buffer.BufferSize = config.BufferSize
+	c.buffer.Serializer = &c.serializer
 	return c
 }
 
@@ -126,7 +112,7 @@ func (c *Client) CreateDB(db string) error {
 	u.Path = "/query"
 	u.RawQuery = q.Encode()
 
-	r, err := c.httpClient.Post(u.String(), "application/x-www-form-urlencoded", strings.NewReader(
+	r, err := c.http.Post(u.String(), "application/x-www-form-urlencoded", strings.NewReader(
 		fmt.Sprintf("q=CREATE DATABASE %q", db),
 	))
 	if err != nil {
@@ -136,152 +122,66 @@ func (c *Client) CreateDB(db string) error {
 }
 
 // HandleMetric satisfies the stats.Handler interface.
-func (c *Client) HandleMetric(m *stats.Metric) {
-	if !stats.TagsAreSorted(m.Tags) {
-		stats.SortTags(m.Tags)
-	}
-
-	var mptr *metrics
-	var flush bool
-	var added bool
-handleMetric:
-	mptr = c.loadMetrics()
-
-	for mptr == nil {
-		mptr = c.acquireMetrics()
-		if c.compareAndSwapMetrics(nil, mptr) {
-			break
-		}
-		c.releaseMetrics(mptr)
-		mptr = nil
-	}
-
-	flush, added = mptr.append(m)
-
-	if !added {
-		c.compareAndSwapMetrics(mptr, nil)
-		goto handleMetric
-	}
-
-	if flush {
-		c.compareAndSwapMetrics(mptr, nil)
-		c.sendAsync(mptr)
-	}
+func (c *Client) HandleMeasures(time time.Time, measures ...stats.Measure) {
+	c.buffer.HandleMeasures(time, measures...)
 }
 
 // Flush satisfies the stats.Flusher interface.
 func (c *Client) Flush() {
-	c.flush()
-	c.join.Wait()
+	c.buffer.Flush()
 }
 
-// Close closes the client, flushing all buffered metrics and releasing internal
-// iresources.
+// Close flushes and closes the client, satisfies the io.Closer interface.
 func (c *Client) Close() error {
-	c.flush()
 	c.once.Do(func() { close(c.done) })
-	c.join.Wait()
+	c.Flush()
 	return nil
 }
 
-func (c *Client) flush() {
-	for {
-		mptr := c.loadMetrics()
-		if mptr == nil {
-			break
-		}
-		if c.compareAndSwapMetrics(mptr, nil) {
-			c.sendAsync(mptr)
-			break
-		}
+type serializer struct {
+	url  *url.URL
+	http http.Client
+	once sync.Once
+	done chan struct{}
+}
+
+func (*serializer) AppendMeasures(b []byte, time time.Time, measures ...stats.Measure) []byte {
+	for _, m := range measures {
+		b = AppendMeasure(b, time, m)
 	}
+	return b
 }
 
-func (c *Client) sendAsync(m *metrics) {
-	c.setLastFlush(time.Now())
-	c.join.Add(1)
-	go c.send(m)
-}
-
-func (c *Client) send(m *metrics) {
-	defer c.join.Done()
-	defer c.releaseMetrics(m)
-
+func (s *serializer) Write(b []byte) (n int, err error) {
 	for attempt := 0; attempt != 10; attempt++ {
+		var res *http.Response
+
 		if attempt != 0 {
 			select {
-			case <-time.After(c.httpClient.Timeout):
-			case <-c.done:
+			case <-time.After(s.http.Timeout):
+			case <-s.done:
+				err = context.Canceled
 				return
 			}
 		}
 
-		r, err := c.httpClient.Do(&http.Request{
-			Method:        "POST",
-			Proto:         "HTTP/1.1",
-			ProtoMajor:    1,
-			ProtoMinor:    1,
-			URL:           c.url,
-			Body:          newMetricsReader(m),
-			ContentLength: int64(m.size),
-		})
-
+		req, _ := http.NewRequest("POST", s.url.String(), bytes.NewReader(b))
+		res, err = s.http.Do(req)
 		if err != nil {
 			log.Print("stats/influxdb:", err)
 			continue
 		}
 
-		if err := readResponse(r); err != nil {
-			log.Printf("stats/influxdb: POST %s: %d %s: %s", c.url, r.StatusCode, r.Status, err)
+		if err = readResponse(res); err != nil {
+			log.Printf("stats/influxdb: POST %s: %d %s: %s", s.url, res.StatusCode, res.Status, err)
 			continue
 		}
 
 		break
 	}
-}
 
-func (c *Client) acquireMetrics() *metrics {
-	return c.pool.Get().(*metrics)
-}
-
-func (c *Client) releaseMetrics(m *metrics) {
-	m.reset()
-	c.pool.Put(m)
-}
-
-func (c *Client) loadMetrics() *metrics {
-	return (*metrics)(atomic.LoadPointer(&c.metrics))
-}
-
-func (c *Client) compareAndSwapMetrics(old *metrics, new *metrics) bool {
-	return atomic.CompareAndSwapPointer(&c.metrics,
-		unsafe.Pointer(old),
-		unsafe.Pointer(new),
-	)
-}
-
-func (c *Client) setLastFlush(t time.Time) {
-	atomic.StoreInt64(&c.flushedAt, time.Now().UnixNano())
-}
-
-func (c *Client) lastFlush() time.Time {
-	return time.Unix(0, atomic.LoadInt64(&c.flushedAt))
-}
-
-func (c *Client) run(flushInterval time.Duration) {
-	ticker := time.NewTicker(flushInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-c.done:
-			return
-		case now := <-ticker.C:
-			if now.Sub(c.lastFlush()) >= flushInterval {
-				c.flush()
-			}
-		}
-	}
+	n = len(b)
+	return
 }
 
 func makeURL(address string, database string) *url.URL {

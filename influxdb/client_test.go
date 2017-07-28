@@ -17,11 +17,9 @@ func TestClient(t *testing.T) {
 	}
 
 	client := NewClientWith(ClientConfig{
-		Address:       DefaultAddress,
-		Database:      "test-db",
-		BatchSize:     100,
-		FlushInterval: 100 * time.Millisecond,
-		Transport:     transport,
+		Address:   DefaultAddress,
+		Database:  "test-db",
+		Transport: transport,
 	})
 
 	if err := client.CreateDB("test-db"); err != nil {
@@ -29,10 +27,16 @@ func TestClient(t *testing.T) {
 	}
 
 	for i := 0; i != 1000; i++ {
-		client.HandleMetric(&stats.Metric{
-			Name:  "test.metric",
-			Value: float64(i),
-			Time:  time.Now(),
+		client.HandleMeasures(time.Now(), stats.Measure{
+			Name: "request",
+			Fields: []stats.Field{
+				{Name: "count", Value: stats.ValueOf(5)},
+				{Name: "rtt", Value: stats.ValueOf(100 * time.Millisecond)},
+			},
+			Tags: []stats.Tag{
+				{"answer", "42"},
+				{"hello", "world"},
+			},
 		})
 	}
 
@@ -44,25 +48,35 @@ func TestClient(t *testing.T) {
 }
 
 func BenchmarkClient(b *testing.B) {
-	c := NewClientWith(ClientConfig{
-		Address:   DefaultAddress,
-		BatchSize: 1000,
-		Transport: &discardTransport{},
-	})
+	for _, N := range []int{1, 10, 100} {
+		b.Run(fmt.Sprintf("write a batch of %d measures to a client", N), func(b *testing.B) {
+			client := NewClientWith(ClientConfig{
+				Address:   DefaultAddress,
+				Transport: &discardTransport{},
+			})
 
-	m := &stats.Metric{
-		Namespace: "benchmark",
-		Name:      "test.metric",
-		Value:     42,
-		Time:      time.Now(),
-		Tags: []stats.Tag{
-			{"hello", "world"},
-			{"answer", "42"},
-		},
-	}
+			timestamp := time.Now()
+			measures := make([]stats.Measure, N)
 
-	for i := 0; i != b.N; i++ {
-		c.HandleMetric(m)
+			for i := range measures {
+				measures[i] = stats.Measure{
+					Name: "benchmark.test.metric",
+					Fields: []stats.Field{
+						{Name: "value", Value: stats.ValueOf(42)},
+					},
+					Tags: []stats.Tag{
+						{"answer", "42"},
+						{"hello", "world"},
+					},
+				}
+			}
+
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
+					client.HandleMeasures(timestamp, measures...)
+				}
+			})
+		})
 	}
 }
 
@@ -85,8 +99,7 @@ func (t *errorCaptureTransport) RoundTrip(req *http.Request) (*http.Response, er
 	return res, err
 }
 
-type discardTransport struct {
-}
+type discardTransport struct{}
 
 func (t *discardTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return &http.Response{
