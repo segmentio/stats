@@ -1,5 +1,7 @@
 package stats
 
+import "strconv"
+
 // A Field is a key/value type that represents a single metric in a Measure.
 type Field struct {
 	Name  string
@@ -33,6 +35,10 @@ func (f *Field) setType(t FieldType) {
 	f.Value.pad = int32(t)
 }
 
+func (f Field) String() string {
+	return f.Type().String() + ":" + f.Name + "=" + f.Value.String()
+}
+
 // FieldType is an enumeration of the different metric types that may be set on
 // a Field value.
 type FieldType int32
@@ -59,6 +65,19 @@ func (t FieldType) String() string {
 		return "histogram"
 	}
 	return ""
+}
+
+func (t FieldType) GoString() string {
+	switch t {
+	case Counter:
+		return "stats.Counter"
+	case Gauge:
+		return "stats.Gauge"
+	case Histogram:
+		return "stats.Histogram"
+	default:
+		return "stats.FieldType(" + strconv.Itoa(int(t)) + ")"
+	}
 }
 
 func copyFields(fields []Field) []Field {

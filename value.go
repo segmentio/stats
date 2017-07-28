@@ -184,6 +184,44 @@ const (
 	Duration
 )
 
+func (t Type) String() string {
+	switch t {
+	case Null:
+		return "<nil>"
+	case Bool:
+		return "bool"
+	case Int:
+		return "int64"
+	case Uint:
+		return "uint64"
+	case Float:
+		return "float64"
+	case Duration:
+		return "time.Duration"
+	default:
+		return "<unknown>"
+	}
+}
+
+func (t Type) GoString() string {
+	switch t {
+	case Null:
+		return "stats.Null"
+	case Bool:
+		return "stats.Bool"
+	case Int:
+		return "stats.Int"
+	case Uint:
+		return "stats.Uint"
+	case Float:
+		return "stats.Float"
+	case Duration:
+		return "stats.Duration"
+	default:
+		return "stats.Type(" + strconv.Itoa(int(t)) + ")"
+	}
+}
+
 func boolBits(v bool) uint64 {
 	if v {
 		return 1

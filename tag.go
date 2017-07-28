@@ -12,6 +12,10 @@ type Tag struct {
 	Value string
 }
 
+func (t Tag) String() string {
+	return t.Name + "=" + t.Value
+}
+
 // TagsAreSorted returns true if the given list of tags is sorted by tag name,
 // false otherwise.
 func TagsAreSorted(tags []Tag) bool {

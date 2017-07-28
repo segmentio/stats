@@ -3,6 +3,7 @@ package stats
 import (
 	"reflect"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"unsafe"
@@ -30,6 +31,30 @@ func (m Measure) Clone() Measure {
 		Fields: copyFields(m.Fields),
 		Tags:   copyTags(m.Tags),
 	}
+}
+
+func (m Measure) String() string {
+	return "{ " + m.Name + "(" + strings.Join(stringFields(m.Fields), ", ") + ") [" + strings.Join(stringTags(m.Tags), ", ") + "] }"
+}
+
+func stringFields(fields []Field) []string {
+	s := make([]string, len(fields))
+
+	for i, f := range fields {
+		s[i] = f.String()
+	}
+
+	return s
+}
+
+func stringTags(tags []Tag) []string {
+	s := make([]string, len(tags))
+
+	for i, t := range tags {
+		s[i] = t.String()
+	}
+
+	return s
 }
 
 // MakeMeasures takes a struct value or a pointer to a struct value as argument

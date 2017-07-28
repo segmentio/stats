@@ -80,32 +80,27 @@ func (eng *Engine) Incr(name string, tags ...Tag) {
 }
 
 // Add increments by value the counter identified by name and tags.
-func (eng *Engine) Add(name string, value float64, tags ...Tag) {
+func (eng *Engine) Add(name string, value interface{}, tags ...Tag) {
 	eng.measure(name, value, Counter, tags...)
 }
 
 // Set sets to value the gauge identified by name and tags.
-func (eng *Engine) Set(name string, value float64, tags ...Tag) {
+func (eng *Engine) Set(name string, value interface{}, tags ...Tag) {
 	eng.measure(name, value, Gauge, tags...)
 }
 
 // Observe reports value for the histogram identified by name and tags.
-func (eng *Engine) Observe(name string, value float64, tags ...Tag) {
-	eng.measure(name, value, Histogram, tags...)
-}
-
-// ObserveDuration is similar to Observe but accepts a time.Duration value
-// instead of float64.
-func (eng *Engine) ObserveDuration(name string, value time.Duration, tags ...Tag) {
+func (eng *Engine) Observe(name string, value interface{}, tags ...Tag) {
 	eng.measure(name, value, Histogram, tags...)
 }
 
 func (eng *Engine) measure(name string, value interface{}, ftype FieldType, tags ...Tag) {
+	name, field := splitMeasureField(name)
 	mp := measureArrayPool.Get().(*[1]Measure)
 
 	m := &(*mp)[0]
 	m.Name = eng.makeName(name) // TODO: figure out how to optimize this
-	m.Fields = append(m.Fields[:0], MakeField("", value, ftype))
+	m.Fields = append(m.Fields[:0], MakeField(field, value, ftype))
 	m.Tags = append(m.Tags[:0], eng.Tags...)
 	m.Tags = append(m.Tags, tags...)
 
@@ -213,24 +208,18 @@ func Incr(name string, tags ...Tag) {
 }
 
 // Add increments by value the counter identified by name and tags.
-func Add(name string, value float64, tags ...Tag) {
+func Add(name string, value interface{}, tags ...Tag) {
 	DefaultEngine.Add(name, value, tags...)
 }
 
 // Set sets to value the gauge identified by name and tags.
-func Set(name string, value float64, tags ...Tag) {
+func Set(name string, value interface{}, tags ...Tag) {
 	DefaultEngine.Set(name, value, tags...)
 }
 
 // Observe reports value for the histogram identified by name and tags.
-func Observe(name string, value float64, tags ...Tag) {
+func Observe(name string, value interface{}, tags ...Tag) {
 	DefaultEngine.Observe(name, value, tags...)
-}
-
-// ObserveDuration is similar to Observe but accepts a time.Duration value
-// instead of float64.
-func ObserveDuration(name string, value time.Duration, tags ...Tag) {
-	DefaultEngine.ObserveDuration(name, value, tags...)
 }
 
 // Report is a helper function that delegates to DefaultEngine.

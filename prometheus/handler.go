@@ -43,7 +43,7 @@ type Handler struct {
 
 	// Buckets is the registry of histogram buckets used by the handler,
 	// If nil, stats.Buckets is used instead.
-	Buckets map[stats.Key][]stats.Value
+	Buckets stats.HistogramBuckets
 
 	opcount uint64
 	metrics metricStore
@@ -88,7 +88,6 @@ func (h *Handler) HandleMeasures(mtime time.Time, measures ...stats.Measure) {
 		}
 	}
 
-	cache.labels = cache.labels[:0]
 	handleMetricPool.Put(cache)
 
 	// Every 10K updates we cleanup the metric store of outdated entries to

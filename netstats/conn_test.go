@@ -12,15 +12,14 @@ import (
 	"github.com/segmentio/stats"
 )
 
-type metricHandler struct {
-	metrics []stats.Metric
+type measureHandler struct {
+	measures []stats.Measure
 }
 
-func (h *metricHandler) HandleMetric(m *stats.Metric) {
-	c := *m
-	c.Tags = append([]stats.Tag{}, m.Tags...)
-	c.Time = time.Time{} // discard because it's unpredicatable
-	h.metrics = append(h.metrics, c)
+func (h *measureHandler) HandleMeasures(t time.Time, ms ...stats.Measure) {
+	for _, m := range ms {
+		h.measures = append(h.measures, m.Clone())
+	}
 }
 
 func TestBaseConn(t *testing.T) {
@@ -33,9 +32,8 @@ func TestBaseConn(t *testing.T) {
 }
 
 func TestConn(t *testing.T) {
-	h := &metricHandler{}
-	e := stats.NewEngine("netstats.test")
-	e.Register(h)
+	h := &measureHandler{}
+	e := stats.NewEngine("netstats.test", h)
 
 	c := &testConn{}
 	conn := NewConnWith(e, c)
@@ -44,44 +42,49 @@ func TestConn(t *testing.T) {
 	conn.Close()
 	conn.Close() // idempotent: only reported once
 
-	if !reflect.DeepEqual(h.metrics, []stats.Metric{
+	expected := []stats.Measure{
 		{
-			Type:      stats.CounterType,
-			Namespace: "netstats.test",
-			Name:      "conn.open.count",
-			Tags:      []stats.Tag{{"protocol", "tcp"}},
-			Value:     1,
+			Name: "netstats.test.conn.open",
+			Fields: []stats.Field{
+				stats.MakeField("count", 1, stats.Counter),
+			},
+			Tags: []stats.Tag{{"protocol", "tcp"}},
 		},
 		{
-			Type:      stats.HistogramType,
-			Namespace: "netstats.test",
-			Name:      "conn.write.bytes",
-			Tags:      []stats.Tag{{"protocol", "tcp"}},
-			Value:     12,
+			Name: "netstats.test.conn.write",
+			Fields: []stats.Field{
+				stats.MakeField("count", 1, stats.Counter),
+				stats.MakeField("bytes", 12, stats.Histogram),
+			},
+			Tags: []stats.Tag{{"protocol", "tcp"}},
 		},
 		{
-			Type:      stats.HistogramType,
-			Namespace: "netstats.test",
-			Name:      "conn.read.bytes",
-			Tags:      []stats.Tag{{"protocol", "tcp"}},
-			Value:     12,
+			Name: "netstats.test.conn.read",
+			Fields: []stats.Field{
+				stats.MakeField("count", 1, stats.Counter),
+				stats.MakeField("bytes", 12, stats.Histogram),
+			},
+			Tags: []stats.Tag{{"protocol", "tcp"}},
 		},
 		{
-			Type:      stats.CounterType,
-			Namespace: "netstats.test",
-			Name:      "conn.close.count",
-			Tags:      []stats.Tag{{"protocol", "tcp"}},
-			Value:     1,
+			Name: "netstats.test.conn.close",
+			Fields: []stats.Field{
+				stats.MakeField("count", 1, stats.Counter),
+			},
+			Tags: []stats.Tag{{"protocol", "tcp"}},
 		},
-	}) {
-		t.Error("bad metrics:", h.metrics)
+	}
+
+	if !reflect.DeepEqual(expected, h.measures) {
+		t.Error("bad measures:")
+		t.Logf("expected: %v", expected)
+		t.Logf("found:    %v", h.measures)
 	}
 }
 
 func TestConnError(t *testing.T) {
-	h := &metricHandler{}
-	e := stats.NewEngine("netstats.test")
-	e.Register(h)
+	h := &measureHandler{}
+	e := stats.NewEngine("netstats.test", h)
 
 	now := time.Now()
 
@@ -92,108 +95,88 @@ func TestConnError(t *testing.T) {
 	conn.SetWriteDeadline(now)
 	conn.Write([]byte("Hello World!"))
 	conn.Read(make([]byte, 32))
-	conn.Read(make([]byte, 32))
-	conn.Read(make([]byte, 32))
 	conn.Close()
 	conn.Close() // idempotent: only reported once
 
-	if !reflect.DeepEqual(h.metrics, []stats.Metric{
+	expected := []stats.Measure{
 		{
-			Type:      stats.CounterType,
-			Namespace: "netstats.test",
-			Name:      "conn.open.count",
-			Tags:      []stats.Tag{{"protocol", "tcp"}},
-			Value:     1,
+			Name: "netstats.test.conn.open",
+			Fields: []stats.Field{
+				stats.MakeField("count", 1, stats.Counter),
+			},
+			Tags: []stats.Tag{{"protocol", "tcp"}},
 		},
 		{
-			Type:      stats.CounterType,
-			Namespace: "netstats.test",
-			Name:      "conn.error.count",
-			Tags:      []stats.Tag{{"protocol", "tcp"}, {"operation", "set-deadline"}},
-			Value:     1,
+			Name: "netstats.test.conn.error",
+			Fields: []stats.Field{
+				stats.MakeField("count", 1, stats.Counter),
+			},
+			Tags: []stats.Tag{{"operation", "set-deadline"}, {"protocol", "tcp"}},
 		},
 		{
-			Type:      stats.CounterType,
-			Namespace: "netstats.test",
-			Name:      "conn.error.count",
-			Tags:      []stats.Tag{{"protocol", "tcp"}, {"operation", "set-read-deadline"}},
-			Value:     1,
+			Name: "netstats.test.conn.error",
+			Fields: []stats.Field{
+				stats.MakeField("count", 1, stats.Counter),
+			},
+			Tags: []stats.Tag{{"operation", "set-read-deadline"}, {"protocol", "tcp"}},
 		},
 		{
-			Type:      stats.CounterType,
-			Namespace: "netstats.test",
-			Name:      "conn.error.count",
-			Tags:      []stats.Tag{{"protocol", "tcp"}, {"operation", "set-write-deadline"}},
-			Value:     1,
+			Name: "netstats.test.conn.error",
+			Fields: []stats.Field{
+				stats.MakeField("count", 1, stats.Counter),
+			},
+			Tags: []stats.Tag{{"operation", "set-write-deadline"}, {"protocol", "tcp"}},
 		},
 		{
-			Type:      stats.HistogramType,
-			Namespace: "netstats.test",
-			Name:      "conn.write.bytes",
-			Tags:      []stats.Tag{{"protocol", "tcp"}},
+			Name: "netstats.test.conn.write",
+			Fields: []stats.Field{
+				stats.MakeField("count", 1, stats.Counter),
+				stats.MakeField("bytes", 0, stats.Histogram),
+			},
+			Tags: []stats.Tag{{"protocol", "tcp"}},
 		},
 		{
-			Type:      stats.CounterType,
-			Namespace: "netstats.test",
-			Name:      "conn.error.count",
-			Tags:      []stats.Tag{{"protocol", "tcp"}, {"operation", "write"}},
-			Value:     1,
+			Name: "netstats.test.conn.error",
+			Fields: []stats.Field{
+				stats.MakeField("count", 1, stats.Counter),
+			},
+			Tags: []stats.Tag{{"operation", "write"}, {"protocol", "tcp"}},
 		},
 		{
-			Type:      stats.HistogramType,
-			Namespace: "netstats.test",
-			Name:      "conn.read.bytes",
-			Tags:      []stats.Tag{{"protocol", "tcp"}},
+			Name: "netstats.test.conn.read",
+			Fields: []stats.Field{
+				stats.MakeField("count", 1, stats.Counter),
+				stats.MakeField("bytes", 0, stats.Histogram),
+			},
+			Tags: []stats.Tag{{"protocol", "tcp"}},
 		},
 		{
-			Type:      stats.CounterType,
-			Namespace: "netstats.test",
-			Name:      "conn.error.count",
-			Tags:      []stats.Tag{{"protocol", "tcp"}, {"operation", "read"}},
-			Value:     1,
+			Name: "netstats.test.conn.error",
+			Fields: []stats.Field{
+				stats.MakeField("count", 1, stats.Counter),
+			},
+			Tags: []stats.Tag{{"operation", "read"}, {"protocol", "tcp"}},
 		},
 		{
-			Type:      stats.HistogramType,
-			Namespace: "netstats.test",
-			Name:      "conn.read.bytes",
-			Tags:      []stats.Tag{{"protocol", "tcp"}},
+			Name: "netstats.test.conn.close",
+			Fields: []stats.Field{
+				stats.MakeField("count", 1, stats.Counter),
+			},
+			Tags: []stats.Tag{{"protocol", "tcp"}},
 		},
 		{
-			Type:      stats.CounterType,
-			Namespace: "netstats.test",
-			Name:      "conn.error.count",
-			Tags:      []stats.Tag{{"protocol", "tcp"}, {"operation", "read"}},
-			Value:     1,
+			Name: "netstats.test.conn.error",
+			Fields: []stats.Field{
+				stats.MakeField("count", 1, stats.Counter),
+			},
+			Tags: []stats.Tag{{"operation", "close"}, {"protocol", "tcp"}},
 		},
-		{
-			Type:      stats.HistogramType,
-			Namespace: "netstats.test",
-			Name:      "conn.read.bytes",
-			Tags:      []stats.Tag{{"protocol", "tcp"}},
-		},
-		{
-			Type:      stats.CounterType,
-			Namespace: "netstats.test",
-			Name:      "conn.error.count",
-			Tags:      []stats.Tag{{"protocol", "tcp"}, {"operation", "read"}},
-			Value:     1,
-		},
-		{
-			Type:      stats.CounterType,
-			Namespace: "netstats.test",
-			Name:      "conn.error.count",
-			Tags:      []stats.Tag{{"protocol", "tcp"}, {"operation", "close"}},
-			Value:     1,
-		},
-		{
-			Type:      stats.CounterType,
-			Namespace: "netstats.test",
-			Name:      "conn.close.count",
-			Tags:      []stats.Tag{{"protocol", "tcp"}},
-			Value:     1,
-		},
-	}) {
-		t.Error("bad metrics:", h.metrics)
+	}
+
+	if !reflect.DeepEqual(expected, h.measures) {
+		t.Error("bad measures:")
+		t.Logf("expected: %v", expected)
+		t.Logf("found:    %v", h.measures)
 	}
 }
 
