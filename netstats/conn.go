@@ -39,8 +39,8 @@ func NewConnWith(eng *stats.Engine, c net.Conn) net.Conn {
 	nc := &conn{Conn: c, eng: eng}
 
 	proto := c.LocalAddr().Network()
-	nc.r.metrics.Protocol = proto
-	nc.w.metrics.Protocol = proto
+	nc.r.metrics.protocol = proto
+	nc.w.metrics.protocol = proto
 
 	eng.Incr("conn.open:count", stats.Tag{"protocol", proto})
 	return nc
@@ -54,18 +54,18 @@ type conn struct {
 	r struct {
 		sync.Mutex
 		metrics struct {
-			Count    int    `metric:"count" type:"counter"`
-			Bytes    int    `metric:"bytes" type:"histogram"`
-			Protocol string `tag:"protocol"`
+			count    int    `metric:"count" type:"counter"`
+			bytes    int    `metric:"bytes" type:"histogram"`
+			protocol string `tag:"protocol"`
 		} `metric:"conn.read"`
 	}
 
 	w struct {
 		sync.Mutex
 		metrics struct {
-			Count    int    `metric:"count" type:"counter"`
-			Bytes    int    `metric:"bytes" type:"histogram"`
-			Protocol string `tag:"protocol"`
+			count    int    `metric:"count" type:"counter"`
+			bytes    int    `metric:"bytes" type:"histogram"`
+			protocol string `tag:"protocol"`
 		} `metric:"conn.write"`
 	}
 }
@@ -77,7 +77,7 @@ func (c *conn) BaseConn() net.Conn {
 func (c *conn) Close() (err error) {
 	err = c.Conn.Close()
 	c.once.Do(func() {
-		c.eng.Incr("conn.close:count", stats.Tag{"protocol", c.w.metrics.Protocol})
+		c.eng.Incr("conn.close:count", stats.Tag{"protocol", c.w.metrics.protocol})
 		if err != nil {
 			c.error("close", err)
 		}
@@ -89,8 +89,8 @@ func (c *conn) Read(b []byte) (n int, err error) {
 	n, err = c.Conn.Read(b)
 
 	c.r.Lock()
-	c.r.metrics.Count = 1
-	c.r.metrics.Bytes = n
+	c.r.metrics.count = 1
+	c.r.metrics.bytes = n
 	c.eng.Report(&c.r)
 	c.r.Unlock()
 
@@ -105,8 +105,8 @@ func (c *conn) Write(b []byte) (n int, err error) {
 	n, err = c.Conn.Write(b)
 
 	c.w.Lock()
-	c.w.metrics.Count = 1
-	c.w.metrics.Bytes = n
+	c.w.metrics.count = 1
+	c.w.metrics.bytes = n
 	c.eng.Report(&c.w)
 	c.w.Unlock()
 
@@ -147,7 +147,7 @@ func (c *conn) error(op string, err error) {
 		if !isTemporary(err) {
 			c.eng.Incr("conn.error:count",
 				stats.Tag{"operation", op},
-				stats.Tag{"protocol", c.w.metrics.Protocol},
+				stats.Tag{"protocol", c.w.metrics.protocol},
 			)
 		}
 	}

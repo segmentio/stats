@@ -29,9 +29,8 @@ func TestTransport(t *testing.T) {
 				newRequest("POST", "/", strings.NewReader("Hi")),
 			} {
 				t.Run("", func(t *testing.T) {
-					h := &metricHandler{}
-					e := stats.NewEngine("")
-					e.Register(h)
+					h := &measureHandler{}
+					e := stats.NewEngine("", h)
 
 					server := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 						ioutil.ReadAll(req.Body)
@@ -54,17 +53,17 @@ func TestTransport(t *testing.T) {
 					ioutil.ReadAll(res.Body)
 					res.Body.Close()
 
-					if len(h.metrics) == 0 {
-						t.Error("no metrics reported by http handler")
+					if len(h.measures) == 0 {
+						t.Error("no measures reported by http handler")
 					}
 
-					for _, m := range h.metrics {
+					for _, m := range h.measures {
 						for _, tag := range m.Tags {
 							if tag.Name == "bucket" {
 								switch tag.Value {
 								case "2xx", "":
 								default:
-									t.Errorf("invalid bucket in metric event tags: %#v\n%#v", tag, m)
+									t.Errorf("invalid bucket in measure event tags: %#v\n%#v", tag, m)
 								}
 							}
 						}
@@ -76,9 +75,8 @@ func TestTransport(t *testing.T) {
 }
 
 func TestTransportError(t *testing.T) {
-	h := &metricHandler{}
-	e := stats.NewEngine("")
-	e.Register(h)
+	h := &measureHandler{}
+	e := stats.NewEngine("", h)
 
 	server := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		conn, _, _ := res.(http.Hijacker).Hijack()
@@ -94,7 +92,13 @@ func TestTransportError(t *testing.T) {
 		t.Error("no error was reported by the http client")
 	}
 
-	if len(h.metrics) == 0 {
-		t.Error("no metrics reported by hijacked http handler")
+	measures := h.Measures()
+
+	if len(measures) == 0 {
+		t.Error("no measures reported by hijacked http handler")
+	}
+
+	for _, m := range measures {
+		t.Log(m)
 	}
 }

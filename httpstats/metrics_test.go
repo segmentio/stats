@@ -14,24 +14,23 @@ import (
 	"github.com/segmentio/stats/iostats"
 )
 
-type metricHandler struct {
+type measureHandler struct {
 	sync.Mutex
-	metrics []stats.Metric
+	measures []stats.Measure
 }
 
-func (h *metricHandler) HandleMetric(m *stats.Metric) {
+func (h *measureHandler) HandleMeasures(time time.Time, measures ...stats.Measure) {
 	h.Lock()
-	c := *m
-	c.Tags = append([]stats.Tag{}, m.Tags...)
-	c.Time = time.Time{} // discard because it's unpredicatable
-	h.metrics = append(h.metrics, c)
+	for _, m := range measures {
+		h.measures = append(h.measures, m.Clone())
+	}
 	h.Unlock()
 }
 
-func (h *metricHandler) Metrics() []stats.Metric {
+func (h *measureHandler) Measures() []stats.Measure {
 	h.Lock()
-	m := make([]stats.Metric, len(h.metrics))
-	copy(m, h.metrics)
+	m := make([]stats.Measure, len(h.measures))
+	copy(m, h.measures)
 	h.Unlock()
 	return m
 }

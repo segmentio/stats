@@ -39,28 +39,30 @@ func (t *transport) RoundTrip(req *http.Request) (res *http.Response, err error)
 		req.Body = &nullBody{}
 	}
 
+	m := &metrics{}
+
 	req.Body = &requestBody{
-		eng:  t.eng,
-		req:  req,
-		body: req.Body,
-		op:   "write",
+		eng:     t.eng,
+		req:     req,
+		metrics: m,
+		body:    req.Body,
+		op:      "write",
 	}
 
 	res, err = rtrip.RoundTrip(req)
 	req.Body.Close() // safe guard, the transport should have done it already
 
 	if err != nil {
-		m := metrics{t.eng}
-		m.observeError(req, "write")
-	}
-
-	if res != nil {
+		m.observeError(time.Now().Sub(start))
+		t.eng.ReportAt(start, m)
+	} else {
 		res.Body = &responseBody{
-			eng:   t.eng,
-			res:   res,
-			body:  res.Body,
-			op:    "read",
-			start: start,
+			eng:     t.eng,
+			res:     res,
+			metrics: m,
+			body:    res.Body,
+			op:      "read",
+			start:   start,
 		}
 	}
 
