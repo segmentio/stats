@@ -11,16 +11,14 @@ import (
 )
 
 func TestHandler(t *testing.T) {
-	t.Skip("temporarily disabling this test to move forward with the hackweek project")
-
-	m := &testMetricHandler{}
-	e := stats.NewEngine("")
-	e.Register(m)
+	m := &testMeasureHandler{}
+	e := stats.NewEngine("", m)
 
 	h := NewHandlerWith(e, &testRedisHandler{})
 
 	h.ServeRedis(&testResponseWriter{},
 		redis.NewRequest("127.0.0.1:6379", "SET", redis.List("foo", "bar")))
+
 	h.ServeRedis(&testResponseWriter{},
 		redis.NewRequest("127.0.0.1:6379", "GET", redis.List("foo", "bar")))
 
@@ -30,39 +28,14 @@ func TestHandler(t *testing.T) {
 	h.ServeRedis(&testResponseWriter{err: errors.New("fail")},
 		redis.NewRequest("127.0.0.1:6379", "SET", redis.List("foo", "bar")))
 
-	if len(m.metrics) == 0 {
-		t.Error("no metrics reported by http handler")
+	measures := m.Measures()
+	if len(measures) == 0 {
+		t.Error("no measures were produced")
 	}
 
-	validateMetric(t, m.metrics[0], "requests",
-		[]stats.Tag{{Name: "command", Value: "SET"}}, stats.CounterType)
-
-	validateMetric(t, m.metrics[1], "request.rtt.seconds",
-		[]stats.Tag{{Name: "command", Value: "SET"}}, stats.HistogramType)
-
-	validateMetric(t, m.metrics[2], "requests",
-		[]stats.Tag{{Name: "command", Value: "GET"}}, stats.CounterType)
-
-	validateMetric(t, m.metrics[3], "request.rtt.seconds",
-		[]stats.Tag{{Name: "command", Value: "GET"}}, stats.HistogramType)
-
-	validateMetric(t, m.metrics[4], "requests",
-		[]stats.Tag{{Name: "command", Value: "GET"}}, stats.CounterType)
-
-	validateMetric(t, m.metrics[5], "errors",
-		[]stats.Tag{
-			{Name: "command", Value: "GET"},
-			{Name: "type", Value: "network"},
-			{Name: "operation", Value: "read"},
-		}, stats.CounterType)
-
-	validateMetric(t, m.metrics[6], "requests",
-		[]stats.Tag{{Name: "command", Value: "SET"}}, stats.CounterType)
-
-	validateMetric(t, m.metrics[7], "errors",
-		[]stats.Tag{
-			{Name: "command", Value: "SET"},
-		}, stats.CounterType)
+	for _, m := range measures {
+		t.Log(m)
+	}
 }
 
 type testRedisHandler struct{}

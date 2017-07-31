@@ -2,10 +2,12 @@ package redisstats
 
 import (
 	"bufio"
+	"reflect"
 	"time"
 
 	"net"
 
+	"github.com/segmentio/objconv/resp"
 	"github.com/segmentio/redis-go"
 	"github.com/segmentio/stats"
 )
@@ -33,58 +35,75 @@ type handler struct {
 // ServeRedis implements the redis.Handler interface.
 // It records a metric for each request.
 func (h *handler) ServeRedis(res redis.ResponseWriter, req *redis.Request) {
-	h.engine.Incr("redis.request.count")
-	h.engine.Observe("redis.request.size", float64(len(req.Cmds)))
+	w := &responseWriter{base: res, count: 1, start: time.Now()}
+	w.cmd = make([]commandMetrics, len(req.Cmds))
+	w.req.request.count = 1
+	w.req.request.size = len(req.Cmds)
 
-	for _, cmd := range req.Cmds {
-		tags := []stats.Tag{{"command", cmd.Cmd}}
-		h.engine.Incr("redis.command.count", tags...)
-		h.engine.Observe("redis.command_arguments.size", float64(argsLen(cmd.Args)), tags...)
+	for i, cmd := range req.Cmds {
+		c := &w.cmd[i]
+		c.name = cmd.Cmd
+		c.command.count = 1
+		c.command.size = argsLen(cmd.Args)
 	}
 
-	w := &responseWriter{
-		base: res,
-	}
-
-	startTime := time.Now()
 	h.handler.ServeRedis(w, req)
-	endTime := time.Now()
-	rtt := endTime.Sub(startTime)
+	rtt := time.Now().Sub(w.start)
 
-	for _, cmd := range req.Cmds {
-		switch e := w.err.(type) {
-		case *net.OpError:
-			h.engine.Incr("redis.error.count",
-				stats.Tag{"command", cmd.Cmd},
-				stats.Tag{"operation", e.Op},
-				stats.Tag{"type", "network"})
-
-		default:
-			h.engine.Incr("redis.error.count",
-				stats.Tag{"command", cmd.Cmd})
+	for i := range w.cmd {
+		if c := &w.cmd[i]; c.command.rtt == 0 {
+			c.command.rtt = rtt
 		}
-
-		tags := []stats.Tag{{"command", cmd.Cmd}}
-		h.engine.ObserveDuration("redis.command.rtt.seconds", rtt, tags...)
 	}
+
+	if errCount, errOp, errType := errorInfo(w.err); errCount != 0 {
+		for i := range w.cmd {
+			if c := &w.cmd[i]; c.error.count == 0 {
+				c.error.count = errCount
+				c.error.operation = errOp
+				c.error.errtype = errType
+			}
+		}
+	}
+
+	h.engine.ReportAt(w.start, &w.req)
+	h.engine.ReportAt(w.start, &w.cmd)
 }
 
 type responseWriter struct {
-	base redis.ResponseWriter
-	err  error
+	base  redis.ResponseWriter
+	start time.Time
+	err   error
+	index int
+	count int
+	metrics
 }
 
 func (w *responseWriter) Write(v interface{}) error {
 	err := w.base.Write(v)
-	if err != nil && w.err == nil {
-		w.err = err
+
+	if w.index < w.count {
+		c := &w.cmd[w.index]
+
+		if e, ok := err.(*resp.Error); ok {
+			c.error.count = 1
+			c.error.operation = "command"
+			c.error.errtype = e.Type()
+		}
+
+		c.command.rtt = time.Now().Sub(w.start)
+		c.command.rsize = valueLen(reflect.ValueOf(v))
+		w.index++
 	}
-	return err
+
+	return nil
 }
 
 func (w *responseWriter) WriteStream(n int) error {
 	err := w.base.WriteStream(n)
-	if err != nil && w.err == nil {
+	if err == nil {
+		w.count = n
+	} else if w.err == nil {
 		w.err = err
 	}
 	return err
@@ -92,10 +111,9 @@ func (w *responseWriter) WriteStream(n int) error {
 
 func (w *responseWriter) Flush() (err error) {
 	if f, ok := w.base.(redis.Flusher); ok {
-		err = f.Flush()
-	}
-	if err != nil && w.err == nil {
-		w.err = err
+		if err = f.Flush(); err != nil && w.err == nil {
+			w.err = err
+		}
 	}
 	return nil
 }
