@@ -27,7 +27,7 @@ type funcMetrics struct {
     } `metric:"func.calls"`
 }
 ```
-```
+```go
 t := time.Now()
 f()
 callTime := time.Now().Sub(t)
