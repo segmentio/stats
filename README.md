@@ -36,12 +36,12 @@ m := funcMetrics{}
 m.calls.count = 1
 m.calls.time = callTime
 
-// Prior to v4 this could have been:
+// Equivalent to:
 //
 //   stats.Incr("func.calls.count")
-//   stats.ObserveDuration("func.calls.time", callTime)
+//   stats.Observe("func.calls.time", callTime)
 //
-stats.Report(m)
+stats.Report(&m)
 ```
 To avoid greatly increasing the complexity of the codebase some old APIs were
 removed in favor of this new approach, other were transformed to provide more
