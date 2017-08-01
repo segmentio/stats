@@ -51,6 +51,10 @@ func MultiHandler(handlers ...Handler) Handler {
 		}
 	}
 
+	if len(multi) == 1 {
+		return multi[0]
+	}
+
 	return &multiHandler{handlers: multi}
 }
 
