@@ -3,7 +3,6 @@ package procstats
 import (
 	"reflect"
 	"runtime/debug"
-	"strings"
 	"testing"
 	"time"
 
@@ -12,50 +11,17 @@ import (
 
 func TestGoMetrics(t *testing.T) {
 	h := &handler{}
-	e := stats.NewEngine("")
-	e.Register(h)
+	e := stats.NewEngine("", h)
 
 	gostats := NewGoMetricsWith(e)
 	gostats.Collect()
 
-	if len(h.metrics) == 0 {
-		t.Error("no metrics were reported by the stats collector")
+	if len(h.measures) == 0 {
+		t.Error("no measures were reported by the stats collector")
 	}
 
-	for _, m := range h.metrics {
-		switch {
-		case strings.HasPrefix(m.Name, "go.runtime."):
-		case strings.HasPrefix(m.Name, "go.memstats."):
-		default:
-			t.Error("invalid metric name:", m.Name)
-		}
-	}
-}
-
-func TestGoMetricsMock(t *testing.T) {
-	now := time.Now()
-
-	h := &handler{}
-	e := stats.NewEngine("")
-	e.Register(h)
-
-	gostats := NewGoMetricsWith(e)
-	gostats.gc.NumGC = 1
-	gostats.gc.Pause = []time.Duration{time.Microsecond}
-	gostats.gc.PauseEnd = []time.Time{now.Add(-time.Second)}
-	gostats.updateMemStats(time.Now())
-
-	if len(h.metrics) == 0 {
-		t.Error("no metrics were reported by the stats collector")
-	}
-
-	for _, m := range h.metrics {
-		switch {
-		case strings.HasPrefix(m.Name, "go.runtime."):
-		case strings.HasPrefix(m.Name, "go.memstats."):
-		default:
-			t.Error("invalid metric name:", m.Name)
-		}
+	for _, m := range h.measures {
+		t.Log(m)
 	}
 }
 

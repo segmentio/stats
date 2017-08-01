@@ -9,46 +9,85 @@ import (
 
 // ProcMetrics is a metric collector that reports metrics on processes.
 type ProcMetrics struct {
+	engine  *stats.Engine
 	pid     int
-	cpu     procCPU
-	memory  procMemory
-	files   procFiles
-	threads procThreads
+	cpu     procCPU     `metric:"cpu"`
+	memory  procMemory  `metric:"memory"`
+	files   procFiles   `metric:"files"`
+	threads procThreads `metric:"threads"`
 }
 
 type procCPU struct {
 	// CPU time
-	user stats.Counter // user cpu time used by the process
-	sys  stats.Counter // system cpu time used by the process
+	user struct { // user cpu time used by the process
+		time time.Duration `metric:"usage.seconds" type:"counter"`
+		typ  string        `tag:"type"` // user
+	}
+	system struct { // system cpu time used by the process
+		time time.Duration `metric:"usage.seconds" type:"counter"`
+		typ  string        `tag:"type"` // system
+	}
 }
 
 type procMemory struct {
 	// Memory
-	available stats.Gauge // amound of RAM available to the process
-	size      stats.Gauge // total program memory (including virtual mappings)
-	resident  stats.Gauge // resident set size
-	shared    stats.Gauge // shared pages (i.e., backed by a file)
-	text      stats.Gauge // text (code)
-	data      stats.Gauge // data + stack
+	available uint64 `metric:"available.bytes" type:"gauge"` // amound of RAM available to the process
+	size      uint64 `metric:"total.bytes"     type:"gauge"` // total program memory (including virtual mappings)
+
+	resident struct { // resident set size
+		usage uint64 `metric:"usage.bytes" type:"gauge"`
+		typ   string `tag:"type"` // resident
+	}
+
+	shared struct { // shared pages (i.e., backed by a file)
+		usage uint64 `metric:"usage.bytes" type:"gauge"`
+		typ   string `tag:"type"` // shared
+	}
+
+	text struct { // text (code)
+		usage uint64 `metric:"usage.bytes" type:"gauge"`
+		typ   string `tag:"type"` // text
+	}
+
+	data struct { // data + stack
+		usage uint64 `metric:"usage.bytes" type:"gauge"`
+		typ   string `tag:"type"` // data
+	}
 
 	// Page faults
-	majorPageFaults stats.Counter
-	minorPageFaults stats.Counter
+	pagefault struct {
+		major struct {
+			count uint64 `metric:"count" type:"counter"`
+			typ   string `tag:"type"` // major
+		}
+		minor struct {
+			count uint64 `metric:"count" type:"counter"`
+			typ   string `tag:"type"` // minor
+		}
+	} `metric:"pagefault"`
 }
 
 type procFiles struct {
 	// File descriptors
-	open stats.Gauge // fds opened by the process
-	max  stats.Gauge // max number of fds the process can open
+	open uint64 `metric:"open.count" type:"gauge"` // fds opened by the process
+	max  uint64 `metric:"open.max"   type:"gauge"` // max number of fds the process can open
 }
 
 type procThreads struct {
 	// Thread count
-	num stats.Gauge
+	num uint64 `metric:"count" type:"gauge"`
 
 	// Context switches
-	voluntaryContextSwitches   stats.Counter
-	involuntaryContextSwitches stats.Counter
+	switches struct {
+		voluntary struct {
+			count uint64 `metric:"count"" type:"counter"`
+			typ   string `tag:"type"` // voluntary
+		}
+		involuntary struct {
+			count uint64 `metric:"count"" type:"counter"`
+			typ   string `tag:"type"` // involuntary
+		}
+	} `metric:"switch"`
 }
 
 // NewProdMetrics collects metrics on the current process and reports them to
@@ -60,59 +99,48 @@ func NewProcMetrics() *ProcMetrics {
 // NewProcMetricsWith collects metrics on the process identified by pid and
 // reports them to eng.
 func NewProcMetricsWith(eng *stats.Engine, pid int) *ProcMetrics {
-	return &ProcMetrics{
-		pid: pid,
-		cpu: procCPU{
-			user: *eng.Counter("cpu.usage.seconds", stats.Tag{"type", "user"}),
-			sys:  *eng.Counter("cpu.usage.seconds", stats.Tag{"type", "system"}),
-		},
-		memory: procMemory{
-			available:       *eng.Gauge("memory.available.bytes"),
-			size:            *eng.Gauge("memory.total.bytes"),
-			resident:        *eng.Gauge("memory.usage.bytes", stats.Tag{"type", "resident"}),
-			shared:          *eng.Gauge("memory.usage.bytes", stats.Tag{"type", "shared"}),
-			text:            *eng.Gauge("memory.usage.bytes", stats.Tag{"type", "text"}),
-			data:            *eng.Gauge("memory.usage.bytes", stats.Tag{"type", "data"}),
-			majorPageFaults: *eng.Counter("memory.pagefault.count", stats.Tag{"type", "major"}),
-			minorPageFaults: *eng.Counter("memory.pagefault.count", stats.Tag{"type", "minor"}),
-		},
-		files: procFiles{
-			open: *eng.Gauge("files.open.count"),
-			max:  *eng.Gauge("files.open.max"),
-		},
-		threads: procThreads{
-			num: *eng.Gauge("thread.count"),
-			voluntaryContextSwitches:   *eng.Counter("thread.switch.count", stats.Tag{"type", "voluntary"}),
-			involuntaryContextSwitches: *eng.Counter("thread.switch.count", stats.Tag{"type", "involuntary"}),
-		},
-	}
+	p := &ProcMetrics{engine: eng, pid: pid}
+
+	p.cpu.user.typ = "user"
+	p.cpu.system.typ = "system"
+
+	p.memory.resident.typ = "resident"
+	p.memory.shared.typ = "shared"
+	p.memory.text.typ = "text"
+	p.memory.data.typ = "data"
+
+	p.memory.pagefault.major.typ = "major"
+	p.memory.pagefault.minor.typ = "minor"
+
+	p.threads.switches.voluntary.typ = "voluntary"
+	p.threads.switches.involuntary.typ = "involuntary"
+
+	return p
 }
 
 // Collect satsifies the Collector interface.
 func (p *ProcMetrics) Collect() {
 	if m, err := CollectProcInfo(p.pid); err == nil {
-		// CPU
-		p.cpu.user.Set(m.CPU.User.Seconds())
-		p.cpu.sys.Set(m.CPU.Sys.Seconds())
+		p.cpu.user.time = m.CPU.User
+		p.cpu.system.time = m.CPU.Sys
 
-		// Memory
-		p.memory.available.Set(float64(m.Memory.Available))
-		p.memory.size.Set(float64(m.Memory.Size))
-		p.memory.resident.Set(float64(m.Memory.Resident))
-		p.memory.shared.Set(float64(m.Memory.Shared))
-		p.memory.text.Set(float64(m.Memory.Text))
-		p.memory.data.Set(float64(m.Memory.Data))
-		p.memory.majorPageFaults.Set(float64(m.Memory.MajorPageFaults))
-		p.memory.minorPageFaults.Set(float64(m.Memory.MinorPageFaults))
+		p.memory.available = m.Memory.Available
+		p.memory.size = m.Memory.Size
+		p.memory.resident.usage = m.Memory.Resident
+		p.memory.shared.usage = m.Memory.Shared
+		p.memory.text.usage = m.Memory.Text
+		p.memory.data.usage = m.Memory.Data
+		p.memory.pagefault.major.count = m.Memory.MajorPageFaults
+		p.memory.pagefault.minor.count = m.Memory.MinorPageFaults
 
-		// Files
-		p.files.open.Set(float64(m.Files.Open))
-		p.files.max.Set(float64(m.Files.Max))
+		p.files.open = m.Files.Open
+		p.files.max = m.Files.Max
 
-		// Threads
-		p.threads.num.Set(float64(m.Threads.Num))
-		p.threads.voluntaryContextSwitches.Set(float64(m.Threads.VoluntaryContextSwitches))
-		p.threads.involuntaryContextSwitches.Set(float64(m.Threads.InvoluntaryContextSwitches))
+		p.threads.num = m.Threads.Num
+		p.threads.switches.voluntary.count = m.Threads.VoluntaryContextSwitches
+		p.threads.switches.involuntary.count = m.Threads.InvoluntaryContextSwitches
+
+		p.engine.Report(p)
 	}
 }
 
