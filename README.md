@@ -32,7 +32,7 @@ t := time.Now()
 f()
 callTime := time.Now().Sub(t)
 
-m := funcMetrics{}
+m := &funcMetrics{}
 m.calls.count = 1
 m.calls.time = callTime
 
@@ -41,7 +41,7 @@ m.calls.time = callTime
 //   stats.Incr("func.calls.count")
 //   stats.Observe("func.calls.time", callTime)
 //
-stats.Report(&m)
+stats.Report(m)
 ```
 To avoid greatly increasing the complexity of the codebase some old APIs were
 removed in favor of this new approach, other were transformed to provide more
