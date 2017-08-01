@@ -9,6 +9,77 @@ Installation
 go get github.com/segmentio/stats
 ```
 
+Migration to v4
+---------------
+
+Version 4 of the stats package introduced a new way of producing metrics based
+on defining struct types with tags on certain fields that define how to interpret
+the values. This approach allows for much more efficient metric production as it
+allows the program to do quick assignments and increments of the struct fields to
+set the values to be reported, and submit them all with one call to the stats
+engine, resulting in orders of magnitude faster metrics production. Here's an
+example:
+```go
+type funcMetrics struct {
+    calls struct {
+        count int           `metric:"count" type:"counter"`
+        time  time.Duration `metric:"time"  type:"histogram"`
+    } `metric:"func.calls"`
+}
+```
+```
+t := time.Now()
+f()
+callTime := time.Now().Sub(t)
+
+m := funcMetrics{}
+m.calls.count = 1
+m.calls.time = callTime
+
+// Prior to v4 this could have been:
+//
+//   stats.Incr("func.calls.count")
+//   stats.ObserveDuration("func.calls.time", callTime)
+//
+stats.Report(m)
+```
+To avoid greatly increasing the complexity of the codebase some old APIs were
+removed in favor of this new approach, other were transformed to provide more
+flexibility and leverage new features.
+
+The stats package used to only support float values, metrics can now be of
+various numeric types (see stats.MakeMeasure for a detailed description),
+therefore functions like `stats.Add` now accept an `interface{}` value instead
+of `float64`. `stats.ObserveDuration` was also removed since this new approach
+makes it obsolete (durations can be passed to `stats.Observe` directly).
+
+The `stats.Engine` type used to be configured through a configuration object
+passed to its constructor function, and a few methods (like `Register`) were
+exposed to mutate engine instances. This required synchronization in order to
+be safe to modify an engine from multiple goroutines. We haven't had a use case
+for modifying an engine after creating it so the constraint on being thread-safe
+were lifted and the fields exposed on the `stats.Engine` struct type directly to
+communicate that they are unsafe to modify concurrently. The helper methods
+remain tho to make migration of existing code smoother.
+
+Histogram buckets (mostly used for the prometheus client) are now defined by
+default on the `stats.Buckets` global variable instead of within the engine.
+This decoupling was made to avoid paying the cost of doing histogram bucket
+lookups when producing metrics to backends that don't use them (like datadog
+or influxdb for example).
+
+The data model also changed a little. Handlers for metrics produced by an engine
+now accept a list of measures instead of single metrics, each measure being made
+of a name, a set of fields, and tags to apply to each of those fields. This
+allows a more generic and more efficient approach to metric production, better
+fits the influxdb data model, while still being compatible with other clients
+(datadog, prometheus, ...). A single timeserie is usually identified by the
+combination of the measure name, a field name and value, and the set of tags set
+on that measure. Refer to each client for a details about how measures are
+translated to individual metrics.
+
+_If you find that an API is not available anymore but deserves to be ported feel free to open an issue._
+
 Quick Start
 -----------
 
@@ -226,7 +297,6 @@ func main() {
     client := redis.Client{
         Addr:      "127.0.0.1:6379",
         Transport: redisstats.NewTransport(&redis.Transport{}),
-        Timeout:   0,
     }
 
     // ...
