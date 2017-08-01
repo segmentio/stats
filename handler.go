@@ -42,10 +42,12 @@ func MultiHandler(handlers ...Handler) Handler {
 	multi := make([]Handler, 0, len(handlers))
 
 	for _, h := range handlers {
-		if m, ok := h.(*multiHandler); ok {
-			multi = append(multi, m.handlers...) // flatten multi handlers
-		} else {
-			multi = append(multi, h)
+		if h != nil {
+			if m, ok := h.(*multiHandler); ok {
+				multi = append(multi, m.handlers...) // flatten multi handlers
+			} else {
+				multi = append(multi, h)
+			}
 		}
 	}
 

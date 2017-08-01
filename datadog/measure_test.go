@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	testMetrics = []struct {
+	testMeasures = []struct {
 		m stats.Measure
 		s string
 	}{
@@ -42,8 +42,8 @@ request.rtt:0.1|h|#answer:42,hello:world
 	}
 )
 
-func TestAppendMetric(t *testing.T) {
-	for _, test := range testMetrics {
+func TestAppendMeasure(t *testing.T) {
+	for _, test := range testMeasures {
 		t.Run(test.s, func(t *testing.T) {
 			if s := string(AppendMeasure(nil, test.m)); s != test.s {
 				t.Error("bad metric representation:")
