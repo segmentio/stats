@@ -78,7 +78,13 @@ combination of the measure name, a field name and value, and the set of tags set
 on that measure. Refer to each client for a details about how measures are
 translated to individual metrics.
 
-_If you find that an API is not available anymore but deserves to be ported feel free to open an issue._
+Note that no changes were made to the end metrics being produced by each
+sub-package (httpstats, procstats, ...). This was important as we must keep
+the behavior backward compatible since making changes here would implicitly
+break dashboards or monitors set on the various metric collection systems that
+this package supports, potentially causing production issues.
+
+_If you find a bug or an API is not available anymore but deserves to be ported feel free to open an issue._
 
 Quick Start
 -----------
