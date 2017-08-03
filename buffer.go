@@ -75,8 +75,7 @@ func (h *Buffer) HandleMeasures(time time.Time, measures ...Measure) {
 		}
 
 		if h.compareAndSwapBuffer(b, nil) {
-			b.m.Lock() // wait for read-locks to be released
-			b.m.Unlock()
+			b.waitReleaseRLock()
 			h.join.Add(1)
 			go h.writeBuffer(b, int(n-l))
 		}
@@ -93,11 +92,10 @@ func (h *Buffer) Flush() {
 			break
 		}
 		if h.compareAndSwapBuffer(b, nil) {
-			b.m.Lock()
-			b.m.Unlock()
-			if int(b.n) < len(b.b) {
+			n := b.waitReleaseRLockAndFinalize()
+			if n <= len(b.b) {
 				h.join.Add(1)
-				go h.writeBuffer(b, int(b.n))
+				go h.writeBuffer(b, n)
 			}
 		}
 	}
@@ -139,11 +137,26 @@ type buffer struct {
 }
 
 func (buf *buffer) init(size int) {
+	buf.m.Lock()
 	if cap(buf.b) < size {
 		buf.b = make([]byte, 0, size)
 	}
 	buf.b = buf.b[:size]
 	buf.n = 0
+	buf.m.Unlock()
+}
+
+func (buf *buffer) waitReleaseRLock() {
+	buf.m.Lock()
+	buf.m.Unlock()
+}
+
+func (buf *buffer) waitReleaseRLockAndFinalize() int {
+	buf.m.Lock()
+	n := buf.n
+	buf.n = int32(len(buf.b))
+	buf.m.Unlock()
+	return int(n)
 }
 
 type chunk struct {

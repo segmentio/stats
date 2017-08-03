@@ -73,7 +73,7 @@ now accept a list of measures instead of single metrics, each measure being made
 of a name, a set of fields, and tags to apply to each of those fields. This
 allows a more generic and more efficient approach to metric production, better
 fits the influxdb data model, while still being compatible with other clients
-(datadog, prometheus, ...). A single timeserie is usually identified by the
+(datadog, prometheus, ...). A single timeseries is usually identified by the
 combination of the measure name, a field name and value, and the set of tags set
 on that measure. Refer to each client for a details about how measures are
 translated to individual metrics.
