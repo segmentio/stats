@@ -1,55 +1,82 @@
 package stats
 
-// Handler is an interface implemented by types that receive metrics and expose
-// them to diverse platforms.
-//
-// Handlers are usually not used directly, instead they are hooked to an engine
-// which provides a higher-level abstraction to generate and publish metrics.
+import "time"
+
+// The Handler interface is implemented by types that produce measures to
+// various metric collection backends.
 type Handler interface {
-	// HandleMetric is called to report metrics produced by the program.
+	// HandleMeasures is called by the Engine on which the handler was set
+	// whenever new measures are produced by the program. The first argument
+	// is the time at which the measures were taken.
 	//
-	// The handler does not have ownership of the metric object it receives, it
-	// must not retain the object or any of its field.
-	HandleMetric(*Metric)
+	// The method must treat the list of measures as read-only values, and
+	// must not retain pointers to any of the measures or their sub-fields
+	// after returning.
+	HandleMeasures(time time.Time, measures ...Measure)
 }
 
-// HandlerFunc makes it possible for simple functions to be used as metric
-// handlers.
-type HandlerFunc func(*Metric)
-
-// HandleMetric calls f.
-func (f HandlerFunc) HandleMetric(m *Metric) {
-	f(m)
-}
-
-// Flusher is an interface that may be implemented by metric handlers that do
-// buffering or caching of the metrics they receive.
+// Flusher is an interface implemented by measure handlers in order to flush
+// any buffered data.
 type Flusher interface {
-	// Flush is called when the object should flush out all data it has cached
-	// or buffered internally.
 	Flush()
 }
 
-// StripTags returns a decorated version of handler that filters out the given
-// list of tag names from all handled metrics.
-func StripTags(handler Handler, tags ...string) Handler {
-	index := make(map[string]struct{}, len(tags))
-
-	for _, tag := range tags {
-		index[tag] = struct{}{}
+func flush(h Handler) {
+	if f, ok := h.(Flusher); ok {
+		f.Flush()
 	}
+}
 
-	return HandlerFunc(func(m *Metric) {
-		i := 0
+// HandleFunc is a type alias making it possible to use simple functions as
+// measure handlers.
+type HandlerFunc func(time.Time, ...Measure)
 
-		for _, tag := range m.Tags {
-			if _, strip := index[tag.Name]; !strip {
-				m.Tags[i] = tag
-				i++
+// HandleMeasures calls f, satisfies the Handler interface.
+func (f HandlerFunc) HandleMeasures(time time.Time, measures ...Measure) {
+	f(time, measures...)
+}
+
+// MultiHandler constructs a handler which dispatches measures to all given
+// handlers.
+func MultiHandler(handlers ...Handler) Handler {
+	multi := make([]Handler, 0, len(handlers))
+
+	for _, h := range handlers {
+		if h != nil {
+			if m, ok := h.(*multiHandler); ok {
+				multi = append(multi, m.handlers...) // flatten multi handlers
+			} else {
+				multi = append(multi, h)
 			}
 		}
+	}
 
-		m.Tags = m.Tags[:i]
-		handler.HandleMetric(m)
-	})
+	if len(multi) == 1 {
+		return multi[0]
+	}
+
+	return &multiHandler{handlers: multi}
 }
+
+type multiHandler struct {
+	handlers []Handler
+}
+
+func (m *multiHandler) HandleMeasures(time time.Time, measures ...Measure) {
+	for _, h := range m.handlers {
+		h.HandleMeasures(time, measures...)
+	}
+}
+
+func (m *multiHandler) Flush() {
+	for _, h := range m.handlers {
+		flush(h)
+	}
+}
+
+// Discard is a handler that doesn't do anything with the measures it receives.
+var Discard = &discard{}
+
+type discard struct{}
+
+func (*discard) HandleMeasures(time time.Time, measures ...Measure) {}

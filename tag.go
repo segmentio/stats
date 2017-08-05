@@ -1,11 +1,19 @@
 package stats
 
-import "sort"
+import (
+	"sort"
+	"sync"
+)
 
-// Tag represents a single tag that can be set on a metric.
+// A Tag is a pair of a string key and value set on measures to define the
+// dimensions of the metrics.
 type Tag struct {
 	Name  string
 	Value string
+}
+
+func (t Tag) String() string {
+	return t.Name + "=" + t.Value
 }
 
 // TagsAreSorted returns true if the given list of tags is sorted by tag name,
@@ -24,10 +32,11 @@ func TagsAreSorted(tags []Tag) bool {
 }
 
 // SortTags sorts the slice of tags.
-func SortTags(tags []Tag) {
-	// TODO: optimize to get rid of the dynamic memory allocation that occurs
+func SortTags(tags []Tag) []Tag {
+	// TODO: optimize to get rid of the dynamic memory allocation required
 	// to construct the interface value.
 	sort.Sort(tagsByName(tags))
+	return tags
 }
 
 type tagsByName []Tag
@@ -54,4 +63,27 @@ func copyTags(tags []Tag) []Tag {
 	ctags := make([]Tag, len(tags))
 	copy(ctags, tags)
 	return ctags
+}
+
+type tagsBuffer struct {
+	tags tagsByName
+}
+
+func (b *tagsBuffer) reset() {
+	for i := range b.tags {
+		b.tags[i] = Tag{}
+	}
+	b.tags = b.tags[:0]
+}
+
+func (b *tagsBuffer) sort() {
+	sort.Sort(&b.tags)
+}
+
+func (b *tagsBuffer) append(tags ...Tag) {
+	b.tags = append(b.tags, tags...)
+}
+
+var tagsPool = sync.Pool{
+	New: func() interface{} { return &tagsBuffer{tags: make([]Tag, 0, 8)} },
 }

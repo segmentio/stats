@@ -7,6 +7,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/segmentio/stats"
 )
 
 func TestMetricStore(t *testing.T) {
@@ -26,7 +28,12 @@ func TestMetricStore(t *testing.T) {
 	store := metricStore{}
 
 	for _, m := range input {
-		store.update(m, []float64{0.25, 0.5, 0.75, 1.0})
+		store.update(m, []stats.Value{
+			stats.ValueOf(0.25),
+			stats.ValueOf(0.5),
+			stats.ValueOf(0.75),
+			stats.ValueOf(1.0),
+		})
 	}
 
 	metrics := store.collect(nil)
@@ -166,13 +173,13 @@ func TestMetricStoreCleanup(t *testing.T) {
 }
 
 func BenchmarkLE(b *testing.B) {
-	buckets := []float64{
-		0.001,
-		0.01,
-		0.1,
-		1,
-		10,
-		math.Inf(+1),
+	buckets := []stats.Value{
+		stats.ValueOf(0.001),
+		stats.ValueOf(0.01),
+		stats.ValueOf(0.1),
+		stats.ValueOf(1),
+		stats.ValueOf(1),
+		stats.ValueOf(math.Inf(+1)),
 	}
 
 	for i := 0; i != b.N; i++ {

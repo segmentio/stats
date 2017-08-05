@@ -54,25 +54,31 @@ func TestAcceptEncoding(t *testing.T) {
 func TestServeHTTP(t *testing.T) {
 	now := time.Date(2017, 6, 4, 22, 12, 0, 0, time.UTC)
 
-	handler := &Handler{}
-	buckets := []float64{0.25, 0.5, 0.75, 1.0}
-
-	input := []stats.Metric{
-		{Type: stats.CounterType, Name: "A", Value: 1, Time: now},
-		{Type: stats.CounterType, Name: "A", Value: 2, Time: now},
-		{Type: stats.HistogramType, Name: "C", Value: 0.1, Time: now, Buckets: buckets},
-		{Type: stats.GaugeType, Name: "B", Value: 1, Time: now, Tags: []stats.Tag{{"a", "1"}, {"b", "2"}}},
-		{Type: stats.CounterType, Name: "A", Value: 4, Time: now, Tags: []stats.Tag{{"id", "123"}}},
-		{Type: stats.GaugeType, Name: "B", Value: 42, Time: now, Tags: []stats.Tag{{"a", "1"}}},
-		{Type: stats.HistogramType, Name: "C", Value: 0.1, Time: now, Buckets: buckets},
-		{Type: stats.GaugeType, Name: "B", Value: 21, Time: now, Tags: []stats.Tag{{"b", "2"}, {"a", "1"}}},
-		{Type: stats.HistogramType, Name: "C", Value: 0.5, Time: now, Buckets: buckets},
-		{Type: stats.HistogramType, Name: "C", Value: 10, Time: now, Buckets: buckets},
+	handler := &Handler{
+		Buckets: map[stats.Key][]stats.Value{
+			stats.Key{Field: "C"}: []stats.Value{
+				stats.ValueOf(0.25),
+				stats.ValueOf(0.5),
+				stats.ValueOf(0.75),
+				stats.ValueOf(1.0),
+			},
+		},
 	}
 
-	for i := range input {
-		handler.HandleMetric(&input[i])
+	input := []stats.Measure{
+		{Fields: []stats.Field{stats.MakeField("A", 1, stats.Counter)}},
+		{Fields: []stats.Field{stats.MakeField("A", 2, stats.Counter)}},
+		{Fields: []stats.Field{stats.MakeField("C", 0.1, stats.Histogram)}},
+		{Fields: []stats.Field{stats.MakeField("B", 1, stats.Gauge)}, Tags: []stats.Tag{{"a", "1"}, {"b", "2"}}},
+		{Fields: []stats.Field{stats.MakeField("A", 4, stats.Counter)}, Tags: []stats.Tag{{"id", "123"}}},
+		{Fields: []stats.Field{stats.MakeField("B", 42, stats.Gauge)}, Tags: []stats.Tag{{"a", "1"}}},
+		{Fields: []stats.Field{stats.MakeField("C", 0.1, stats.Histogram)}},
+		{Fields: []stats.Field{stats.MakeField("B", 21, stats.Gauge)}, Tags: []stats.Tag{{"a", "1"}, {"b", "2"}}},
+		{Fields: []stats.Field{stats.MakeField("C", 0.5, stats.Histogram)}},
+		{Fields: []stats.Field{stats.MakeField("C", 10, stats.Histogram)}},
 	}
+
+	handler.HandleMeasures(now, input...)
 
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", handler)
@@ -114,21 +120,39 @@ C_sum 10.7 1496614320000
 
 func BenchmarkHandleMetric(b *testing.B) {
 	now := time.Now()
-	tags := []stats.Tag{{"a", "1"}, {"b", "2"}}
 
-	buckets := []float64{0.25, 0.5, 0.75, 1.0}
-	metrics := []stats.Metric{
-		{Type: stats.CounterType, Name: "A", Value: 1, Time: now, Tags: tags},
-		{Type: stats.GaugeType, Name: "B", Value: 1, Time: now, Tags: tags},
-		{Type: stats.HistogramType, Name: "C", Value: 0.1, Time: now, Tags: tags, Buckets: buckets},
+	buckets := map[stats.Key][]stats.Value{
+		stats.Key{Field: "C"}: []stats.Value{
+			stats.ValueOf(0.25),
+			stats.ValueOf(0.5),
+			stats.ValueOf(0.75),
+			stats.ValueOf(1.0),
+		},
+	}
+
+	metrics := []stats.Measure{
+		{
+			Fields: []stats.Field{stats.MakeField("A", 1, stats.Counter)},
+			Tags:   []stats.Tag{{"a", "1"}, {"b", "2"}},
+		},
+		{
+			Fields: []stats.Field{stats.MakeField("B", 1, stats.Gauge)},
+			Tags:   []stats.Tag{{"a", "1"}, {"b", "2"}},
+		},
+		{
+			Fields: []stats.Field{stats.MakeField("C", 0.1, stats.Histogram)},
+			Tags:   []stats.Tag{{"a", "1"}, {"b", "2"}},
+		},
 	}
 
 	for _, metric := range metrics {
-		b.Run(metric.Type.String(), func(b *testing.B) {
-			handler := &Handler{}
+		b.Run(metric.Fields[0].Type().String(), func(b *testing.B) {
+			handler := &Handler{
+				Buckets: buckets,
+			}
 
 			for i := 0; i != b.N; i++ {
-				handler.HandleMetric(&metric)
+				handler.HandleMeasures(now, metric)
 			}
 		})
 	}

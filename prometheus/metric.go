@@ -21,19 +21,6 @@ const (
 	summary
 )
 
-func metricTypeOf(t stats.MetricType) metricType {
-	switch t {
-	case stats.CounterType:
-		return counter
-	case stats.GaugeType:
-		return gauge
-	case stats.HistogramType:
-		return histogram
-	default:
-		return untyped
-	}
-}
-
 func (t metricType) String() string {
 	switch t {
 	case untyped:
@@ -108,7 +95,7 @@ func (store *metricStore) lookup(mtype metricType, key metricKey, help string) *
 	return entry
 }
 
-func (store *metricStore) update(metric metric, buckets []float64) {
+func (store *metricStore) update(metric metric, buckets []stats.Value) {
 	entry := store.lookup(metric.mtype, metric.key(), metric.help)
 	state := entry.lookup(metric.labels)
 	state.update(metric.mtype, metric.value, metric.time, buckets)
@@ -265,7 +252,7 @@ func newMetricState(labels labels) *metricState {
 	}
 }
 
-func (state *metricState) update(mtype metricType, value float64, time time.Time, buckets []float64) {
+func (state *metricState) update(mtype metricType, value float64, time time.Time, buckets []stats.Value) {
 	state.mutex.Lock()
 
 	switch mtype {
@@ -372,14 +359,14 @@ type metricBucket struct {
 
 type metricBuckets []metricBucket
 
-func makeMetricBuckets(buckets []float64, labels labels) metricBuckets {
+func makeMetricBuckets(buckets []stats.Value, labels labels) metricBuckets {
 	b := make(metricBuckets, len(buckets))
 	s := le(buckets)
 
 	for i := range buckets {
 		var le string
 		le, s = nextLe(s)
-		b[i].limit = buckets[i]
+		b[i].limit = valueOf(buckets[i])
 		b[i].labels = labels.copyAppend(label{"le", le})
 	}
 
@@ -401,7 +388,7 @@ func (m metricBuckets) update(value float64) {
 //
 // The intent is to keep the number of dynamic memory allocations constant
 // instead of increasing linearly with the number of buckets.
-func le(buckets []float64) string {
+func le(buckets []stats.Value) string {
 	if len(buckets) == 0 {
 		return ""
 	}
@@ -412,7 +399,7 @@ func le(buckets []float64) string {
 		if i != 0 {
 			b = append(b, ':')
 		}
-		b = appendFloat(b, v)
+		b = appendFloat(b, valueOf(v))
 	}
 
 	return *(*string)(unsafe.Pointer(&reflect.StringHeader{

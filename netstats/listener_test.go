@@ -9,9 +9,8 @@ import (
 )
 
 func TestListener(t *testing.T) {
-	h := &metricHandler{}
-	e := stats.NewEngine("netstats.test")
-	e.Register(h)
+	h := &measureHandler{}
+	e := stats.NewEngine("netstats.test", h)
 
 	lstn := NewListenerWith(e, testLstn{})
 
@@ -24,30 +23,29 @@ func TestListener(t *testing.T) {
 	conn.Close()
 	lstn.Close()
 
-	if !reflect.DeepEqual(h.metrics, []stats.Metric{
+	expected := []stats.Measure{
 		{
-			Type:      stats.CounterType,
-			Namespace: "netstats.test",
-			Name:      "conn.open.count",
-			Tags:      []stats.Tag{{"protocol", "tcp"}},
-			Value:     1,
+			Name:   "netstats.test.conn.open",
+			Fields: []stats.Field{stats.MakeField("count", 1, stats.Counter)},
+			Tags:   []stats.Tag{{"protocol", "tcp"}},
 		},
 		{
-			Type:      stats.CounterType,
-			Namespace: "netstats.test",
-			Name:      "conn.close.count",
-			Tags:      []stats.Tag{{"protocol", "tcp"}},
-			Value:     1,
+			Name:   "netstats.test.conn.close",
+			Fields: []stats.Field{stats.MakeField("count", 1, stats.Counter)},
+			Tags:   []stats.Tag{{"protocol", "tcp"}},
 		},
-	}) {
-		t.Error("bad metrics:", h.metrics)
+	}
+
+	if !reflect.DeepEqual(expected, h.measures) {
+		t.Error("bad measures:")
+		t.Logf("expected: %v", expected)
+		t.Logf("found:    %v", h.measures)
 	}
 }
 
 func TestListenerError(t *testing.T) {
-	h := &metricHandler{}
-	e := stats.NewEngine("netstats.test")
-	e.Register(h)
+	h := &measureHandler{}
+	e := stats.NewEngine("netstats.test", h)
 
 	lstn := NewListenerWith(e, testLstn{err: errTest})
 
@@ -59,16 +57,18 @@ func TestListenerError(t *testing.T) {
 
 	lstn.Close()
 
-	if !reflect.DeepEqual(h.metrics, []stats.Metric{
+	expected := []stats.Measure{
 		{
-			Type:      stats.CounterType,
-			Namespace: "netstats.test",
-			Name:      "conn.error.count",
-			Tags:      []stats.Tag{{"protocol", "tcp"}, {"operation", "accept"}},
-			Value:     1,
+			Name:   "netstats.test.conn.error",
+			Fields: []stats.Field{stats.MakeField("count", 1, stats.Counter)},
+			Tags:   []stats.Tag{{"operation", "accept"}, {"protocol", "tcp"}},
 		},
-	}) {
-		t.Error("bad metrics:", h.metrics)
+	}
+
+	if !reflect.DeepEqual(expected, h.measures) {
+		t.Error("bad measures:")
+		t.Logf("expected: %v", expected)
+		t.Logf("found:    %v", h.measures)
 	}
 }
 

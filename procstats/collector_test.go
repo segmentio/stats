@@ -8,20 +8,18 @@ import (
 )
 
 type handler struct {
-	metrics []stats.Metric
+	measures []stats.Measure
 }
 
-func (h *handler) HandleMetric(m *stats.Metric) {
-	c := *m
-	c.Tags = append([]stats.Tag{}, m.Tags...)
-	c.Time = time.Time{} // discard because it's unpredicatable
-	h.metrics = append(h.metrics, c)
+func (h *handler) HandleMeasures(time time.Time, measures ...stats.Measure) {
+	for _, m := range measures {
+		h.measures = append(h.measures, m.Clone())
+	}
 }
 
 func TestCollector(t *testing.T) {
 	h := &handler{}
-	e := stats.NewEngine("")
-	e.Register(h)
+	e := stats.NewEngine("", h)
 
 	c := StartCollectorWith(Config{
 		CollectInterval: 100 * time.Microsecond,
@@ -34,8 +32,12 @@ func TestCollector(t *testing.T) {
 	time.Sleep(time.Millisecond)
 	c.Close()
 
-	if len(h.metrics) == 0 {
-		t.Error("no metrics were reported by the stats collector")
+	if len(h.measures) == 0 {
+		t.Error("no measures were reported by the stats collector")
+	}
+
+	for _, m := range h.measures {
+		t.Log(m)
 	}
 }
 

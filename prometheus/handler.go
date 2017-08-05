@@ -41,49 +41,53 @@ type Handler struct {
 	// The default is to use a 2 minutes metric timeout.
 	MetricTimeout time.Duration
 
-	// Prometheus identifies unique time series by the combination of the metric
-	// name and labels. Technically labels may be provided in any order, so they
-	// need to be sorted to be properly matched against each other. However this
-	// may be a expensive in high rate services, if a program can ensure it will
-	// always present metrics with label names in the same order it may skip the
-	// sorting step by setting this flag to true.
-	//
-	// Note that in the context of the stats package tags are usually always
-	// presented in the same order since the APIs receive a slice of stats.Tag.
-	// Unless the program is dynamically gneerating the slice of tags it's very
-	// likely that it will be able to take advantage of skipping the sort.
-	//
-	// By default this flag is set to false to ensure correctness in every case.
-	UseUnsortedLabels bool
+	// Buckets is the registry of histogram buckets used by the handler,
+	// If nil, stats.Buckets is used instead.
+	Buckets stats.HistogramBuckets
 
 	opcount uint64
 	metrics metricStore
 }
 
 // HandleMetric satisfies the stats.Handler interface.
-func (h *Handler) HandleMetric(m *stats.Metric) {
-	mtime := m.Time
-	if mtime.IsZero() {
-		mtime = time.Now()
-	}
-
+func (h *Handler) HandleMeasures(mtime time.Time, measures ...stats.Measure) {
 	cache := handleMetricPool.Get().(*handleMetricCache)
-	cache.labels = cache.labels.appendTags(m.Tags...)
 
-	if !h.UseUnsortedLabels {
-		sort.Sort(cache)
+	for _, m := range measures {
+		scope := h.trimPrefix(m.Name)
+
+		cache.labels = cache.labels[:0]
+		cache.labels = cache.labels.appendTags(m.Tags...)
+
+		for _, f := range m.Fields {
+			var buckets []stats.Value
+			var mtype = typeOf(f.Type())
+
+			if mtype == histogram {
+				k := stats.Key{Measure: m.Name, Field: f.Name}
+
+				if b := h.Buckets; b != nil {
+					buckets = b[k]
+				} else {
+					buckets = stats.Buckets[k]
+				}
+			}
+
+			h.metrics.update(metric{
+				mtype:  mtype,
+				scope:  scope,
+				name:   f.Name,
+				value:  valueOf(f.Value),
+				time:   mtime,
+				labels: cache.labels,
+			}, buckets)
+		}
+
+		for i := range cache.labels {
+			cache.labels[i] = label{}
+		}
 	}
 
-	h.metrics.update(metric{
-		mtype:  metricTypeOf(m.Type),
-		scope:  strings.TrimPrefix(m.Namespace, h.TrimPrefix),
-		name:   m.Name,
-		value:  m.Value,
-		time:   mtime,
-		labels: cache.labels,
-	}, m.Buckets)
-
-	cache.labels = cache.labels[:0]
 	handleMetricPool.Put(cache)
 
 	// Every 10K updates we cleanup the metric store of outdated entries to
@@ -92,6 +96,14 @@ func (h *Handler) HandleMetric(m *stats.Metric) {
 	if (atomic.AddUint64(&h.opcount, 1) % 10000) == 0 {
 		h.metrics.cleanup(time.Now().Add(-h.timeout()))
 	}
+}
+
+func (h *Handler) trimPrefix(s string) string {
+	s = strings.TrimPrefix(s, h.TrimPrefix)
+	if len(s) != 0 && s[0] == '.' {
+		s = s[1:]
+	}
+	return s
 }
 
 func (h *Handler) timeout() time.Duration {
@@ -179,5 +191,36 @@ func (cache *handleMetricCache) Less(i int, j int) bool {
 // DefaultHandler is a prometheus handler configured to trim the default metric
 // namespace off of metrics that it handles.
 var DefaultHandler = &Handler{
-	TrimPrefix: stats.DefaultEngine.Name(),
+	TrimPrefix: stats.DefaultEngine.Prefix,
+}
+
+func typeOf(t stats.FieldType) metricType {
+	switch t {
+	case stats.Counter:
+		return counter
+	case stats.Gauge:
+		return gauge
+	case stats.Histogram:
+		return histogram
+	default:
+		return untyped
+	}
+}
+
+func valueOf(v stats.Value) float64 {
+	switch v.Type() {
+	case stats.Bool:
+		if v.Bool() {
+			return 1.0
+		}
+	case stats.Int:
+		return float64(v.Int())
+	case stats.Uint:
+		return float64(v.Uint())
+	case stats.Float:
+		return v.Float()
+	case stats.Duration:
+		return v.Duration().Seconds()
+	}
+	return 0.0
 }

@@ -41,19 +41,6 @@ func (m Metric) Format(f fmt.State, _ rune) {
 	bufferPool.Put(buf)
 }
 
-func metricType(m *stats.Metric) MetricType {
-	switch m.Type {
-	case stats.CounterType:
-		return Counter
-	case stats.GaugeType:
-		return Gauge
-	case stats.HistogramType:
-		return Histogram
-	default:
-		return Unknown
-	}
-}
-
 type buffer struct {
 	b []byte
 }

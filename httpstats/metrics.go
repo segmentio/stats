@@ -14,7 +14,7 @@ import (
 )
 
 func init() {
-	stats.DefaultEngine.SetHistogramBuckets("http.message.header.size",
+	stats.Buckets.Set("http.message:header.size",
 		5,
 		10,
 		20,
@@ -23,7 +23,7 @@ func init() {
 		math.Inf(+1),
 	)
 
-	stats.DefaultEngine.SetHistogramBuckets("http.message.header.bytes",
+	stats.Buckets.Set("http.message:header.bytes",
 		1e2, // 100 B
 		1e3, // 1 KB
 		1e4, // 10 KB
@@ -32,7 +32,7 @@ func init() {
 		math.Inf(+1),
 	)
 
-	stats.DefaultEngine.SetHistogramBuckets("http.message.body.bytes",
+	stats.Buckets.Set("http.message:body.bytes",
 		1e2, // 100 B
 		1e3, // 1 KB
 		1e4, // 10 KB
@@ -44,12 +44,12 @@ func init() {
 		math.Inf(+1),
 	)
 
-	stats.DefaultEngine.SetHistogramBuckets("http.rtt.seconds",
-		1e-3, // 1ms
-		1e-2, // 10ms
-		1e-1, // 100ms
-		1,    // 1s
-		10,   // 10s
+	stats.Buckets.Set("http:rtt.seconds",
+		1*time.Millisecond,
+		10*time.Millisecond,
+		100*time.Millisecond,
+		1*time.Second,
+		10*time.Second,
 		math.Inf(+1),
 	)
 }
@@ -61,12 +61,13 @@ func (n *nullBody) Close() error { return nil }
 func (n *nullBody) Read(b []byte) (int, error) { return 0, io.EOF }
 
 type requestBody struct {
-	body  io.ReadCloser
-	eng   *stats.Engine
-	req   *http.Request
-	bytes int
-	op    string
-	once  sync.Once
+	body    io.ReadCloser
+	eng     *stats.Engine
+	req     *http.Request
+	metrics *metrics
+	bytes   int
+	op      string
+	once    sync.Once
 }
 
 func (r *requestBody) Close() (err error) {
@@ -87,23 +88,23 @@ func (r *requestBody) close() {
 }
 
 func (r *requestBody) complete() {
-	m := metrics{r.eng}
-	m.observeRequest(r.req, r.op, r.bytes)
+	r.metrics.observeRequest(r.req, r.op, r.bytes)
 }
 
 type responseBody struct {
-	eng   *stats.Engine
-	res   *http.Response
-	body  io.ReadCloser
-	bytes int
-	op    string
-	start time.Time
-	once  sync.Once
+	eng     *stats.Engine
+	res     *http.Response
+	metrics *metrics
+	body    io.ReadCloser
+	bytes   int
+	op      string
+	start   time.Time
+	once    sync.Once
 }
 
 func (r *responseBody) Close() (err error) {
 	err = r.body.Close()
-	r.once.Do(r.complete)
+	r.close()
 	return
 }
 
@@ -114,110 +115,122 @@ func (r *responseBody) Read(b []byte) (n int, err error) {
 	return
 }
 
+func (r *responseBody) close() {
+	r.once.Do(r.complete)
+}
+
 func (r *responseBody) complete() {
-	m := metrics{r.eng}
-	m.observeResponse(r.res, r.op, r.bytes, time.Now().Sub(r.start))
+	r.metrics.observeResponse(r.res, r.op, r.bytes, time.Now().Sub(r.start))
+	r.eng.ReportAt(r.start, r.metrics)
 }
 
 type metrics struct {
-	eng *stats.Engine
+	http struct {
+		err struct {
+			count int `metric:"count" type:"counter"`
+		} `metric:"error"`
+
+		req struct {
+			msg struct {
+				count       int `metric:"count"        type:"counter"`
+				headerSize  int `metric:"header.size"  type:"histogram"`
+				headerBytes int `metric:"header.bytes" type:"histogram"`
+				bodyBytes   int `metric:"body.bytes"   type:"histogram"`
+			} `metric:"message"`
+
+			operation string `tag:"operation"`
+			msgtype   string `tag:"type"`
+		}
+
+		res struct {
+			rtt time.Duration `metric:"rtt.seconds" type:"histogram"`
+
+			msg struct {
+				count       int `metric:"count"        type:"counter"`
+				headerSize  int `metric:"header.size"  type:"histogram"`
+				headerBytes int `metric:"header.bytes" type:"histogram"`
+				bodyBytes   int `metric:"body.bytes"   type:"histogram"`
+			} `metric:"message"`
+
+			operation string `tag:"operation"`
+			msgtype   string `tag:"type"`
+
+			contentCharset   string `tag:"http_res_content_charset"`
+			contentEncoding  string `tag:"http_res_content_endoing"`
+			contentType      string `tag:"http_res_content_type"`
+			protocol         string `tag:"http_res_protocol"`
+			server           string `tag:"http_res_server"`
+			statusBucket     string `tag:"http_status_bucket"`
+			status           string `tag:"http_status"`
+			transferEncoding string `tag:"http_res_transfer_encoding"`
+			upgrade          string `tag:"http_res_upgrade"`
+		}
+
+		contentCharset   string `tag:"http_req_content_charset"`
+		contentEncoding  string `tag:"http_req_content_endoing"`
+		contentType      string `tag:"http_req_content_type"`
+		host             string `tag:"http_req_host"`
+		method           string `tag:"http_req_method"`
+		protocol         string `tag:"http_req_protocol"`
+		transferEncoding string `tag:"http_req_transfer_encoding"`
+	} `metric:"http"`
 }
 
-func (m metrics) incrMessageCount(tags ...stats.Tag) {
-	m.eng.Incr("http.message.count", tags...)
+func (m *metrics) observeRequest(req *http.Request, op string, bodyLen int) {
+	contentType, charset := contentType(req.Header)
+	contentEncoding := contentEncoding(req.Header)
+	transferEncoding := transferEncoding(req.TransferEncoding)
+	host := requestHost(req)
+
+	m.http.req.msg.count = 1
+	m.http.req.msg.headerSize = len(req.Header)
+	m.http.req.msg.headerBytes = requestHeaderLength(req)
+	m.http.req.msg.bodyBytes = bodyLen
+
+	m.http.req.operation = op
+	m.http.req.msgtype = "request"
+
+	m.http.contentCharset = charset
+	m.http.contentEncoding = contentEncoding
+	m.http.contentType = contentType
+	m.http.host = host
+	m.http.method = req.Method
+	m.http.protocol = req.Proto
+	m.http.transferEncoding = transferEncoding
 }
 
-func (m metrics) incrErrorCount(tags ...stats.Tag) {
-	m.eng.Incr("http.error.count", tags...)
+func (m *metrics) observeResponse(res *http.Response, op string, bodyLen int, rtt time.Duration) {
+	contentType, charset := contentType(res.Header)
+	contentEncoding := contentEncoding(res.Header)
+	upgrade := res.Header.Get("upgrade")
+	server := res.Header.Get("Server")
+	bucket := responseStatusBucket(res.StatusCode)
+	status := strconv.Itoa(res.StatusCode)
+	transferEncoding := transferEncoding(res.TransferEncoding)
+
+	m.http.res.msg.count = 1
+	m.http.res.msg.headerSize = len(res.Header)
+	m.http.res.msg.headerBytes = responseHeaderLength(res)
+	m.http.res.msg.bodyBytes = bodyLen
+	m.http.res.rtt = rtt
+
+	m.http.res.operation = op
+	m.http.res.msgtype = "response"
+
+	m.http.res.contentCharset = charset
+	m.http.res.contentEncoding = contentEncoding
+	m.http.res.contentType = contentType
+	m.http.res.protocol = res.Proto
+	m.http.res.server = server
+	m.http.res.statusBucket = bucket
+	m.http.res.status = status
+	m.http.res.transferEncoding = transferEncoding
+	m.http.res.upgrade = upgrade
 }
 
-func (m metrics) observeHeaderSize(size int, tags ...stats.Tag) {
-	m.eng.Observe("http.message.header.size", float64(size), tags...)
-}
-
-func (m metrics) observeHeaderLength(len int, tags ...stats.Tag) {
-	m.eng.Observe("http.message.header.bytes", float64(len), tags...)
-}
-
-func (m metrics) observeBodyLength(len int, tags ...stats.Tag) {
-	m.eng.Observe("http.message.body.bytes", float64(len), tags...)
-}
-
-func (m metrics) observeRTT(rtt time.Duration, tags ...stats.Tag) {
-	m.eng.Observe("http.rtt.seconds", rtt.Seconds(), tags...)
-}
-
-func (m metrics) observeRequest(req *http.Request, op string, bodyLen int) {
-	var a [10]stats.Tag
-	var t = a[:0]
-
-	t = append(t, stats.Tag{"type", "request"})
-	t = append(t, stats.Tag{"operation", op})
-	t = appendRequestTags(t, req)
-
-	m.incrMessageCount(t...)
-	m.observeHeaderSize(len(req.Header), t...)
-	m.observeHeaderLength(requestHeaderLength(req), t...)
-	m.observeBodyLength(bodyLen, t...)
-}
-
-func (m metrics) observeResponse(res *http.Response, op string, bodyLen int, rtt time.Duration) {
-	var a [20]stats.Tag
-	var t = a[:0]
-
-	t = append(t, stats.Tag{"type", "response"})
-	t = append(t, stats.Tag{"operation", op})
-	t = appendResponseTags(t, res)
-
-	if req := res.Request; req != nil {
-		t = appendRequestTags(t, req)
-	}
-
-	m.incrMessageCount(t...)
-	m.observeHeaderSize(len(res.Header), t...)
-	m.observeHeaderLength(responseHeaderLength(res), t...)
-	m.observeBodyLength(bodyLen, t...)
-	m.observeRTT(rtt, t...)
-}
-
-func (m metrics) observeError(req *http.Request, op string) {
-	var a [10]stats.Tag
-	var t = a[:0]
-
-	t = append(t, stats.Tag{"type", "request"})
-	t = append(t, stats.Tag{"operation", op})
-	t = appendRequestTags(t, req)
-
-	m.incrErrorCount(t...)
-}
-
-func appendRequestTags(tags []stats.Tag, req *http.Request) []stats.Tag {
-	ctype, charset := contentType(req.Header)
-	return append(tags,
-		stats.Tag{"http_req_content_charset", charset},
-		stats.Tag{"http_req_content_encoding", contentEncoding(req.Header)},
-		stats.Tag{"http_req_content_type", ctype},
-		stats.Tag{"http_req_host", requestHost(req)},
-		stats.Tag{"http_req_method", req.Method},
-		stats.Tag{"http_req_path", req.URL.Path},
-		stats.Tag{"http_req_protocol", req.Proto},
-		stats.Tag{"http_req_transfer_encoding", transferEncoding(req.TransferEncoding)},
-	)
-}
-
-func appendResponseTags(tags []stats.Tag, res *http.Response) []stats.Tag {
-	ctype, charset := contentType(res.Header)
-	return append(tags,
-		stats.Tag{"http_res_content_charset", charset},
-		stats.Tag{"http_res_content_encoding", contentEncoding(res.Header)},
-		stats.Tag{"http_res_content_type", ctype},
-		stats.Tag{"http_res_protocol", res.Proto},
-		stats.Tag{"http_res_server", res.Header.Get("Server")},
-		stats.Tag{"http_res_status_bucket", responseStatusBucket(res.StatusCode)},
-		stats.Tag{"http_res_status", strconv.Itoa(res.StatusCode)},
-		stats.Tag{"http_res_transfer_encoding", transferEncoding(res.TransferEncoding)},
-		stats.Tag{"http_res_upgrade", res.Header.Get("Upgrade")},
-	)
+func (m *metrics) observeError(rtt time.Duration) {
+	m.http.err.count = 1
+	m.http.res.rtt = rtt
 }
 
 func requestHeaderLength(req *http.Request) int {

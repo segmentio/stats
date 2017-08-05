@@ -11,7 +11,7 @@ import (
 )
 
 func TestServer(t *testing.T) {
-	engine := stats.NewEngine("datadog.test")
+	engine := stats.NewEngine("datadog.test", nil)
 
 	a := uint32(0)
 	b := uint32(0)
@@ -38,20 +38,17 @@ func TestServer(t *testing.T) {
 	defer client.Close()
 	engine.Register(client)
 
-	ma := engine.Counter("A")
-	ma.Incr()
-	ma.Incr()
-	ma.Incr()
+	engine.Incr("A")
+	engine.Incr("A")
+	engine.Incr("A")
 
-	mb := engine.Gauge("B")
-	mb.Set(1)
-	mb.Set(2)
-	mb.Set(3)
+	engine.Set("B", 1)
+	engine.Set("B", 2)
+	engine.Set("B", 3)
 
-	mc := engine.Histogram("C")
-	mc.Observe(1)
-	mc.Observe(2)
-	mc.Observe(3)
+	engine.Observe("C", 1)
+	engine.Observe("C", 2)
+	engine.Observe("C", 3)
 
 	engine.Flush()
 

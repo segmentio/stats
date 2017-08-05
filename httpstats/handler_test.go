@@ -11,9 +11,8 @@ import (
 )
 
 func TestHandler(t *testing.T) {
-	h := &metricHandler{}
-	e := stats.NewEngine("")
-	e.Register(h)
+	h := &measureHandler{}
+	e := stats.NewEngine("", h)
 
 	server := httptest.NewServer(NewHandlerWith(e, http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		ioutil.ReadAll(req.Body)
@@ -30,27 +29,32 @@ func TestHandler(t *testing.T) {
 	ioutil.ReadAll(res.Body)
 	res.Body.Close()
 
-	if len(h.metrics) == 0 {
-		t.Error("no metrics reported by http handler")
+	measures := h.Measures()
+
+	if len(measures) == 0 {
+		t.Error("no measures reported by http handler")
 	}
 
-	for _, m := range h.metrics {
+	for _, m := range measures {
 		for _, tag := range m.Tags {
 			if tag.Name == "bucket" {
 				switch tag.Value {
 				case "2xx", "":
 				default:
-					t.Errorf("invalid bucket in metric event tags: %#v\n%#v", tag, m)
+					t.Errorf("invalid bucket in measure event tags: %#v\n%#v", tag, m)
 				}
 			}
 		}
 	}
+
+	for _, m := range measures {
+		t.Log(m)
+	}
 }
 
 func TestHandlerHijack(t *testing.T) {
-	h := &metricHandler{}
-	e := stats.NewEngine("")
-	e.Register(h)
+	h := &measureHandler{}
+	e := stats.NewEngine("", h)
 
 	server := httptest.NewServer(NewHandlerWith(e, http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		// make sure the response writer supports hijacking
@@ -63,7 +67,13 @@ func TestHandlerHijack(t *testing.T) {
 		t.Error("no error was reported by the http client")
 	}
 
-	if len(h.Metrics()) == 0 {
-		t.Error("no metrics reported by hijacked http handler")
+	measures := h.Measures()
+
+	if len(measures) == 0 {
+		t.Error("no measures reported by hijacked http handler")
+	}
+
+	for _, m := range measures {
+		t.Log(m)
 	}
 }

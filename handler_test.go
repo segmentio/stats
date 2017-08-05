@@ -1,77 +1,80 @@
-package stats
+package stats_test
 
 import (
-	"reflect"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/segmentio/stats"
 )
 
-type handler struct {
-	metrics []Metric
-	flushed int
+type testHandler struct {
+	mutex    sync.Mutex
+	measures []stats.Measure
+	flush    int32
 }
 
-func (h *handler) HandleMetric(m *Metric) {
-	c := *m
-	c.Tags = copyTags(c.Tags)
-	c.Time = time.Time{} // discard because it's unpredicatable
-	h.metrics = append(h.metrics, c)
-}
-
-func (h *handler) Flush() {
-	h.flushed++
-}
-
-func TestHandlerFunc(t *testing.T) {
-	metrics := []Metric{
-		{
-			Type:  CounterType,
-			Name:  "A",
-			Value: 1,
-		},
-		{
-			Type:  GaugeType,
-			Name:  "B",
-			Value: 2,
-		},
-		{
-			Type:  HistogramType,
-			Name:  "C",
-			Value: 3,
-		},
+func (h *testHandler) HandleMeasures(time time.Time, measures ...stats.Measure) {
+	h.mutex.Lock()
+	for _, m := range measures {
+		h.measures = append(h.measures, m.Clone())
 	}
+	h.mutex.Unlock()
+}
 
-	r := []Metric{}
-	f := HandlerFunc(func(m *Metric) {
-		r = append(r, *m)
+func (h *testHandler) Measures() []stats.Measure {
+	h.mutex.Lock()
+	measures := make([]stats.Measure, len(h.measures))
+	copy(measures, h.measures)
+	h.mutex.Unlock()
+	return measures
+}
+
+func (h *testHandler) Flush() {
+	atomic.AddInt32(&h.flush, 1)
+}
+
+func (h *testHandler) FlushCalls() int {
+	return int(atomic.LoadInt32(&h.flush))
+}
+
+func TestMultiHandler(t *testing.T) {
+	t.Run("calling HandleMeasures on a multi-handler dispatches to each handler", func(t *testing.T) {
+		n := 0
+		f := stats.HandlerFunc(func(time time.Time, measures ...stats.Measure) { n++ })
+		m := stats.MultiHandler(f, f, f)
+
+		m.HandleMeasures(time.Now())
+
+		if n != 3 {
+			t.Error("bad number of calls to HandleMeasures:", n)
+		}
 	})
 
-	for i := range metrics {
-		f.HandleMetric(&metrics[i])
-	}
+	t.Run("calling Flush on a multi-handler flushes each handler", func(t *testing.T) {
+		h1 := &testHandler{}
+		h2 := &testHandler{}
 
-	if !reflect.DeepEqual(r, metrics) {
-		t.Error("bad metrics reported:", r)
-	}
+		m := stats.MultiHandler(h1, h2)
+		flush(m)
+		flush(m)
+
+		n1 := h1.FlushCalls()
+		n2 := h2.FlushCalls()
+
+		if n1 != 2 {
+			t.Error("bad number of calls to Flush:", n1)
+		}
+
+		if n2 != 2 {
+			t.Error("bad number of calls to Flush:", n2)
+		}
+	})
 }
 
-func TestHandlerStripTags(t *testing.T) {
-	metrics := []*Metric{}
-	handler := StripTags(HandlerFunc(func(m *Metric) { metrics = append(metrics, m) }), "tag1", "tag2")
-
-	handler.HandleMetric(&Metric{Name: "A", Value: 1, Tags: []Tag{{"tag1", "1"}, {"id", "123"}}})
-	handler.HandleMetric(&Metric{Name: "B", Value: 2, Tags: []Tag{{"tag1", "2"}}})
-	handler.HandleMetric(&Metric{Name: "C", Value: 3, Tags: []Tag{{"tag1", "1"}, {"tag2", "2"}}})
-
-	if !reflect.DeepEqual(metrics, []*Metric{
-		&Metric{Name: "A", Value: 1, Tags: []Tag{{"id", "123"}}},
-		&Metric{Name: "B", Value: 2, Tags: []Tag{}},
-		&Metric{Name: "C", Value: 3, Tags: []Tag{}},
-	}) {
-		t.Error("bad metrics:")
-
-		for _, m := range metrics {
-			t.Logf("%#v", m)
-		}
+func flush(h stats.Handler) {
+	if f, ok := h.(stats.Flusher); ok {
+		f.Flush()
 	}
 }

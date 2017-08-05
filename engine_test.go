@@ -1,274 +1,479 @@
-package stats
+package stats_test
 
 import (
+	"io/ioutil"
+	"net/http"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/segmentio/stats"
+	"github.com/segmentio/stats/datadog"
+	"github.com/segmentio/stats/influxdb"
+	"github.com/segmentio/stats/prometheus"
 )
 
-func TestEngineRegister(t *testing.T) {
-	h1 := &handler{}
-	h2 := &handler{}
-	h3 := &handler{}
-
-	eng := NewEngine("E")
-	eng.Register(h1)
-	eng.Register(h2)
-	eng.Register(h3)
-
-	if name := eng.Name(); name != "E" {
-		t.Error("bad engine name:", name)
+func TestEngine(t *testing.T) {
+	tests := []struct {
+		scenario string
+		function func(*testing.T, *stats.Engine)
+	}{
+		{
+			scenario: "calling Engine.WithPrefix returns a copy of the engine with the prefix and tags inherited from the original",
+			function: testEngineWithPrefix,
+		},
+		{
+			scenario: "calling Engine.WithTags returns a copy of the engine with the prefix and tags inherited from the original",
+			function: testEngineWithPrefix,
+		},
+		{
+			scenario: "calling Engine.Flush calls Flush the handler's Flush method",
+			function: testEngineFlush,
+		},
+		{
+			scenario: "calling Engine.Incr produces a counter increment of one",
+			function: testEngineIncr,
+		},
+		{
+			scenario: "calling Engine.Add produces a counter increment of the expected amount",
+			function: testEngineAdd,
+		},
+		{
+			scenario: "calling Engine.Set produces the expected gauge value",
+			function: testEngineSet,
+		},
+		{
+			scenario: "calling Engine.Observe produces the expected histogram value",
+			function: testEngineObserve,
+		},
+		{
+			scenario: "calling Engine.Report produces the expected measures",
+			function: testEngineReport,
+		},
+		{
+			scenario: "calling Engine.Report with an array of metrics produces the expected measures",
+			function: testEngineReportArray,
+		},
+		{
+			scenario: "calling Engine.Report with a slice of metrics produces the expected measures",
+			function: testEngineReportSlice,
+		},
 	}
 
-	if tags := eng.Tags(); len(tags) != 0 {
-		t.Error("bad engine tags:", tags)
-	}
-
-	if handlers := eng.Handlers(); !reflect.DeepEqual(handlers, []Handler{h1, h2, h3}) {
-		t.Error("bad handlers:", handlers)
+	for _, test := range tests {
+		testFunc := test.function
+		t.Run(test.scenario, func(t *testing.T) {
+			t.Parallel()
+			h := &testHandler{}
+			testFunc(t, stats.NewEngine("test", h, stats.Tag{"service", "test-service"}))
+		})
 	}
 }
 
-func TestEngineWithTags(t *testing.T) {
-	h1 := &handler{}
-	h2 := &handler{}
-	h3 := &handler{}
+func testEngineWithPrefix(t *testing.T, eng *stats.Engine) {
+	e2 := eng.WithPrefix("subtest", stats.Tag{"command", "hello world"})
 
-	eng1 := NewEngine("E")
-	eng1.Register(h1)
-	eng1.Register(h2)
+	if e2.Prefix != "test.subtest" {
+		t.Error("bad prefix:", e2.Prefix)
+	}
 
-	eng2 := eng1.WithTags(
-		Tag{"A", "1"},
-		Tag{"B", "2"},
-		Tag{"C", "3"},
+	if !reflect.DeepEqual(e2.Tags, []stats.Tag{
+		{"command", "hello world"},
+		{"service", "test-service"},
+	}) {
+		t.Error("bad tags:", e2.Tags)
+	}
+}
+
+func testEngineWithTags(t *testing.T, eng *stats.Engine) {
+	e2 := eng.WithTags(
+		stats.Tag{"command", "hello world"},
+		stats.Tag{"system", "testing"},
 	)
-	eng2.Register(h3)
 
-	if name := eng2.Name(); name != "E" {
-		t.Error("bad engine name:", name)
+	if e2.Prefix != "test" {
+		t.Error("bad prefix:", e2.Prefix)
 	}
 
-	if tags := eng2.Tags(); !reflect.DeepEqual(tags, []Tag{{"A", "1"}, {"B", "2"}, {"C", "3"}}) {
-		t.Error("bad engine tags:", tags)
-	}
-
-	if handlers := eng2.Handlers(); !reflect.DeepEqual(handlers, []Handler{h1, h2, h3}) {
-		t.Error("bad handlers:", handlers)
+	if !reflect.DeepEqual(e2.Tags, []stats.Tag{
+		{"command", "hello world"},
+		{"service", "test-service"},
+		{"system", "testing"},
+	}) {
+		t.Error("bad tags:", e2.Tags)
 	}
 }
 
-func TestEngineFlush(t *testing.T) {
-	h1 := &handler{}
-	h2 := &handler{}
-	h3 := &handler{}
-
-	eng := NewEngine("E")
-	eng.Register(h1)
-	eng.Register(h2)
-	eng.Register(h3)
-
+func testEngineFlush(t *testing.T, eng *stats.Engine) {
+	eng.Flush()
+	eng.Flush()
 	eng.Flush()
 
-	for i, h := range []*handler{h1, h2, h3} {
-		if h.flushed != 1 {
-			t.Error("handler at index", i, "was not flushed")
-		}
+	h := eng.Handler.(*testHandler)
+
+	if n := h.FlushCalls(); n != 3 {
+		t.Error("bad number of flush calls:", n)
 	}
 }
 
-func TestEngineAdd(t *testing.T) {
-	h := &handler{}
-	e := NewEngine("E", Tag{"base", "tag"})
-	e.Register(h)
+func testEngineIncr(t *testing.T, eng *stats.Engine) {
+	eng.Incr("measure.count")
+	eng.Incr("measure.count", stats.Tag{"type", "testing"})
 
-	e.Incr("A")
-	e.Add("B", 2)
-	e.Add("C", 3, Tag{"extra", "tag"})
+	checkMeasuresEqual(t, eng,
+		stats.Measure{
+			Name:   "test.measure.count",
+			Fields: []stats.Field{stats.MakeField("", 1, stats.Counter)},
+			Tags:   []stats.Tag{{"service", "test-service"}},
+		},
+		stats.Measure{
+			Name:   "test.measure.count",
+			Fields: []stats.Field{stats.MakeField("", 1, stats.Counter)},
+			Tags:   []stats.Tag{{"service", "test-service"}, {"type", "testing"}},
+		},
+	)
+}
 
-	if !reflect.DeepEqual(h.metrics, []Metric{
-		{
-			Type:      CounterType,
-			Namespace: "E",
-			Name:      "A",
-			Value:     1,
-			Tags:      []Tag{{"base", "tag"}},
+func testEngineAdd(t *testing.T, eng *stats.Engine) {
+	eng.Add("measure.count", 42)
+	eng.Add("measure.count", 10, stats.Tag{"type", "testing"})
+
+	checkMeasuresEqual(t, eng,
+		stats.Measure{
+			Name:   "test.measure.count",
+			Fields: []stats.Field{stats.MakeField("", 42, stats.Counter)},
+			Tags:   []stats.Tag{{"service", "test-service"}},
 		},
-		{
-			Type:      CounterType,
-			Namespace: "E",
-			Name:      "B",
-			Value:     2,
-			Tags:      []Tag{{"base", "tag"}},
+		stats.Measure{
+			Name:   "test.measure.count",
+			Fields: []stats.Field{stats.MakeField("", 10, stats.Counter)},
+			Tags:   []stats.Tag{{"service", "test-service"}, {"type", "testing"}},
 		},
-		{
-			Type:      CounterType,
-			Namespace: "E",
-			Name:      "C",
-			Value:     3,
-			Tags:      []Tag{{"base", "tag"}, {"extra", "tag"}},
+	)
+}
+
+func testEngineSet(t *testing.T, eng *stats.Engine) {
+	eng.Set("measure.level", 42)
+	eng.Set("measure.level", 10, stats.Tag{"type", "testing"})
+
+	checkMeasuresEqual(t, eng,
+		stats.Measure{
+			Name:   "test.measure.level",
+			Fields: []stats.Field{stats.MakeField("", 42, stats.Gauge)},
+			Tags:   []stats.Tag{{"service", "test-service"}},
 		},
-	}) {
-		t.Error("bad metrics:", h.metrics)
+		stats.Measure{
+			Name:   "test.measure.level",
+			Fields: []stats.Field{stats.MakeField("", 10, stats.Gauge)},
+			Tags:   []stats.Tag{{"service", "test-service"}, {"type", "testing"}},
+		},
+	)
+}
+
+func testEngineObserve(t *testing.T, eng *stats.Engine) {
+	eng.Observe("measure.size", 42)
+	eng.Observe("measure.size", 10, stats.Tag{"type", "testing"})
+
+	checkMeasuresEqual(t, eng,
+		stats.Measure{
+			Name:   "test.measure.size",
+			Fields: []stats.Field{stats.MakeField("", 42, stats.Histogram)},
+			Tags:   []stats.Tag{{"service", "test-service"}},
+		},
+		stats.Measure{
+			Name:   "test.measure.size",
+			Fields: []stats.Field{stats.MakeField("", 10, stats.Histogram)},
+			Tags:   []stats.Tag{{"service", "test-service"}, {"type", "testing"}},
+		},
+	)
+}
+
+func testEngineReport(t *testing.T, eng *stats.Engine) {
+	m := struct {
+		Count int `metric:"count" type:"counter"`
+	}{42}
+
+	eng.Report(m)
+	eng.Report(m, stats.Tag{"type", "testing"})
+
+	checkMeasuresEqual(t, eng,
+		stats.Measure{
+			Name:   "test",
+			Fields: []stats.Field{stats.MakeField("count", 42, stats.Counter)},
+			Tags:   []stats.Tag{{"service", "test-service"}},
+		},
+		stats.Measure{
+			Name:   "test",
+			Fields: []stats.Field{stats.MakeField("count", 42, stats.Counter)},
+			Tags:   []stats.Tag{{"service", "test-service"}, {"type", "testing"}},
+		},
+	)
+}
+
+func testEngineReportArray(t *testing.T, eng *stats.Engine) {
+	m := [2]struct {
+		Count int `metric:"count" type:"counter"`
+	}{}
+	m[0].Count = 1
+	m[1].Count = 2
+
+	eng.Report(m, stats.Tag{"type", "testing"})
+
+	checkMeasuresEqual(t, eng,
+		stats.Measure{
+			Name:   "test",
+			Fields: []stats.Field{stats.MakeField("count", 1, stats.Counter)},
+			Tags:   []stats.Tag{{"service", "test-service"}, {"type", "testing"}},
+		},
+		stats.Measure{
+			Name:   "test",
+			Fields: []stats.Field{stats.MakeField("count", 2, stats.Counter)},
+			Tags:   []stats.Tag{{"service", "test-service"}, {"type", "testing"}},
+		},
+	)
+}
+
+func testEngineReportSlice(t *testing.T, eng *stats.Engine) {
+	m := []struct {
+		Count int `metric:"count" type:"counter"`
+	}{{}, {}}
+	m[0].Count = 1
+	m[1].Count = 2
+
+	eng.Report(m, stats.Tag{"type", "testing"})
+
+	checkMeasuresEqual(t, eng,
+		stats.Measure{
+			Name:   "test",
+			Fields: []stats.Field{stats.MakeField("count", 1, stats.Counter)},
+			Tags:   []stats.Tag{{"service", "test-service"}, {"type", "testing"}},
+		},
+		stats.Measure{
+			Name:   "test",
+			Fields: []stats.Field{stats.MakeField("count", 2, stats.Counter)},
+			Tags:   []stats.Tag{{"service", "test-service"}, {"type", "testing"}},
+		},
+	)
+}
+
+func checkMeasuresEqual(t *testing.T, eng *stats.Engine, expected ...stats.Measure) {
+	found := eng.Handler.(*testHandler).Measures()
+	if !reflect.DeepEqual(found, expected) {
+		t.Error("bad measures:")
+		t.Logf("expected: %#v", expected)
+		t.Logf("found:    %#v", found)
 	}
 }
 
-func TestEngineSet(t *testing.T) {
-	h := &handler{}
-	e := NewEngine("E", Tag{"base", "tag"})
-	e.Register(h)
+func BenchmarkEngine(b *testing.B) {
+	engines := []struct {
+		name  string
+		value stats.Engine
+	}{
+		{
+			name:  "discard",
+			value: stats.Engine{Handler: stats.Discard},
+		},
+		{
+			name: "datadog",
+			value: stats.Engine{Handler: datadog.NewClientWith(datadog.ClientConfig{
+				BufferSize: datadog.MaxBufferSize,
+			})},
+		},
+		{
+			name: "influxdb",
+			value: stats.Engine{Handler: influxdb.NewClientWith(influxdb.ClientConfig{
+				Transport: &discardTransport{},
+			})},
+		},
+		{
+			name:  "prometheus",
+			value: stats.Engine{Handler: &prometheus.Handler{}},
+		},
+	}
 
-	e.Set("A", 1)
-	e.Set("B", 2)
-	e.Set("C", 3, Tag{"extra", "tag"})
+	for _, eng := range engines {
+		b.Run(eng.name, func(b *testing.B) {
+			tests := []struct {
+				scenario string
+				function func(*testing.PB, *stats.Engine)
+			}{
+				{
+					scenario: "Engine.Add.1x",
+					function: benchmarkEngineAdd1x,
+				},
+				{
+					scenario: "Engine.Set.1x",
+					function: benchmarkEngineSet1x,
+				},
+				{
+					scenario: "Engine.Observe.1x",
+					function: benchmarkEngineObserve1x,
+				},
+				{
+					scenario: "Engine.Add.10x",
+					function: benchmarkEngineAdd10x,
+				},
+				{
+					scenario: "Engine.Set.10x",
+					function: benchmarkEngineSet10x,
+				},
+				{
+					scenario: "Engine.Observe.10x",
+					function: benchmarkEngineObserve10x,
+				},
+				{
+					scenario: "Engine.ReportAt(struct)",
+					function: benchmarkEngineReportAtStruct,
+				},
+				{
+					scenario: "Engine.ReportAt(struct:large)",
+					function: benchmarkEngineReportAtStructLarge,
+				},
+				{
+					scenario: "Engine.ReportAt(array)",
+					function: benchmarkEngineReportAtArray,
+				},
+				{
+					scenario: "Engine.ReportAt(slice)",
+					function: benchmarkEngineReportAtSlice,
+				},
+			}
 
-	if !reflect.DeepEqual(h.metrics, []Metric{
-		{
-			Type:      GaugeType,
-			Namespace: "E",
-			Name:      "A",
-			Value:     1,
-			Tags:      []Tag{{"base", "tag"}},
-		},
-		{
-			Type:      GaugeType,
-			Namespace: "E",
-			Name:      "B",
-			Value:     2,
-			Tags:      []Tag{{"base", "tag"}},
-		},
-		{
-			Type:      GaugeType,
-			Namespace: "E",
-			Name:      "C",
-			Value:     3,
-			Tags:      []Tag{{"base", "tag"}, {"extra", "tag"}},
-		},
-	}) {
-		t.Error("bad metrics:", h.metrics)
+			for _, test := range tests {
+				b.Run(test.scenario, func(b *testing.B) {
+					b.RunParallel(func(pb *testing.PB) { test.function(pb, &eng.value) })
+				})
+			}
+		})
 	}
 }
 
-func TestEngineObserve(t *testing.T) {
-	h := &handler{}
-	e := NewEngine("E", Tag{"base", "tag"})
-	e.Register(h)
-
-	e.Observe("A", 1)
-	e.Observe("B", 2)
-	e.Observe("C", 3, Tag{"extra", "tag"})
-
-	if !reflect.DeepEqual(h.metrics, []Metric{
-		{
-			Type:      HistogramType,
-			Namespace: "E",
-			Name:      "A",
-			Value:     1,
-			Tags:      []Tag{{"base", "tag"}},
-		},
-		{
-			Type:      HistogramType,
-			Namespace: "E",
-			Name:      "B",
-			Value:     2,
-			Tags:      []Tag{{"base", "tag"}},
-		},
-		{
-			Type:      HistogramType,
-			Namespace: "E",
-			Name:      "C",
-			Value:     3,
-			Tags:      []Tag{{"base", "tag"}, {"extra", "tag"}},
-		},
-	}) {
-		t.Error("bad metrics:", h.metrics)
+func benchmarkEngineAdd1x(pb *testing.PB, e *stats.Engine) {
+	for pb.Next() {
+		e.Add("calls", 1)
 	}
 }
 
-func TestEngineObserveDuration(t *testing.T) {
-	h := &handler{}
-	e := NewEngine("E", Tag{"base", "tag"})
-	e.Register(h)
-
-	e.ObserveDuration("A", 1*time.Second)
-	e.ObserveDuration("B", 2*time.Second)
-	e.ObserveDuration("C", 3*time.Second, Tag{"extra", "tag"})
-
-	if !reflect.DeepEqual(h.metrics, []Metric{
-		{
-			Type:      HistogramType,
-			Namespace: "E",
-			Name:      "A",
-			Value:     1,
-			Tags:      []Tag{{"base", "tag"}},
-		},
-		{
-			Type:      HistogramType,
-			Namespace: "E",
-			Name:      "B",
-			Value:     2,
-			Tags:      []Tag{{"base", "tag"}},
-		},
-		{
-			Type:      HistogramType,
-			Namespace: "E",
-			Name:      "C",
-			Value:     3,
-			Tags:      []Tag{{"base", "tag"}, {"extra", "tag"}},
-		},
-	}) {
-		t.Error("bad metrics:", h.metrics)
+func benchmarkEngineSet1x(pb *testing.PB, e *stats.Engine) {
+	for pb.Next() {
+		e.Set("calls", 1)
 	}
 }
 
-func TestEngineCounter(t *testing.T) {
-	e := NewEngine("E", Tag{"base", "tag"})
-	c := e.Counter("C", Tag{"extra", "tag"})
-
-	if name := c.Name(); name != "C" {
-		t.Error("bad counter name:", name)
-	}
-
-	if tags := c.Tags(); !reflect.DeepEqual(tags, []Tag{{"extra", "tag"}}) {
-		t.Error("bad counter tags:", tags)
+func benchmarkEngineObserve1x(pb *testing.PB, e *stats.Engine) {
+	for pb.Next() {
+		e.Observe("calls", 1)
 	}
 }
 
-func TestEngineGauge(t *testing.T) {
-	e := NewEngine("E", Tag{"base", "tag"})
-	g := e.Gauge("G", Tag{"extra", "tag"})
-
-	if name := g.Name(); name != "G" {
-		t.Error("bad gauge name:", name)
-	}
-
-	if tags := g.Tags(); !reflect.DeepEqual(tags, []Tag{{"extra", "tag"}}) {
-		t.Error("bad gauge tags:", tags)
-	}
-}
-
-func TestEngineHistogram(t *testing.T) {
-	e := NewEngine("E", Tag{"base", "tag"})
-	h := e.Histogram("H", Tag{"extra", "tag"})
-
-	if name := h.Name(); name != "H" {
-		t.Error("bad histogram name:", name)
-	}
-
-	if tags := h.Tags(); !reflect.DeepEqual(tags, []Tag{{"extra", "tag"}}) {
-		t.Error("bad histogram tags:", tags)
+func benchmarkEngineAdd10x(pb *testing.PB, e *stats.Engine) {
+	for pb.Next() {
+		e.Add("calls", 1)
+		e.Add("calls", 1)
+		e.Add("calls", 1)
+		e.Add("calls", 1)
+		e.Add("calls", 1)
+		e.Add("calls", 1)
+		e.Add("calls", 1)
+		e.Add("calls", 1)
+		e.Add("calls", 1)
+		e.Add("calls", 1)
 	}
 }
 
-func TestEngineTimer(t *testing.T) {
-	e := NewEngine("E", Tag{"base", "tag"})
-	h := e.Timer("H", Tag{"extra", "tag"})
-
-	if name := h.Name(); name != "H" {
-		t.Error("bad timer name:", name)
+func benchmarkEngineSet10x(pb *testing.PB, e *stats.Engine) {
+	for pb.Next() {
+		e.Set("calls", 1)
+		e.Set("calls", 1)
+		e.Set("calls", 1)
+		e.Set("calls", 1)
+		e.Set("calls", 1)
+		e.Set("calls", 1)
+		e.Set("calls", 1)
+		e.Set("calls", 1)
+		e.Set("calls", 1)
+		e.Set("calls", 1)
 	}
+}
 
-	if tags := h.Tags(); !reflect.DeepEqual(tags, []Tag{{"extra", "tag"}}) {
-		t.Error("bad timer tags:", tags)
+func benchmarkEngineObserve10x(pb *testing.PB, e *stats.Engine) {
+	for pb.Next() {
+		e.Observe("calls", 1)
+		e.Observe("calls", 1)
+		e.Observe("calls", 1)
+		e.Observe("calls", 1)
+		e.Observe("calls", 1)
+		e.Observe("calls", 1)
+		e.Observe("calls", 1)
+		e.Observe("calls", 1)
+		e.Observe("calls", 1)
+		e.Observe("calls", 1)
 	}
+}
+
+func benchmarkEngineReportAtStruct(pb *testing.PB, e *stats.Engine) {
+	t := time.Now()
+	m := struct {
+		Calls int `metric:"calls" type:"counter"`
+	}{1}
+
+	for pb.Next() {
+		e.ReportAt(t, &m)
+	}
+}
+
+func benchmarkEngineReportAtStructLarge(pb *testing.PB, e *stats.Engine) {
+	t := time.Now()
+	m := struct {
+		Calls0 int `metric:"calls" type:"counter"`
+		Calls1 int `metric:"calls" type:"counter"`
+		Calls2 int `metric:"calls" type:"counter"`
+		Calls3 int `metric:"calls" type:"counter"`
+		Calls4 int `metric:"calls" type:"counter"`
+		Calls5 int `metric:"calls" type:"counter"`
+		Calls6 int `metric:"calls" type:"counter"`
+		Calls7 int `metric:"calls" type:"counter"`
+		Calls8 int `metric:"calls" type:"counter"`
+		Calls9 int `metric:"calls" type:"counter"`
+	}{}
+
+	for pb.Next() {
+		e.ReportAt(t, &m)
+	}
+}
+
+func benchmarkEngineReportAtArray(pb *testing.PB, e *stats.Engine) {
+	t := time.Now()
+	m := [1]struct {
+		Calls int `metric:"calls" type:"counter"`
+	}{}
+	m[0].Calls = 1
+
+	for pb.Next() {
+		e.ReportAt(t, &m)
+	}
+}
+
+func benchmarkEngineReportAtSlice(pb *testing.PB, e *stats.Engine) {
+	t := time.Now()
+	m := []struct {
+		Calls int `metric:"calls" type:"counter"`
+	}{{}}
+	m[0].Calls = 1
+
+	for pb.Next() {
+		e.ReportAt(t, &m)
+	}
+}
+
+type discardTransport struct{}
+
+func (t *discardTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       ioutil.NopCloser(strings.NewReader("")),
+		Request:    req,
+	}, nil
 }

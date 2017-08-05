@@ -1,37 +1,63 @@
 package datadog
 
 import (
-	"net"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/segmentio/stats"
 )
 
+func TestClient(t *testing.T) {
+	client := NewClient(DefaultAddress)
+
+	for i := 0; i != 1000; i++ {
+		client.HandleMeasures(time.Time{}, stats.Measure{
+			Name: "request",
+			Fields: []stats.Field{
+				{Name: "count", Value: stats.ValueOf(5)},
+				{Name: "rtt", Value: stats.ValueOf(100 * time.Millisecond)},
+			},
+			Tags: []stats.Tag{
+				{"answer", "42"},
+				{"hello", "world"},
+			},
+		})
+	}
+
+	if err := client.Close(); err != nil {
+		t.Error(err)
+	}
+}
+
 func BenchmarkClient(b *testing.B) {
-	addr, closer := startTestServer(nil, HandlerFunc(func(m Metric, a net.Addr) {}))
-	defer closer.Close()
+	for _, N := range []int{1, 10, 100} {
+		b.Run(fmt.Sprintf("write a batch of %d measures to a client", N), func(b *testing.B) {
+			client := NewClientWith(ClientConfig{
+				Address:    DefaultAddress,
+				BufferSize: MaxBufferSize,
+			})
 
-	engine := stats.NewEngine("datadog.test")
-	engine.Register(NewClient(addr))
+			measures := make([]stats.Measure, N)
 
-	b.Run("Add", func(b *testing.B) {
-		for i := 0; i != b.N; i++ {
-			engine.Add("A", float64(i))
-		}
-		engine.Flush()
-	})
+			for i := range measures {
+				measures[i] = stats.Measure{
+					Name: "benchmark.test.metric",
+					Fields: []stats.Field{
+						{Name: "value", Value: stats.ValueOf(42)},
+					},
+					Tags: []stats.Tag{
+						{"answer", "42"},
+						{"hello", "world"},
+					},
+				}
+			}
 
-	b.Run("Set", func(b *testing.B) {
-		for i := 0; i != b.N; i++ {
-			engine.Set("B", float64(i))
-		}
-		engine.Flush()
-	})
-
-	b.Run("Observe", func(b *testing.B) {
-		for i := 0; i != b.N; i++ {
-			engine.Observe("C", float64(i))
-		}
-		engine.Flush()
-	})
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
+					client.HandleMeasures(time.Time{}, measures...)
+				}
+			})
+		})
+	}
 }
