@@ -7,20 +7,21 @@ import (
 	"time"
 
 	"github.com/segmentio/stats"
+	"github.com/segmentio/stats/statstest"
 )
 
 func TestGoMetrics(t *testing.T) {
-	h := &handler{}
+	h := &statstest.Handler{}
 	e := stats.NewEngine("", h)
 
 	gostats := NewGoMetricsWith(e)
 	gostats.Collect()
 
-	if len(h.measures) == 0 {
+	if len(h.Measures()) == 0 {
 		t.Error("no measures were reported by the stats collector")
 	}
 
-	for _, m := range h.measures {
+	for _, m := range h.Measures() {
 		t.Log(m)
 	}
 }

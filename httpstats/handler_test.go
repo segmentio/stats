@@ -8,10 +8,11 @@ import (
 	"testing"
 
 	"github.com/segmentio/stats"
+	"github.com/segmentio/stats/statstest"
 )
 
 func TestHandler(t *testing.T) {
-	h := &measureHandler{}
+	h := &statstest.Handler{}
 	e := stats.NewEngine("", h)
 
 	server := httptest.NewServer(NewHandlerWith(e, http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
@@ -53,7 +54,7 @@ func TestHandler(t *testing.T) {
 }
 
 func TestHandlerHijack(t *testing.T) {
-	h := &measureHandler{}
+	h := &statstest.Handler{}
 	e := stats.NewEngine("", h)
 
 	server := httptest.NewServer(NewHandlerWith(e, http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {

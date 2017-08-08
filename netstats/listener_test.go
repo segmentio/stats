@@ -6,10 +6,11 @@ import (
 	"testing"
 
 	"github.com/segmentio/stats"
+	"github.com/segmentio/stats/statstest"
 )
 
 func TestListener(t *testing.T) {
-	h := &measureHandler{}
+	h := &statstest.Handler{}
 	e := stats.NewEngine("netstats.test", h)
 
 	lstn := NewListenerWith(e, testLstn{})
@@ -36,15 +37,15 @@ func TestListener(t *testing.T) {
 		},
 	}
 
-	if !reflect.DeepEqual(expected, h.measures) {
+	if !reflect.DeepEqual(expected, h.Measures()) {
 		t.Error("bad measures:")
 		t.Logf("expected: %v", expected)
-		t.Logf("found:    %v", h.measures)
+		t.Logf("found:    %v", h.Measures())
 	}
 }
 
 func TestListenerError(t *testing.T) {
-	h := &measureHandler{}
+	h := &statstest.Handler{}
 	e := stats.NewEngine("netstats.test", h)
 
 	lstn := NewListenerWith(e, testLstn{err: errTest})
@@ -65,10 +66,10 @@ func TestListenerError(t *testing.T) {
 		},
 	}
 
-	if !reflect.DeepEqual(expected, h.measures) {
+	if !reflect.DeepEqual(expected, h.Measures()) {
 		t.Error("bad measures:")
 		t.Logf("expected: %v", expected)
-		t.Logf("found:    %v", h.measures)
+		t.Logf("found:    %v", h.Measures())
 	}
 }
 

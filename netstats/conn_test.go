@@ -10,17 +10,8 @@ import (
 	"time"
 
 	"github.com/segmentio/stats"
+	"github.com/segmentio/stats/statstest"
 )
-
-type measureHandler struct {
-	measures []stats.Measure
-}
-
-func (h *measureHandler) HandleMeasures(t time.Time, ms ...stats.Measure) {
-	for _, m := range ms {
-		h.measures = append(h.measures, m.Clone())
-	}
-}
 
 func TestBaseConn(t *testing.T) {
 	c1 := &testConn{}
@@ -32,7 +23,7 @@ func TestBaseConn(t *testing.T) {
 }
 
 func TestConn(t *testing.T) {
-	h := &measureHandler{}
+	h := &statstest.Handler{}
 	e := stats.NewEngine("netstats.test", h)
 
 	c := &testConn{}
@@ -75,15 +66,15 @@ func TestConn(t *testing.T) {
 		},
 	}
 
-	if !reflect.DeepEqual(expected, h.measures) {
+	if !reflect.DeepEqual(expected, h.Measures()) {
 		t.Error("bad measures:")
 		t.Logf("expected: %v", expected)
-		t.Logf("found:    %v", h.measures)
+		t.Logf("found:    %v", h.Measures())
 	}
 }
 
 func TestConnError(t *testing.T) {
-	h := &measureHandler{}
+	h := &statstest.Handler{}
 	e := stats.NewEngine("netstats.test", h)
 
 	now := time.Now()
@@ -173,10 +164,10 @@ func TestConnError(t *testing.T) {
 		},
 	}
 
-	if !reflect.DeepEqual(expected, h.measures) {
+	if !reflect.DeepEqual(expected, h.Measures()) {
 		t.Error("bad measures:")
 		t.Logf("expected: %v", expected)
-		t.Logf("found:    %v", h.measures)
+		t.Logf("found:    %v", h.Measures())
 	}
 }
 

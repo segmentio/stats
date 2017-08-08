@@ -5,20 +5,11 @@ import (
 	"time"
 
 	"github.com/segmentio/stats"
+	"github.com/segmentio/stats/statstest"
 )
 
-type handler struct {
-	measures []stats.Measure
-}
-
-func (h *handler) HandleMeasures(time time.Time, measures ...stats.Measure) {
-	for _, m := range measures {
-		h.measures = append(h.measures, m.Clone())
-	}
-}
-
 func TestCollector(t *testing.T) {
-	h := &handler{}
+	h := &statstest.Handler{}
 	e := stats.NewEngine("", h)
 
 	c := StartCollectorWith(Config{
@@ -32,11 +23,11 @@ func TestCollector(t *testing.T) {
 	time.Sleep(time.Millisecond)
 	c.Close()
 
-	if len(h.measures) == 0 {
+	if len(h.Measures()) == 0 {
 		t.Error("no measures were reported by the stats collector")
 	}
 
-	for _, m := range h.measures {
+	for _, m := range h.Measures() {
 		t.Log(m)
 	}
 }

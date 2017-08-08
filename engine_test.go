@@ -12,6 +12,7 @@ import (
 	"github.com/segmentio/stats/datadog"
 	"github.com/segmentio/stats/influxdb"
 	"github.com/segmentio/stats/prometheus"
+	"github.com/segmentio/stats/statstest"
 )
 
 func TestEngine(t *testing.T) {
@@ -65,7 +66,7 @@ func TestEngine(t *testing.T) {
 		testFunc := test.function
 		t.Run(test.scenario, func(t *testing.T) {
 			t.Parallel()
-			h := &testHandler{}
+			h := &statstest.Handler{}
 			testFunc(t, stats.NewEngine("test", h, stats.Tag{"service", "test-service"}))
 		})
 	}
@@ -110,7 +111,7 @@ func testEngineFlush(t *testing.T, eng *stats.Engine) {
 	eng.Flush()
 	eng.Flush()
 
-	h := eng.Handler.(*testHandler)
+	h := eng.Handler.(*statstest.Handler)
 
 	if n := h.FlushCalls(); n != 3 {
 		t.Error("bad number of flush calls:", n)
@@ -258,7 +259,7 @@ func testEngineReportSlice(t *testing.T, eng *stats.Engine) {
 }
 
 func checkMeasuresEqual(t *testing.T, eng *stats.Engine, expected ...stats.Measure) {
-	found := eng.Handler.(*testHandler).Measures()
+	found := eng.Handler.(*statstest.Handler).Measures()
 	if !reflect.DeepEqual(found, expected) {
 		t.Error("bad measures:")
 		t.Logf("expected: %#v", expected)
