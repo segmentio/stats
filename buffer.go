@@ -20,7 +20,7 @@ type Buffer struct {
 	// Note that if the buffer size is small, the program may generate metrics
 	// that don't fit into the configured buffer size. In that case the buffer
 	// will still pass the serialized byte slice to its Serializer to leave the
-	// decision of
+	// decision of accepting or rejecting the metrics.
 	BufferSize int
 
 	// The Serializer used to write the measures.
