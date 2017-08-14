@@ -16,6 +16,11 @@ type Buffer struct {
 	//
 	// If left to zero, a size of 1024 bytes is used as default (this is low,
 	// you should set this value).
+	//
+	// Note that if the buffer size is small, the program may generate metrics
+	// that don't fit into the configured buffer size. In that case the buffer
+	// will still pass the serialized byte slice to its Serializer to leave the
+	// decision of
 	BufferSize int
 
 	// The Serializer used to write the measures.
@@ -41,6 +46,14 @@ func (h *Buffer) HandleMeasures(time time.Time, measures ...Measure) {
 	c := chunkPool.Get().(*chunk)
 	c.b = h.Serializer.AppendMeasures(c.b[:0], time, measures...)
 	l := int32(len(c.b))
+
+	// Chunks that are already larger than the maximum buffer size are directly
+	// passed to the serializer, no need to aggregate them in a larger buffer.
+	if int(l) >= size {
+		h.join.Add(1)
+		go h.writeChunk(c)
+		return
+	}
 
 	for {
 		b := h.loadBuffer()
@@ -117,6 +130,12 @@ func (h *Buffer) writeBuffer(b *buffer, n int) {
 	h.Serializer.Write(b.b[:n])
 	h.join.Done()
 	bufferPool.Put(b)
+}
+
+func (h *Buffer) writeChunk(c *chunk) {
+	h.Serializer.Write(c.b)
+	h.join.Done()
+	chunkPool.Put(c)
 }
 
 // The Serializer interface is used to abstract the logic of serializing

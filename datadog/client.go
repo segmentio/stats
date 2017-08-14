@@ -1,6 +1,7 @@
 package datadog
 
 import (
+	"bytes"
 	"io"
 	"log"
 	"net"
@@ -69,7 +70,7 @@ func NewClientWith(config ClientConfig) *Client {
 		log.Printf("stats/datadog: %s", err)
 	}
 
-	c.conn, c.err = conn, err
+	c.conn, c.err, c.bufferSize = conn, err, bufferSize
 	c.buffer.BufferSize = bufferSize
 	c.buffer.Serializer = &c.serializer
 	return c
@@ -85,6 +86,11 @@ func (c *Client) Flush() {
 	c.buffer.Flush()
 }
 
+// Write satisfies the io.Writer interface.
+func (c *Client) Write(b []byte) (int, error) {
+	return c.serializer.Write(b)
+}
+
 // Close flushes and closes the client, satisfies the io.Closer interface.
 func (c *Client) Close() error {
 	c.Flush()
@@ -93,7 +99,8 @@ func (c *Client) Close() error {
 }
 
 type serializer struct {
-	conn net.Conn
+	conn       net.Conn
+	bufferSize int
 }
 
 func (*serializer) AppendMeasures(b []byte, _ time.Time, measures ...stats.Measure) []byte {
@@ -104,10 +111,47 @@ func (*serializer) AppendMeasures(b []byte, _ time.Time, measures ...stats.Measu
 }
 
 func (s *serializer) Write(b []byte) (int, error) {
-	if s.conn != nil {
+	if s.conn == nil {
+		return 0, io.ErrClosedPipe
+	}
+
+	if len(b) <= s.bufferSize {
 		return s.conn.Write(b)
 	}
-	return 0, io.ErrClosedPipe
+
+	// When the serialized metrics are larger than the configured socket buffer
+	// size we split them on '\n' characters.
+	var n int
+
+	for len(b) != 0 {
+		var splitIndex int
+
+		for splitIndex != len(b) {
+			i := bytes.IndexByte(b[splitIndex:], '\n')
+			if i < 0 {
+				panic("stats/datadog: metrics are not formatted for the dogstatsd protocol")
+			}
+			if (i + splitIndex) >= s.bufferSize {
+				if splitIndex == 0 {
+					log.Printf("stats/datadog: metric of length %d B doesn't fit in the socket buffer of size %d B: %s", i+1, s.bufferSize, string(b))
+					b = b[i+1:]
+					continue
+				}
+				break
+			}
+			splitIndex += i + 1
+		}
+
+		c, err := s.conn.Write(b[:splitIndex])
+		if err != nil {
+			return n + c, err
+		}
+
+		n += c
+		b = b[splitIndex:]
+	}
+
+	return n, nil
 }
 
 func (s *serializer) close() {
