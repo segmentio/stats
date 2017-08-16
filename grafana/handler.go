@@ -76,7 +76,13 @@ func handlerFunc(f func(context.Context, *objconv.StreamEncoder, *objconv.Decode
 		)
 
 		// TODO: support different error types to return different error codes?
-		if err != nil {
+		switch err {
+		case nil:
+		case context.Canceled:
+			res.WriteHeader(http.StatusInternalServerError)
+		case context.DeadlineExceeded:
+			res.WriteHeader(http.StatusGatewayTimeout)
+		default:
 			res.WriteHeader(http.StatusInternalServerError)
 			log.Printf("grafana: %s %s: %s", req.Method, req.URL.Path, err)
 		}

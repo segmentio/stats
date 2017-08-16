@@ -24,7 +24,7 @@ func (f QueryHandlerFunc) ServeQuery(ctx context.Context, res QueryResponse, req
 	return f(ctx, res, req)
 }
 
-// QueryResponse is an interface used to write the response to a query request.
+// QueryResponse is an interface used to respond to a search request.
 type QueryResponse interface {
 	// Timeserie returns a TimeserieWriter which can be used to output the
 	// datapoint in response to a timeserie request.
@@ -35,7 +35,7 @@ type QueryResponse interface {
 	Table(columns ...Column) TableWriter
 }
 
-// QueryRequest represents
+// QueryRequest represents a request received on the /query endpoint.
 type QueryRequest struct {
 	From          time.Time
 	To            time.Time
@@ -72,7 +72,9 @@ type TableWriter interface {
 // Column is a data structure representing a table column.
 type Column struct {
 	Text string     `json:"text"`
-	Type ColumnType `json:"type"`
+	Type ColumnType `json:"type,omitempty"`
+	Sort bool       `json:"sort,omitempty"`
+	Desc bool       `json:"desc,omitempty"`
 }
 
 // Col constructs a new Column value from a text and column type.
@@ -80,14 +82,27 @@ func Col(text string, colType ColumnType) Column {
 	return Column{Text: text, Type: colType}
 }
 
+// AscCol constructs a ne Column value from a text a column type, which is
+// configured as a sorted column in ascending order.
+func AscCol(text string, colType ColumnType) Column {
+	return Column{Text: text, Type: colType, Sort: true}
+}
+
+// DescCol constructs a ne Column value from a text a column type, which is
+// configured as a sorted column in descending order.
+func DescCol(text string, colType ColumnType) Column {
+	return Column{Text: text, Type: colType, Sort: true, Desc: true}
+}
+
 // ColumnType is an enumeration of the various column types supported by
 // Grafana.
 type ColumnType string
 
 const (
-	String ColumnType = "string"
-	Time   ColumnType = "time"
-	Number ColumnType = "number"
+	Untyped ColumnType = ""
+	String  ColumnType = "string"
+	Time    ColumnType = "time"
+	Number  ColumnType = "number"
 )
 
 // NewQueryHandler returns a new http.Handler which delegates /query API calls
