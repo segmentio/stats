@@ -10,7 +10,7 @@ import (
 // AnnotationsHandler is the handler for the /annotations endpoint in the
 // simple-json-datasource API.
 type AnnotationsHandler interface {
-	ServeAnnotations(ctx context.Context)
+	ServeAnnotations(ctx context.Context) error
 }
 
 // NewAnnotationsHandler returns a new http.Handler which delegates /annotations API calls

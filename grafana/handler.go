@@ -2,6 +2,7 @@ package grafana
 
 import (
 	"context"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -58,15 +59,39 @@ func handlerFunc(f func(context.Context, *objconv.StreamEncoder, *objconv.Decode
 		h.Set("Content-Type", "application/json; charset=utf-8")
 		h.Set("Server", "stats/grafana (simple-json-datasource)")
 
+		switch req.Method {
+		case http.MethodPost:
+		case http.MethodOptions:
+			res.WriteHeader(http.StatusOK)
+			return
+		default:
+			res.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
 		err := f(
 			req.Context(),
-			json.NewStreamEncoder(res),
-			json.NewDecoder(req.Body),
+			newEncoder(res, req),
+			newDecoder(req.Body),
 		)
 
+		// TODO: support different error types to return different error codes?
 		if err != nil {
 			res.WriteHeader(http.StatusInternalServerError)
 			log.Printf("grafana: %s %s: %s", req.Method, req.URL.Path, err)
 		}
 	})
+}
+
+func newEncoder(res http.ResponseWriter, req *http.Request) *objconv.StreamEncoder {
+	q := req.URL.Query()
+	if _, ok := q["pretty"]; ok {
+		return json.NewPrettyStreamEncoder(res)
+	} else {
+		return json.NewStreamEncoder(res)
+	}
+}
+
+func newDecoder(r io.Reader) *objconv.Decoder {
+	return json.NewDecoder(r)
 }

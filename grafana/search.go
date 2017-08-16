@@ -10,7 +10,7 @@ import (
 // SearchHandler is the handler for the /search endpoint in the
 // simple-json-datasource API.
 type SearchHandler interface {
-	QuerySearch(ctx context.Context)
+	QuerySearch(ctx context.Context) error
 }
 
 // NewSearchHandler returns a new http.Handler which delegates /search API calls
