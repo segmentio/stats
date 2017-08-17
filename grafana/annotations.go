@@ -3,6 +3,7 @@ package grafana
 import (
 	"context"
 	"net/http"
+	"path"
 	"strings"
 	"time"
 
@@ -90,8 +91,8 @@ func NewAnnotationsHandler(handler AnnotationsHandler) http.Handler {
 }
 
 // HandleAnnotations installs a handler on /annotations.
-func HandleAnnotations(mux *http.ServeMux, handler AnnotationsHandler) {
-	mux.Handle("/annotations", NewAnnotationsHandler(handler))
+func HandleAnnotations(mux *http.ServeMux, prefix string, handler AnnotationsHandler) {
+	mux.Handle(path.Join("/", prefix, "annotations"), NewAnnotationsHandler(handler))
 }
 
 type annotationsRequest struct {

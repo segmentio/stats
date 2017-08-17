@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"path"
 	"time"
 
 	"github.com/segmentio/objconv"
@@ -137,8 +138,8 @@ func NewQueryHandler(handler QueryHandler) http.Handler {
 }
 
 // HandleQuery installs a handler on /query.
-func HandleQuery(mux *http.ServeMux, handler QueryHandler) {
-	mux.Handle("/query", NewQueryHandler(handler))
+func HandleQuery(mux *http.ServeMux, prefix string, handler QueryHandler) {
+	mux.Handle(path.Join("/", prefix, "query"), NewQueryHandler(handler))
 }
 
 type queryRange struct {

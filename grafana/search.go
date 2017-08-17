@@ -3,6 +3,7 @@ package grafana
 import (
 	"context"
 	"net/http"
+	"path"
 
 	"github.com/segmentio/objconv"
 )
@@ -67,8 +68,8 @@ func NewSearchHandler(handler SearchHandler) http.Handler {
 }
 
 // HandleSearch installs a handler on /search.
-func HandleSearch(mux *http.ServeMux, handler SearchHandler) {
-	mux.Handle("/search", NewSearchHandler(handler))
+func HandleSearch(mux *http.ServeMux, prefix string, handler SearchHandler) {
+	mux.Handle(path.Join("/", prefix, "search"), NewSearchHandler(handler))
 }
 
 type searchRequest struct {

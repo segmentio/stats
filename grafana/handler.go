@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"path"
 
 	"github.com/segmentio/objconv"
 	"github.com/segmentio/objconv/json"
@@ -24,27 +25,29 @@ type Handler interface {
 
 // NewHandler returns a new http.Handler that implements the
 // simple-json-datasource API.
-func NewHandler(handler Handler) http.Handler {
+func NewHandler(prefix string, handler Handler) http.Handler {
 	mux := http.NewServeMux()
-	Handle(mux, handler)
+	Handle(mux, prefix, handler)
 	return mux
 }
 
 // Handle installs a handler implementing the simple-json-datasource API on mux.
 //
 // The function adds three routes to mux, for /annotations, /query, and /search.
-func Handle(mux *http.ServeMux, handler Handler) {
-	HandleAnnotations(mux, handler)
-	HandleQuery(mux, handler)
-	HandleSearch(mux, handler)
+func Handle(mux *http.ServeMux, prefix string, handler Handler) {
+	HandleAnnotations(mux, prefix, handler)
+	HandleQuery(mux, prefix, handler)
+	HandleSearch(mux, prefix, handler)
 
 	// Registering a global handler is a common thing that applications do, to
 	// avoid overriding one that may already exist we first check that none were
 	// previously registered.
+	root := path.Join("/", prefix)
+
 	if _, pattern := mux.Handler(&http.Request{
-		URL: &url.URL{Path: "/"},
+		URL: &url.URL{Path: root},
 	}); len(pattern) == 0 {
-		mux.HandleFunc("/", func(res http.ResponseWriter, req *http.Request) {
+		mux.HandleFunc(root, func(res http.ResponseWriter, req *http.Request) {
 			setResponseHeaders(res)
 		})
 	}
