@@ -217,7 +217,7 @@ func (d datapoint) EncodeValue(e objconv.Encoder) error {
 type timeserie struct {
 	Target     string      `json:"target"`
 	Datapoints []datapoint `json:"datapoints"`
-	closed     bool        `json:"-"`
+	closed     bool
 }
 
 func (t *timeserie) WriteDatapoint(value float64, time time.Time) {
@@ -237,7 +237,7 @@ type table struct {
 	Columns []Column `json:"columns"`
 	Rows    []row    `json:"rows"`
 	Type    string   `json:"type"`
-	closed  bool     `json:"-"`
+	closed  bool
 }
 
 func (t *table) WriteRow(values ...interface{}) {
