@@ -52,7 +52,7 @@ type QueryRequest struct {
 
 // Target is a data structure representing the target of a query.
 type Target struct {
-	Name  string     `json:"target"`
+	Query string     `json:"target"`
 	RefID string     `json:"refId"`
 	Type  TargetType `json:"type"`
 }

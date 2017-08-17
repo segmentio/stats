@@ -21,9 +21,9 @@ func TestQueryHandler(t *testing.T) {
 		Range:    queryRange{From: t0, To: t1},
 		Interval: 1 * time.Second,
 		Targets: []Target{
-			{Name: "upper_50", RefID: "A", Type: Timeserie},
-			{Name: "upper_75", RefID: "B", Type: Timeserie},
-			{Name: "entries", RefID: "C", Type: Table},
+			{Query: "upper_50", RefID: "A", Type: Timeserie},
+			{Query: "upper_75", RefID: "B", Type: Timeserie},
+			{Query: "entries", RefID: "C", Type: Table},
 		},
 		MaxDataPoints: 150,
 	}
@@ -58,7 +58,7 @@ func TestQueryHandler(t *testing.T) {
 			for _, target := range req.Targets {
 				switch target.Type {
 				case Timeserie:
-					t := res.Timeserie(target.Name)
+					t := res.Timeserie(target.Query)
 					t.WriteDatapoint(622, t0)
 					t.WriteDatapoint(265, t1)
 
