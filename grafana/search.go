@@ -10,6 +10,13 @@ import (
 // SearchHandler is the handler for the /search endpoint in the
 // simple-json-datasource API.
 type SearchHandler interface {
+	// ServeSearch is expected to implement the search functionality of a
+	// Grafana data source.
+	//
+	// Note: It's not really clear how search is implemented, I think the
+	// "target" field in the request is some kind of prefix or keyword to
+	// use to return a list of potential matches that can be used in a /query
+	// request.
 	ServeSearch(ctx context.Context, res SearchResponse, req *SearchRequest) error
 }
 
@@ -22,7 +29,7 @@ func (f SearchHandlerFunc) ServeSearch(ctx context.Context, res SearchResponse, 
 	return f(ctx, res, req)
 }
 
-// SearchResponse is an interface used to response to a search request.
+// SearchResponse is an interface used to respond to a search request.
 type SearchResponse interface {
 	// WriteTarget writes target in the response, the method may be called
 	// multiple times.
@@ -42,8 +49,8 @@ type SearchRequest struct {
 // to the given search handler.
 func NewSearchHandler(handler SearchHandler) http.Handler {
 	return handlerFunc(func(ctx context.Context, enc *objconv.StreamEncoder, dec *objconv.Decoder) error {
-		var req searchRequest
-		var res = searchResponse{enc: enc}
+		req := searchRequest{}
+		res := searchResponse{enc: enc}
 
 		if err := dec.Decode(&req); err != nil {
 			return err

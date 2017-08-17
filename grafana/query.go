@@ -12,6 +12,12 @@ import (
 // QueryHandler is the handler for the /query endpoint in the
 // simple-json-datasource API.
 type QueryHandler interface {
+	// ServeQuery is expected to reply with a list of data points for the given
+	// "target" and time range (or a set of rows for table requests).
+	//
+	// Note: my understanding is that "target" is some kind of identifier that
+	// describes some data set in the source (like a SQL query for example), but
+	// it's treated as an opaque blob of data by Grafana itself.
 	ServeQuery(ctx context.Context, res QueryResponse, req *QueryRequest) error
 }
 
@@ -109,8 +115,8 @@ const (
 // to the given query handler.
 func NewQueryHandler(handler QueryHandler) http.Handler {
 	return handlerFunc(func(ctx context.Context, enc *objconv.StreamEncoder, dec *objconv.Decoder) error {
-		var req queryRequest
-		var res = queryResponse{enc: enc}
+		req := queryRequest{}
+		res := queryResponse{enc: enc}
 
 		if err := dec.Decode(&req); err != nil {
 			return err
