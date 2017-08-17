@@ -44,20 +44,15 @@ func Handle(mux *http.ServeMux, handler Handler) {
 	if _, pattern := mux.Handler(&http.Request{
 		URL: &url.URL{Path: "/"},
 	}); len(pattern) == 0 {
-		mux.Handle("/", handlerFunc(func(ctx context.Context, enc *objconv.StreamEncoder, dec *objconv.Decoder) error {
-			return nil
-		}))
+		mux.HandleFunc("/", func(res http.ResponseWriter, req *http.Request) {
+			setResponseHeaders(res)
+		})
 	}
 }
 
 func handlerFunc(f func(context.Context, *objconv.StreamEncoder, *objconv.Decoder) error) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		h := res.Header()
-		h.Set("Access-Control-Allow-Headers", "Accept, Content-Type")
-		h.Set("Access-Control-Allow-Methods", "POST")
-		h.Set("Access-Control-Allow-Origin", "*")
-		h.Set("Content-Type", "application/json; charset=utf-8")
-		h.Set("Server", "stats/grafana (simple-json-datasource)")
+		setResponseHeaders(res)
 
 		switch req.Method {
 		case http.MethodPost:
@@ -100,4 +95,13 @@ func newEncoder(res http.ResponseWriter, req *http.Request) *objconv.StreamEncod
 
 func newDecoder(r io.Reader) *objconv.Decoder {
 	return json.NewDecoder(r)
+}
+
+func setResponseHeaders(res http.ResponseWriter) {
+	h := res.Header()
+	h.Set("Access-Control-Allow-Headers", "Accept, Content-Type")
+	h.Set("Access-Control-Allow-Methods", "POST")
+	h.Set("Access-Control-Allow-Origin", "*")
+	h.Set("Content-Type", "application/json; charset=utf-8")
+	h.Set("Server", "stats/grafana (simple-json-datasource)")
 }
