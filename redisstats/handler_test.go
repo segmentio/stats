@@ -8,11 +8,12 @@ import (
 
 	"github.com/segmentio/redis-go"
 	"github.com/segmentio/stats"
+	"github.com/segmentio/stats/statstest"
 )
 
 func TestHandler(t *testing.T) {
-	m := &testMeasureHandler{}
-	e := stats.NewEngine("", m)
+	statsHandler := &statstest.Handler{}
+	e := stats.NewEngine("", statsHandler)
 
 	h := NewHandlerWith(e, &testRedisHandler{})
 
@@ -28,7 +29,7 @@ func TestHandler(t *testing.T) {
 	h.ServeRedis(&testResponseWriter{err: errors.New("fail")},
 		redis.NewRequest("127.0.0.1:6379", "SET", redis.List("foo", "bar")))
 
-	measures := m.Measures()
+	measures := statsHandler.Measures()
 	if len(measures) == 0 {
 		t.Error("no measures were produced")
 	}

@@ -7,11 +7,12 @@ import (
 	"github.com/segmentio/objconv/resp"
 	"github.com/segmentio/redis-go"
 	"github.com/segmentio/stats"
+	"github.com/segmentio/stats/statstest"
 )
 
 func TestTransport(t *testing.T) {
-	m := &testMeasureHandler{}
-	e := stats.NewEngine("", m)
+	h := &statstest.Handler{}
+	e := stats.NewEngine("", h)
 
 	client := redis.Client{
 		Addr:      "127.0.0.1",
@@ -45,7 +46,7 @@ func TestTransport(t *testing.T) {
 	readErrorClient.Do(redis.NewRequest("9.9.9.9:6379", "GET", redis.List("foo")))
 	writeErrorClient.Do(redis.NewRequest("9.9.9.9:6379", "SET", redis.List("foo", "bar")))
 
-	measures := m.Measures()
+	measures := h.Measures()
 	if len(measures) == 0 {
 		t.Error("no measures were produced")
 	}

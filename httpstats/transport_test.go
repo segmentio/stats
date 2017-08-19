@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/segmentio/stats"
+	"github.com/segmentio/stats/statstest"
 )
 
 func TestTransport(t *testing.T) {
@@ -29,7 +30,7 @@ func TestTransport(t *testing.T) {
 				newRequest("POST", "/", strings.NewReader("Hi")),
 			} {
 				t.Run("", func(t *testing.T) {
-					h := &measureHandler{}
+					h := &statstest.Handler{}
 					e := stats.NewEngine("", h)
 
 					server := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
@@ -53,11 +54,11 @@ func TestTransport(t *testing.T) {
 					ioutil.ReadAll(res.Body)
 					res.Body.Close()
 
-					if len(h.measures) == 0 {
+					if len(h.Measures()) == 0 {
 						t.Error("no measures reported by http handler")
 					}
 
-					for _, m := range h.measures {
+					for _, m := range h.Measures() {
 						for _, tag := range m.Tags {
 							if tag.Name == "bucket" {
 								switch tag.Value {
@@ -75,7 +76,7 @@ func TestTransport(t *testing.T) {
 }
 
 func TestTransportError(t *testing.T) {
-	h := &measureHandler{}
+	h := &statstest.Handler{}
 	e := stats.NewEngine("", h)
 
 	server := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {

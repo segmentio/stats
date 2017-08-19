@@ -6,34 +6,10 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
-	"time"
 
-	"github.com/segmentio/stats"
 	"github.com/segmentio/stats/iostats"
 )
-
-type measureHandler struct {
-	sync.Mutex
-	measures []stats.Measure
-}
-
-func (h *measureHandler) HandleMeasures(time time.Time, measures ...stats.Measure) {
-	h.Lock()
-	for _, m := range measures {
-		h.measures = append(h.measures, m.Clone())
-	}
-	h.Unlock()
-}
-
-func (h *measureHandler) Measures() []stats.Measure {
-	h.Lock()
-	m := make([]stats.Measure, len(h.measures))
-	copy(m, h.measures)
-	h.Unlock()
-	return m
-}
 
 func TestResponseStatusBucket(t *testing.T) {
 	tests := []struct {
