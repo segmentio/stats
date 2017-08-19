@@ -67,11 +67,14 @@ const (
 	Table     TargetType = "table"
 )
 
-// TimeserieWriter is a
+// TimeserieWriter is an interface used to write timeserie data in response to a
+// query.
 type TimeserieWriter interface {
 	WriteDatapoint(value float64, time time.Time)
 }
 
+// TableWriter is an interface used to write timeserie data in response to a
+// query.
 type TableWriter interface {
 	WriteRow(values ...interface{})
 }
