@@ -121,8 +121,8 @@ func NewProcMetricsWith(eng *stats.Engine, pid int) *ProcMetrics {
 // Collect satsifies the Collector interface.
 func (p *ProcMetrics) Collect() {
 	if m, err := CollectProcInfo(p.pid); err == nil {
-		p.cpu.user.time = m.CPU.User
-		p.cpu.system.time = m.CPU.Sys
+		p.cpu.user.time = m.CPU.User - p.cpu.user.time
+		p.cpu.system.time = m.CPU.Sys - p.cpu.system.time
 
 		p.memory.available = m.Memory.Available
 		p.memory.size = m.Memory.Size
@@ -130,15 +130,15 @@ func (p *ProcMetrics) Collect() {
 		p.memory.shared.usage = m.Memory.Shared
 		p.memory.text.usage = m.Memory.Text
 		p.memory.data.usage = m.Memory.Data
-		p.memory.pagefault.major.count = m.Memory.MajorPageFaults
-		p.memory.pagefault.minor.count = m.Memory.MinorPageFaults
+		p.memory.pagefault.major.count = m.Memory.MajorPageFaults - p.memory.pagefault.major.count
+		p.memory.pagefault.minor.count = m.Memory.MinorPageFaults - p.memory.pagefault.minor.count
 
 		p.files.open = m.Files.Open
 		p.files.max = m.Files.Max
 
 		p.threads.num = m.Threads.Num
-		p.threads.switches.voluntary.count = m.Threads.VoluntaryContextSwitches
-		p.threads.switches.involuntary.count = m.Threads.InvoluntaryContextSwitches
+		p.threads.switches.voluntary.count = m.Threads.VoluntaryContextSwitches - p.threads.switches.voluntary.count
+		p.threads.switches.involuntary.count = m.Threads.InvoluntaryContextSwitches - p.threads.switches.involuntary.count
 
 		p.engine.Report(p)
 	}

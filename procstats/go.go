@@ -138,26 +138,21 @@ func (g *GoMetrics) Collect() {
 
 	g.runtime.numCPU = runtime.NumCPU()
 	g.runtime.numGoroutine = runtime.NumGoroutine()
-	g.runtime.numCgoCall = int(runtime.NumCgoCall())
+	g.runtime.numCgoCall = int(runtime.NumCgoCall()) - g.runtime.numCgoCall
 
 	collectMemoryStats(&g.ms, &g.gc, g.lastNumGC)
-	g.updateMemStats(now)
 
-	g.engine.ReportAt(now, g)
-}
-
-func (g *GoMetrics) updateMemStats(now time.Time) {
 	g.memstats.total.alloc = g.ms.Alloc
-	g.memstats.total.totalAlloc = g.ms.TotalAlloc
-	g.memstats.total.lookups = g.ms.Lookups
-	g.memstats.total.mallocs = g.ms.Mallocs
-	g.memstats.total.frees = g.ms.Frees
+	g.memstats.total.totalAlloc = g.ms.TotalAlloc - g.memstats.total.totalAlloc
+	g.memstats.total.lookups = g.ms.Lookups - g.memstats.total.lookups
+	g.memstats.total.mallocs = g.ms.Mallocs - g.memstats.total.mallocs
+	g.memstats.total.frees = g.ms.Frees - g.memstats.total.frees
 
 	g.memstats.heap.alloc = g.ms.HeapAlloc
 	g.memstats.heap.sys = g.ms.HeapSys
 	g.memstats.heap.idle = g.ms.HeapIdle
 	g.memstats.heap.inuse = g.ms.HeapInuse
-	g.memstats.heap.released = g.ms.HeapReleased
+	g.memstats.heap.released = g.ms.HeapReleased - g.memstats.heap.released
 	g.memstats.heap.objects = g.ms.HeapObjects
 
 	g.memstats.stack.inuse = g.ms.StackInuse
@@ -170,14 +165,17 @@ func (g *GoMetrics) updateMemStats(now time.Time) {
 	g.memstats.gc.sys = g.ms.GCSys
 	g.memstats.other.sys = g.ms.OtherSys
 
-	g.memstats.numGC = g.gc.NumGC
+	g.memstats.numGC = g.gc.NumGC - g.memstats.numGC
 	g.memstats.nextGC = g.ms.NextGC
 	g.memstats.lastGC = now.Sub(g.gc.LastGC)
 	g.memstats.gcCPUFraction = g.ms.GCCPUFraction
+	g.memstats.pauses = 0
 
 	for _, pause := range g.gc.Pause {
 		g.memstats.pauses += pause
 	}
+
+	g.engine.ReportAt(now, g)
 }
 
 func collectMemoryStats(ms *runtime.MemStats, gc *debug.GCStats, lastNumGC int64) {
