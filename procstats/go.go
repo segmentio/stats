@@ -91,11 +91,13 @@ type GoMetrics struct {
 		}
 
 		// Garbage collector statistics.
-		numGC         int64         `metric:"gc.count"         type:"counter"` // number of garbage collections
-		nextGC        uint64        `metric:"gc_next.bytes"    type:"gauge"`   // next collection will happen when HeapAlloc ≥ this amount
-		lastGC        time.Duration `metric:"gc_last.seconds"  type:"gauge"`   // end time of last collection (nanoseconds since 1970)
-		pauses        time.Duration `metric:"gc_pause.seconds" type:"histogram"`
-		gcCPUFraction float64       `metric:"gc_cpu.fraction"  type:"gauge"` // fraction of CPU time used by GC
+		numGC         int64         `metric:"gc.count"             type:"counter"` // number of garbage collections
+		nextGC        uint64        `metric:"gc_next.bytes"        type:"gauge"`   // next collection will happen when HeapAlloc ≥ this amount
+		lastGC        time.Duration `metric:"gc_last.seconds"      type:"gauge"`   // end time of last collection (nanoseconds since 1970)
+		gcPauseAvg    time.Duration `metric:"gc_pause.seconds.avg" type:"gauge"`
+		gcPauseMin    time.Duration `metric:"gc_pause.seconds.min" type:"gauge"`
+		gcPauseMax    time.Duration `metric:"gc_pause.seconds.max" type:"gauge"`
+		gcCPUFraction float64       `metric:"gc_cpu.fraction"      type:"gauge"` // fraction of CPU time used by GC
 	} `metric:"go.memstats"`
 
 	// cache
@@ -172,10 +174,21 @@ func (g *GoMetrics) Collect() {
 	g.memstats.nextGC = g.ms.NextGC
 	g.memstats.lastGC = now.Sub(g.gc.LastGC)
 	g.memstats.gcCPUFraction = g.ms.GCCPUFraction
-	g.memstats.pauses = 0
 
-	for _, pause := range g.gc.Pause {
-		g.memstats.pauses += pause
+	if len(g.gc.Pause) == 0 {
+		g.memstats.gcPauseAvg = 0
+		g.memstats.gcPauseMin = 0
+		g.memstats.gcPauseMax = 0
+	} else {
+		g.memstats.gcPauseMin = g.gc.Pause[0]
+		g.memstats.gcPauseMax = g.gc.Pause[0]
+		g.memstats.gcPauseAvg = g.gc.Pause[0]
+
+		for _, pause := range g.gc.Pause[1:] {
+			g.memstats.gcPauseAvg += pause
+		}
+
+		g.memstats.gcPauseAvg /= time.Duration(len(g.gc.Pause))
 	}
 
 	g.engine.ReportAt(now, g)
