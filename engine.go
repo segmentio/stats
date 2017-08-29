@@ -94,6 +94,20 @@ func (eng *Engine) Observe(name string, value interface{}, tags ...Tag) {
 	eng.measure(name, value, Histogram, tags...)
 }
 
+// Clock returns a new clock identified by name and tags.
+func (eng *Engine) Clock(name string, tags ...Tag) *Clock {
+	cpy := make([]Tag, len(tags), len(tags)+1) // clock always appends a stamp.
+	copy(cpy, tags)
+	now := time.Now()
+	return &Clock{
+		name:  name,
+		first: now,
+		last:  now,
+		tags:  cpy,
+		eng:   eng,
+	}
+}
+
 func (eng *Engine) measure(name string, value interface{}, ftype FieldType, tags ...Tag) {
 	name, field := splitMeasureField(name)
 	mp := measureArrayPool.Get().(*[1]Measure)
