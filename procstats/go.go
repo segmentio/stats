@@ -29,9 +29,10 @@ type GoMetrics struct {
 
 	runtime struct {
 		// Runtime info.
-		numCPU       int `metric:"cpu.num"       type:"gauge"`
-		numGoroutine int `metric:"goroutine.num" type:"gauge"`
-		numCgoCall   int `metric:"cgo.calls"     type:"counter"`
+		numCPU         int `metric:"cpu.num"       type:"gauge"`
+		numGoroutine   int `metric:"goroutine.num" type:"gauge"`
+		numCgoCall     int `metric:"cgo.calls"     type:"counter"`
+		lastNumCgoCall int
 	} `metric:"go.runtime"`
 
 	memstats struct {
@@ -140,10 +141,12 @@ func (g *GoMetrics) Collect() {
 	lastFrees := g.ms.Frees
 	lastHeapRealeased := g.ms.HeapReleased
 	lastNumGC := g.gc.NumGC
+	lastNumCgoCall := g.runtime.lastNumCgoCall
+	g.runtime.lastNumCgoCall = int(runtime.NumCgoCall())
 
 	g.runtime.numCPU = runtime.NumCPU()
 	g.runtime.numGoroutine = runtime.NumGoroutine()
-	g.runtime.numCgoCall = int(runtime.NumCgoCall()) - g.runtime.numCgoCall
+	g.runtime.numCgoCall = g.runtime.lastNumCgoCall - lastNumCgoCall
 
 	collectMemoryStats(&g.ms, &g.gc, lastNumGC)
 

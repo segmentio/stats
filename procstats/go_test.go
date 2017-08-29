@@ -2,6 +2,7 @@ package procstats
 
 import (
 	"reflect"
+	"runtime"
 	"runtime/debug"
 	"testing"
 	"time"
@@ -15,14 +16,22 @@ func TestGoMetrics(t *testing.T) {
 	e := stats.NewEngine("", h)
 
 	gostats := NewGoMetricsWith(e)
-	gostats.Collect()
 
-	if len(h.Measures()) == 0 {
-		t.Error("no measures were reported by the stats collector")
-	}
+	for i := 0; i != 10; i++ {
+		t.Logf("collect number %d", i)
+		gostats.Collect()
 
-	for _, m := range h.Measures() {
-		t.Log(m)
+		if len(h.Measures()) == 0 {
+			t.Error("no measures were reported by the stats collector")
+		}
+
+		for _, m := range h.Measures() {
+			t.Log(m)
+		}
+
+		h.Clear()
+		runtime.GC()
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 

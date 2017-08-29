@@ -43,3 +43,9 @@ func (h *Handler) Flush() {
 func (h *Handler) FlushCalls() int {
 	return int(atomic.LoadInt32(&h.flush))
 }
+
+func (h *Handler) Clear() {
+	h.Lock()
+	h.measures = h.measures[:0]
+	h.Unlock()
+}
