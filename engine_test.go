@@ -60,6 +60,10 @@ func TestEngine(t *testing.T) {
 			scenario: "calling Engine.Report with a slice of metrics produces the expected measures",
 			function: testEngineReportSlice,
 		},
+		{
+			scenario: "calling Engine.Clock produces expected metrics",
+			function: testEngineClock,
+		},
 	}
 
 	for _, test := range tests {
@@ -258,13 +262,52 @@ func testEngineReportSlice(t *testing.T, eng *stats.Engine) {
 	)
 }
 
+func testEngineClock(t *testing.T, eng *stats.Engine) {
+	c := eng.Clock("upload", stats.T("f", "img.jpg"))
+	c.Stamp("compress")
+	c.Stamp("grayscale")
+	c.Stop()
+
+	found := measures(t, eng)
+
+	if len(found) != 3 {
+		t.Fatalf("expected 3 measures got %d", len(found))
+	}
+
+	stamps := []string{"compress", "grayscale", "total"}
+
+	for i, m := range found {
+		if m.Name != "test.upload" {
+			t.Errorf("measure name mismatch, got %q", m.Name)
+		}
+
+		if len(m.Tags) != 3 {
+			t.Errorf("expected 3 tags, got %d", len(m.Tags))
+		}
+
+		exp := []stats.Tag{
+			stats.T("f", "img.jpg"),
+			stats.T("service", "test-service"),
+			stats.T("stamp", stamps[i]),
+		}
+
+		if !reflect.DeepEqual(m.Tags, exp) {
+			t.Errorf("tag mismatch, expected %v, got %v", exp, m.Tags)
+		}
+	}
+}
+
 func checkMeasuresEqual(t *testing.T, eng *stats.Engine, expected ...stats.Measure) {
-	found := eng.Handler.(*statstest.Handler).Measures()
+	found := measures(t, eng)
 	if !reflect.DeepEqual(found, expected) {
 		t.Error("bad measures:")
 		t.Logf("expected: %#v", expected)
 		t.Logf("found:    %#v", found)
 	}
+}
+
+func measures(t *testing.T, eng *stats.Engine) []stats.Measure {
+	return eng.Handler.(*statstest.Handler).Measures()
 }
 
 func BenchmarkEngine(b *testing.B) {
