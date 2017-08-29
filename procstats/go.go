@@ -186,6 +186,12 @@ func (g *GoMetrics) Collect() {
 
 		for _, pause := range g.gc.Pause[1:] {
 			g.memstats.gcPauseAvg += pause
+			switch {
+			case pause < g.memstats.gcPauseMin:
+				g.memstats.gcPauseMin = pause
+			case pause > g.memstats.gcPauseMax:
+				g.memstats.gcPauseMax = pause
+			}
 		}
 
 		g.memstats.gcPauseAvg /= time.Duration(len(g.gc.Pause))
