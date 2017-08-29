@@ -99,9 +99,8 @@ type GoMetrics struct {
 	} `metric:"go.memstats"`
 
 	// cache
-	ms        runtime.MemStats
-	gc        debug.GCStats
-	lastNumGC int64
+	ms runtime.MemStats
+	gc debug.GCStats
 }
 
 // NewGoMetrics creates a new collector for the Go runtime that produces metrics
@@ -126,9 +125,6 @@ func NewGoMetricsWith(eng *stats.Engine) *GoMetrics {
 	g.memstats.buckhash.memtype = "bucket_hash_table"
 	g.memstats.gc.memtype = "gc"
 	g.memstats.other.memtype = "other"
-
-	debug.ReadGCStats(&g.gc)
-	g.lastNumGC = g.gc.NumGC
 	return g
 }
 
@@ -136,23 +132,30 @@ func NewGoMetricsWith(eng *stats.Engine) *GoMetrics {
 func (g *GoMetrics) Collect() {
 	now := time.Now()
 
+	lastTotalAlloc := g.ms.TotalAlloc
+	lastLookups := g.ms.Lookups
+	lastMallocs := g.ms.Mallocs
+	lastFrees := g.ms.Frees
+	lastHeapRealeased := g.ms.HeapReleased
+	lastNumGC := g.gc.NumGC
+
 	g.runtime.numCPU = runtime.NumCPU()
 	g.runtime.numGoroutine = runtime.NumGoroutine()
 	g.runtime.numCgoCall = int(runtime.NumCgoCall()) - g.runtime.numCgoCall
 
-	collectMemoryStats(&g.ms, &g.gc, g.lastNumGC)
+	collectMemoryStats(&g.ms, &g.gc, lastNumGC)
 
 	g.memstats.total.alloc = g.ms.Alloc
-	g.memstats.total.totalAlloc = g.ms.TotalAlloc - g.memstats.total.totalAlloc
-	g.memstats.total.lookups = g.ms.Lookups - g.memstats.total.lookups
-	g.memstats.total.mallocs = g.ms.Mallocs - g.memstats.total.mallocs
-	g.memstats.total.frees = g.ms.Frees - g.memstats.total.frees
+	g.memstats.total.totalAlloc = g.ms.TotalAlloc - lastTotalAlloc
+	g.memstats.total.lookups = g.ms.Lookups - lastLookups
+	g.memstats.total.mallocs = g.ms.Mallocs - lastMallocs
+	g.memstats.total.frees = g.ms.Frees - lastFrees
 
 	g.memstats.heap.alloc = g.ms.HeapAlloc
 	g.memstats.heap.sys = g.ms.HeapSys
 	g.memstats.heap.idle = g.ms.HeapIdle
 	g.memstats.heap.inuse = g.ms.HeapInuse
-	g.memstats.heap.released = g.ms.HeapReleased - g.memstats.heap.released
+	g.memstats.heap.released = g.ms.HeapReleased - lastHeapRealeased
 	g.memstats.heap.objects = g.ms.HeapObjects
 
 	g.memstats.stack.inuse = g.ms.StackInuse
@@ -165,7 +168,7 @@ func (g *GoMetrics) Collect() {
 	g.memstats.gc.sys = g.ms.GCSys
 	g.memstats.other.sys = g.ms.OtherSys
 
-	g.memstats.numGC = g.gc.NumGC - g.memstats.numGC
+	g.memstats.numGC = g.gc.NumGC - lastNumGC
 	g.memstats.nextGC = g.ms.NextGC
 	g.memstats.lastGC = now.Sub(g.gc.LastGC)
 	g.memstats.gcCPUFraction = g.ms.GCCPUFraction
