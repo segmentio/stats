@@ -21,12 +21,14 @@ type ProcMetrics struct {
 type procCPU struct {
 	// CPU time
 	user struct { // user cpu time used by the process
-		time time.Duration `metric:"usage.seconds" type:"counter"`
-		typ  string        `tag:"type"` // user
+		time    time.Duration `metric:"usage.seconds" type:"counter"`
+		percent float64       `metric:"usage.percent" type:"gauge"`
+		typ     string        `tag:"type"` // user
 	}
 	system struct { // system cpu time used by the process
-		time time.Duration `metric:"usage.seconds" type:"counter"`
-		typ  string        `tag:"type"` // system
+		time    time.Duration `metric:"usage.seconds" type:"counter"`
+		percent float64       `metric:"usage.percent" type:"gauge"`
+		typ     string        `tag:"type"` // system
 	}
 }
 
@@ -36,8 +38,9 @@ type procMemory struct {
 	size      uint64 `metric:"total.bytes"     type:"gauge"` // total program memory (including virtual mappings)
 
 	resident struct { // resident set size
-		usage uint64 `metric:"usage.bytes" type:"gauge"`
-		typ   string `tag:"type"` // resident
+		usage   uint64  `metric:"usage.bytes"   type:"gauge"`
+		percent float64 `metric:"usage.percent" type:"gauge"`
+		typ     string  `tag:"type"` // resident
 	}
 
 	shared struct { // shared pages (i.e., backed by a file)
@@ -123,11 +126,15 @@ func NewProcMetricsWith(eng *stats.Engine, pid int) *ProcMetrics {
 func (p *ProcMetrics) Collect() {
 	if m, err := CollectProcInfo(p.pid); err == nil {
 		p.cpu.user.time = m.CPU.User - p.last.CPU.User
+		p.cpu.user.percent = 100 * float64(p.cpu.user.time) / float64(time.Second)
+
 		p.cpu.system.time = m.CPU.Sys - p.last.CPU.Sys
+		p.cpu.system.percent = 100 * float64(p.cpu.system.time) / float64(time.Second)
 
 		p.memory.available = m.Memory.Available
 		p.memory.size = m.Memory.Size
 		p.memory.resident.usage = m.Memory.Resident
+		p.memory.resident.percent = 100 * float64(p.memory.resident.usage) / float64(p.memory.available)
 		p.memory.shared.usage = m.Memory.Shared
 		p.memory.text.usage = m.Memory.Text
 		p.memory.data.usage = m.Memory.Data
@@ -162,10 +169,6 @@ type CPUInfo struct {
 	Sys  time.Duration // system cpu time used by the process
 }
 
-func CollectCPUInfo(pid int) (CPUInfo, error) {
-	return collectCPUInfo(pid)
-}
-
 type MemoryInfo struct {
 	Available uint64 // amound of RAM available to the process
 	Size      uint64 // total program memory (including virtual mappings)
@@ -178,25 +181,13 @@ type MemoryInfo struct {
 	MinorPageFaults uint64
 }
 
-func CollectMemoryInfo(pid int) (MemoryInfo, error) {
-	return collectMemoryInfo(pid)
-}
-
 type FileInfo struct {
 	Open uint64 // fds opened by the process
 	Max  uint64 // max number of fds the process can open
-}
-
-func CollectFileInfo(pid int) (FileInfo, error) {
-	return collectFileInfo(pid)
 }
 
 type ThreadInfo struct {
 	Num                        uint64
 	VoluntaryContextSwitches   uint64
 	InvoluntaryContextSwitches uint64
-}
-
-func CollectThreadInfo(pid int) (ThreadInfo, error) {
-	return collectThreadInfo(pid)
 }

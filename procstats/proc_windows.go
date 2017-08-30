@@ -4,23 +4,3 @@ func collectProcMetrics(pid int) (m proc, err error) {
 	// TODO
 	return
 }
-
-func collectCPUInfo(pid int) (info CPUInfo, err error) {
-	// TODO
-	return
-}
-
-func collectMemoryInfo(pid int) (info MemoryInfo, err error) {
-	// TODO
-	return
-}
-
-func collectFileInfo(pid int) (info FileInfo, err error) {
-	// TODO
-	return
-}
-
-func collectThreadInfo(pid int) (info ThreadInfo, err error) {
-	// TODO
-	return
-}
