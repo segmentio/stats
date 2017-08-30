@@ -26,6 +26,9 @@ func collectProcInfo(pid int) (info ProcInfo, err error) {
 	limits, err := linux.GetProcLimits(pid)
 	check(err)
 
+	stat, err := linux.GetProcStat(pid)
+	check(err)
+
 	statm, err := linux.GetProcStatm(pid)
 	check(err)
 
@@ -48,8 +51,8 @@ func collectProcInfo(pid int) (info ProcInfo, err error) {
 			Shared:          pagesize * statm.Share,
 			Text:            pagesize * statm.Text,
 			Data:            pagesize * statm.Data,
-			MajorPageFaults: rusage.Majflt,
-			MinorPageFaults: rusage.Minflt,
+			MajorPageFaults: uint64(rusage.Majflt),
+			MinorPageFaults: uint64(rusage.Minflt),
 		},
 
 		Files: FileInfo{

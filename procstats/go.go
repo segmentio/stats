@@ -25,7 +25,7 @@ func init() {
 // GoMetrics is a metric collector that reports metrics from the Go runtime.
 type GoMetrics struct {
 	engine  *stats.Engine
-	version string `tag:"version'`
+	version string `tag:"version"`
 
 	runtime struct {
 		// Runtime info.
@@ -59,25 +59,25 @@ type GoMetrics struct {
 
 		// Low-level fixed-size structure allocator statistics.
 		stack struct {
-			inuse   uint64 `metric:"" type:"gauge"` // bytes used by stack allocator
-			sys     uint64 `metric:"" type:"gauge"`
+			inuse   uint64 `metric:"inuse.bytes" type:"gauge"` // bytes used by stack allocator
+			sys     uint64 `metric:"sys.bytes"   type:"gauge"`
 			memtype string `tag:"type"`
 		}
 
 		mspan struct {
-			inuse   uint64 `metric:"" type:"gauge"` // mspan structures
-			sys     uint64 `metric:"" type:"gauge"`
+			inuse   uint64 `metric:"inuse.bytes" type:"gauge"` // mspan structures
+			sys     uint64 `metric:"sys.bytes"   type:"gauge"`
 			memtype string `tag:"type"`
 		}
 
 		mcache struct {
-			inuse   uint64 `metric:"" type:"gauge"` // mcache structures
-			sys     uint64 `metric:"" type:"gauge"`
+			inuse   uint64 `metric:"inuse.bytes" type:"gauge"` // mcache structures
+			sys     uint64 `metric:"sys.bytes"   type:"gauge"`
 			memtype string `tag:"type"`
 		}
 
 		buckhash struct {
-			sys     uint64 `metric:"" type:"gauge"` // profiling bucket hash table
+			sys     uint64 `metric:"sys.bytes" type:"gauge"` // profiling bucket hash table
 			memtype string `tag:"type"`
 		}
 

@@ -84,11 +84,11 @@ type procThreads struct {
 	// Context switches
 	switches struct {
 		voluntary struct {
-			count uint64 `metric:"count"" type:"counter"`
+			count uint64 `metric:"count" type:"counter"`
 			typ   string `tag:"type"` // voluntary
 		}
 		involuntary struct {
-			count uint64 `metric:"count"" type:"counter"`
+			count uint64 `metric:"count" type:"counter"`
 			typ   string `tag:"type"` // involuntary
 		}
 	} `metric:"switch"`
