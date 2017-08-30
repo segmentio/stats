@@ -126,11 +126,10 @@ func NewProcMetricsWith(eng *stats.Engine, pid int) *ProcMetrics {
 
 // Collect satsifies the Collector interface.
 func (p *ProcMetrics) Collect() {
-	now := time.Now()
-	interval := now.Sub(p.lastTime)
-	p.lastTime = now
-
 	if m, err := CollectProcInfo(p.pid); err == nil {
+		now := time.Now()
+		interval := now.Sub(p.lastTime)
+
 		p.cpu.user.time = m.CPU.User - p.last.CPU.User
 		p.cpu.user.percent = 100 * float64(p.cpu.user.time) / float64(interval)
 
@@ -155,6 +154,7 @@ func (p *ProcMetrics) Collect() {
 		p.threads.switches.involuntary.count = m.Threads.InvoluntaryContextSwitches - p.last.Threads.InvoluntaryContextSwitches
 
 		p.last = m
+		p.lastTime = now
 		p.engine.Report(p)
 	}
 }
