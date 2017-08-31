@@ -31,6 +31,10 @@ type procCPU struct {
 		percent float64       `metric:"usage.percent" type:"gauge"`
 		typ     string        `tag:"type"` // system
 	}
+	total struct {
+		time    time.Duration `metric:"usage_total.seconds" type:"counter"`
+		percent float64       `metric:"usage_total.percent" type:"gauge"`
+	}
 }
 
 type procMemory struct {
@@ -135,6 +139,9 @@ func (p *ProcMetrics) Collect() {
 
 		p.cpu.system.time = m.CPU.Sys - p.last.CPU.Sys
 		p.cpu.system.percent = 100 * float64(p.cpu.system.time) / float64(interval)
+
+		p.cpu.total.time = (m.CPU.User + m.CPU.Sys) - (p.last.CPU.User + p.last.CPU.Sys)
+		p.cpu.total.percent = 100 * float64(p.cpu.total.time) / float64(interval)
 
 		p.memory.available = m.Memory.Available
 		p.memory.size = m.Memory.Size
