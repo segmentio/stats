@@ -160,8 +160,8 @@ type metrics struct {
 			contentType      string `tag:"http_res_content_type"`
 			protocol         string `tag:"http_res_protocol"`
 			server           string `tag:"http_res_server"`
-			statusBucket     string `tag:"http_status_bucket"`
-			status           string `tag:"http_status"`
+			statusBucket     string `tag:"http_res_status_bucket"`
+			status           string `tag:"http_res_status"`
 			transferEncoding string `tag:"http_res_transfer_encoding"`
 			upgrade          string `tag:"http_res_upgrade"`
 		}
