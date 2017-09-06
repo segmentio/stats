@@ -3,7 +3,6 @@ package procstats
 import (
 	"math"
 	"runtime"
-	"runtime/debug"
 	"time"
 
 	"github.com/segmentio/stats"
@@ -92,9 +91,8 @@ type GoMetrics struct {
 		}
 
 		// Garbage collector statistics.
-		numGC         int64         `metric:"gc.count"             type:"counter"` // number of garbage collections
+		numGC         uint32        `metric:"gc.count"             type:"counter"` // number of garbage collections
 		nextGC        uint64        `metric:"gc_next.bytes"        type:"gauge"`   // next collection will happen when HeapAlloc ≥ this amount
-		lastGC        time.Duration `metric:"gc_last.seconds"      type:"gauge"`   // end time of last collection (nanoseconds since 1970)
 		gcPauseAvg    time.Duration `metric:"gc_pause.seconds.avg" type:"gauge"`
 		gcPauseMin    time.Duration `metric:"gc_pause.seconds.min" type:"gauge"`
 		gcPauseMax    time.Duration `metric:"gc_pause.seconds.max" type:"gauge"`
@@ -103,7 +101,6 @@ type GoMetrics struct {
 
 	// cache
 	ms runtime.MemStats
-	gc debug.GCStats
 }
 
 // NewGoMetrics creates a new collector for the Go runtime that produces metrics
@@ -140,7 +137,7 @@ func (g *GoMetrics) Collect() {
 	lastMallocs := g.ms.Mallocs
 	lastFrees := g.ms.Frees
 	lastHeapRealeased := g.ms.HeapReleased
-	lastNumGC := g.gc.NumGC
+	lastNumGC := g.ms.NumGC
 	lastNumCgoCall := g.runtime.lastNumCgoCall
 	g.runtime.lastNumCgoCall = int(runtime.NumCgoCall())
 
@@ -148,7 +145,7 @@ func (g *GoMetrics) Collect() {
 	g.runtime.numGoroutine = runtime.NumGoroutine()
 	g.runtime.numCgoCall = g.runtime.lastNumCgoCall - lastNumCgoCall
 
-	collectMemoryStats(&g.ms, &g.gc, lastNumGC)
+	pauses := collectMemoryStats(&g.ms, lastNumGC)
 
 	g.memstats.total.alloc = g.ms.Alloc
 	g.memstats.total.totalAlloc = g.ms.TotalAlloc - lastTotalAlloc
@@ -173,21 +170,20 @@ func (g *GoMetrics) Collect() {
 	g.memstats.gc.sys = g.ms.GCSys
 	g.memstats.other.sys = g.ms.OtherSys
 
-	g.memstats.numGC = g.gc.NumGC - lastNumGC
+	g.memstats.numGC = g.ms.NumGC - lastNumGC
 	g.memstats.nextGC = g.ms.NextGC
-	g.memstats.lastGC = now.Sub(g.gc.LastGC)
 	g.memstats.gcCPUFraction = g.ms.GCCPUFraction
 
-	if len(g.gc.Pause) == 0 {
+	if len(pauses) == 0 {
 		g.memstats.gcPauseAvg = 0
 		g.memstats.gcPauseMin = 0
 		g.memstats.gcPauseMax = 0
 	} else {
-		g.memstats.gcPauseMin = g.gc.Pause[0]
-		g.memstats.gcPauseMax = g.gc.Pause[0]
-		g.memstats.gcPauseAvg = g.gc.Pause[0]
+		g.memstats.gcPauseMin = pauses[0]
+		g.memstats.gcPauseMax = pauses[0]
+		g.memstats.gcPauseAvg = pauses[0]
 
-		for _, pause := range g.gc.Pause[1:] {
+		for _, pause := range pauses[1:] {
 			g.memstats.gcPauseAvg += pause
 			switch {
 			case pause < g.memstats.gcPauseMin:
@@ -197,32 +193,51 @@ func (g *GoMetrics) Collect() {
 			}
 		}
 
-		g.memstats.gcPauseAvg /= time.Duration(len(g.gc.Pause))
+		g.memstats.gcPauseAvg /= time.Duration(len(pauses))
 	}
 
 	g.engine.ReportAt(now, g)
 }
 
-func collectMemoryStats(ms *runtime.MemStats, gc *debug.GCStats, lastNumGC int64) {
-	collectMemStats(ms)
-	collectGCStats(gc, lastNumGC)
+func collectMemoryStats(memstats *runtime.MemStats, lastNumGC uint32) (pauses []time.Duration) {
+	runtime.ReadMemStats(memstats)
+	return makeGCPauses(memstats, lastNumGC)
 }
 
-func collectMemStats(ms *runtime.MemStats) {
-	runtime.ReadMemStats(ms)
-}
+func makeGCPauses(memstats *runtime.MemStats, lastNumGC uint32) (pauses []time.Duration) {
+	delta := int(memstats.NumGC - lastNumGC)
 
-func collectGCStats(gc *debug.GCStats, lastNumGC int64) {
-	debug.ReadGCStats(gc)
-	stripOutdatedGCPauses(gc, lastNumGC)
-}
-
-func stripOutdatedGCPauses(gc *debug.GCStats, lastNumGC int64) {
-	for i := range gc.Pause {
-		if num := gc.NumGC - int64(i); num <= lastNumGC {
-			gc.Pause = gc.Pause[:i]
-			gc.PauseEnd = gc.PauseEnd[:i]
-			break
-		}
+	if delta == 0 {
+		return nil
 	}
+
+	if delta >= len(memstats.PauseNs) {
+		return makePauses(memstats.PauseNs[:], nil)
+	}
+
+	length := uint32(len(memstats.PauseNs))
+	offset := length - 1
+
+	i := (lastNumGC + offset + 1) % length
+	j := (memstats.NumGC + offset + 1) % length
+
+	if j < i { // wrap around the circular buffer
+		return makePauses(memstats.PauseNs[i:], memstats.PauseNs[:j])
+	}
+
+	return makePauses(memstats.PauseNs[i:j], nil)
+}
+
+func makePauses(head []uint64, tail []uint64) (pauses []time.Duration) {
+	pauses = make([]time.Duration, 0, len(head)+len(tail))
+	pauses = appendPauses(pauses, head)
+	pauses = appendPauses(pauses, tail)
+	return
+}
+
+func appendPauses(pauses []time.Duration, values []uint64) []time.Duration {
+	for _, v := range values {
+		pauses = append(pauses, time.Duration(v))
+	}
+	return pauses
 }
