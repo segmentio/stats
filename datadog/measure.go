@@ -1,6 +1,7 @@
 package datadog
 
 import (
+	"math"
 	"strconv"
 
 	"github.com/segmentio/stats"
@@ -29,7 +30,7 @@ func AppendMeasure(b []byte, m stats.Measure) []byte {
 		case stats.Uint:
 			b = strconv.AppendUint(b, v.Uint(), 10)
 		case stats.Float:
-			b = strconv.AppendFloat(b, v.Float(), 'g', -1, 64)
+			b = strconv.AppendFloat(b, normalizeFloat(v.Float()), 'g', -1, 64)
 		case stats.Duration:
 			b = strconv.AppendFloat(b, v.Duration().Seconds(), 'g', -1, 64)
 		default:
@@ -62,4 +63,17 @@ func AppendMeasure(b []byte, m stats.Measure) []byte {
 	}
 
 	return b
+}
+
+func normalizeFloat(f float64) float64 {
+	switch {
+	case math.IsNaN(f):
+		return 0.0
+	case math.IsInf(f, +1):
+		return +math.MaxFloat64
+	case math.IsInf(f, -1):
+		return -math.MaxFloat64
+	default:
+		return f
+	}
 }
