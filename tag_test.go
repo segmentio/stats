@@ -152,3 +152,36 @@ func BenchmarkSortTags(b *testing.B) {
 		SortTags(t1)
 	}
 }
+
+func BenchmarkSortTagsMany(b *testing.B) {
+	t0 := []Tag{
+		{"hello", "world"},
+		{"answer", "42"},
+		{"some long tag name", "!"},
+		{"some longer tag name", "1234"},
+		{"A", ""},
+		{"B", ""},
+		{"C", ""},
+		{"hello", "world"},
+		{"answer", "42"},
+		{"some long tag name", "!"},
+		{"some longer tag name", "1234"},
+		{"A", ""},
+		{"B", ""},
+		{"C", ""},
+		{"hello", "world"},
+		{"answer", "42"},
+		{"some long tag name", "!"},
+		{"some longer tag name", "1234"},
+		{"A", ""},
+		{"B", ""},
+		{"C", ""},
+	}
+
+	t1 := make([]Tag, len(t0))
+
+	for i := 0; i != b.N; i++ {
+		copy(t1, t0)
+		SortTags(t1)
+	}
+}

@@ -39,9 +39,17 @@ func TagsAreSorted(tags []Tag) bool {
 
 // SortTags sorts the slice of tags.
 func SortTags(tags []Tag) []Tag {
-	// TODO: optimize to get rid of the dynamic memory allocation required
-	// to construct the interface value.
-	sort.Sort(tagsByName(tags))
+	// Insertion sort since these arrays are very small and allocation is the
+	// primary enemy of performance here.
+	if len(tags) >= 20 {
+		sort.Sort(tagsByName(tags))
+	} else {
+		for i := 0; i < len(tags); i++ {
+			for j := i; j > 0 && tags[j-1].Name > tags[j].Name; j-- {
+				tags[j], tags[j-1] = tags[j-1], tags[j]
+			}
+		}
+	}
 	return tags
 }
 
