@@ -41,9 +41,13 @@ func TagsAreSorted(tags []Tag) bool {
 func SortTags(tags []Tag) []Tag {
 	// Insertion sort since these arrays are very small and allocation is the
 	// primary enemy of performance here.
-	for i := 0; i < len(tags); i++ {
-		for j := i; j > 0 && tags[j-1].Name > tags[j].Name; j-- {
-			tags[j], tags[j-1] = tags[j-1], tags[j]
+	if len(tags) >= 20 {
+		sort.Sort(tagsByName(tags))
+	} else {
+		for i := 0; i < len(tags); i++ {
+			for j := i; j > 0 && tags[j-1].Name > tags[j].Name; j-- {
+				tags[j], tags[j-1] = tags[j-1], tags[j]
+			}
 		}
 	}
 	return tags
