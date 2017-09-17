@@ -202,10 +202,10 @@ func (m *metrics) observeRequest(req *http.Request, op string, bodyLen int) {
 func (m *metrics) observeResponse(res *http.Response, op string, bodyLen int, rtt time.Duration) {
 	contentType, charset := contentType(res.Header)
 	contentEncoding := contentEncoding(res.Header)
-	upgrade := res.Header.Get("upgrade")
-	server := res.Header.Get("Server")
+	upgrade := headerValue(res.Header, "Upgrade")
+	server := headerValue(res.Header, "Server")
 	bucket := responseStatusBucket(res.StatusCode)
-	status := strconv.Itoa(res.StatusCode)
+	status := statusCode(res.StatusCode)
 	transferEncoding := transferEncoding(res.TransferEncoding)
 
 	m.http.res.msg.count = 1
@@ -310,7 +310,7 @@ func intLength(n int64) int {
 
 func requestHost(req *http.Request) (host string) {
 	if host = req.Host; len(host) == 0 {
-		if host = req.Header.Get("Host"); len(host) == 0 {
+		if host = headerValue(req.Header, "Host"); len(host) == 0 {
 			host = req.URL.Host
 		}
 	}
@@ -340,11 +340,11 @@ func responseStatusBucket(status int) string {
 }
 
 func contentType(h http.Header) (string, string) {
-	return parseContentType(h.Get("Content-Type"))
+	return parseContentType(headerValue(h, "Content-Type"))
 }
 
 func contentEncoding(h http.Header) string {
-	return strings.TrimSpace(h.Get("Content-Encoding"))
+	return strings.TrimSpace(headerValue(h, "Content-Encoding"))
 }
 
 func transferEncoding(te []string) string {
@@ -377,4 +377,65 @@ func parseHeaderToken(s string) (token string, next string) {
 		token = strings.TrimSpace(s)
 	}
 	return
+}
+
+// headerValues is equivalent to http.Header.Get but assumes that the keys and
+// the header name to lookup are already in their canonical form so we can save
+// the expansive call to net/textproto.CanonicalMIMEHeaderKey.
+func headerValue(header http.Header, name string) string {
+	values := header[name]
+	if len(values) == 0 {
+		return ""
+	}
+	return values[0]
+}
+
+// statusCode behaves like strconv.Itoa but uses a lookup table to avoid having
+// to do a dynamic memory allocation to convert common http status codes to a
+// string representation.
+func statusCode(code int) string {
+	if code >= 100 {
+		switch {
+		case code < 200:
+			return statusCodeWithTable(code-100, statusCode100[:])
+		case code < 300:
+			return statusCodeWithTable(code-200, statusCode200[:])
+		case code < 400:
+			return statusCodeWithTable(code-300, statusCode300[:])
+		case code < 500:
+			return statusCodeWithTable(code-400, statusCode400[:])
+		case code < 600:
+			return statusCodeWithTable(code-500, statusCode500[:])
+		}
+	}
+	return strconv.Itoa(code)
+}
+
+func statusCodeWithTable(code int, table []string) string {
+	if code < len(table) {
+		return table[code]
+	}
+	return strconv.Itoa(code)
+}
+
+var statusCode100 = [...]string{
+	"100", "101",
+}
+
+var statusCode200 = [...]string{
+	"200", "201", "202", "203", "204", "205", "206",
+}
+
+var statusCode300 = [...]string{
+	"300", "301", "302", "303", "304", "305", "306", "307",
+}
+
+var statusCode400 = [...]string{
+	"400", "401", "402", "403", "404", "405", "406", "407", "408", "409",
+	"410", "411", "412", "413", "414", "415", "416", "417", "418", "419",
+	"420", "421", "422", "423", "424", "425", "426", "427", "428", "429",
+}
+
+var statusCode500 = [...]string{
+	"500", "501", "502", "503", "504", "505",
 }
