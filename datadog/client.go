@@ -73,6 +73,7 @@ func NewClientWith(config ClientConfig) *Client {
 	c.conn, c.err, c.bufferSize = conn, err, bufferSize
 	c.buffer.BufferSize = bufferSize
 	c.buffer.Serializer = &c.serializer
+	log.Printf("stats/datadog: sending metrics with a buffer of size %d B", bufferSize)
 	return c
 }
 
