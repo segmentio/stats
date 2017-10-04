@@ -113,7 +113,7 @@ func (h *Handler) timeout() time.Duration {
 	return 2 * time.Minute
 }
 
-// ServeHTTP satsifies the http.Handler interface.
+// ServeHTTP satisfies the http.Handler interface.
 func (h *Handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 	case "GET", "HEAD":
