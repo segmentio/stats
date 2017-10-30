@@ -171,6 +171,7 @@ type metrics struct {
 		contentType      string `tag:"http_req_content_type"`
 		host             string `tag:"http_req_host"`
 		method           string `tag:"http_req_method"`
+		path             string `tag:"http_req_path"`
 		protocol         string `tag:"http_req_protocol"`
 		transferEncoding string `tag:"http_req_transfer_encoding"`
 	} `metric:"http"`
@@ -197,6 +198,13 @@ func (m *metrics) observeRequest(req *http.Request, op string, bodyLen int) {
 	m.http.method = req.Method
 	m.http.protocol = req.Proto
 	m.http.transferEncoding = transferEncoding
+
+	path := req.URL.Path
+
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	m.http.path = path
 }
 
 func (m *metrics) observeResponse(res *http.Response, op string, bodyLen int, rtt time.Duration) {

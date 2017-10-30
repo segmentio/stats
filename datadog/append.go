@@ -33,14 +33,6 @@ func appendMetric(b []byte, m Metric) []byte {
 
 func appendTags(b []byte, tags []stats.Tag) []byte {
 	for i, t := range tags {
-		if t.Name == "http_req_path" {
-			// Datadog has complained numerous times that the request paths
-			// generate too many custom metrics on their side, for now we'll
-			// simply strip it out until we can come up with a better strategy
-			// for handling those.
-			continue
-		}
-
 		if i != 0 {
 			b = append(b, ',')
 		}

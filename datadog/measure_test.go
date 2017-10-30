@@ -45,7 +45,7 @@ request.rtt:0.1|h|#answer:42,hello:world
 func TestAppendMeasure(t *testing.T) {
 	for _, test := range testMeasures {
 		t.Run(test.s, func(t *testing.T) {
-			if s := string(AppendMeasure(nil, test.m)); s != test.s {
+			if s := string(AppendMeasure(nil, test.m, nil)); s != test.s {
 				t.Error("bad metric representation:")
 				t.Log("expected:", test.s)
 				t.Log("found:   ", s)
