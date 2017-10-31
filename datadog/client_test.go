@@ -2,6 +2,8 @@ package datadog
 
 import (
 	"fmt"
+	"io/ioutil"
+	"log"
 	"net"
 	"strings"
 	"sync/atomic"
@@ -68,6 +70,8 @@ main.http.rtt.seconds:0.001215296|h|#http_req_content_charset:,http_req_content_
 }
 
 func BenchmarkClient(b *testing.B) {
+	log.SetOutput(ioutil.Discard)
+
 	for _, N := range []int{1, 10, 100} {
 		b.Run(fmt.Sprintf("write a batch of %d measures to a client", N), func(b *testing.B) {
 			client := NewClientWith(ClientConfig{
