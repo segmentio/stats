@@ -45,42 +45,39 @@ func (b *Buffer) HandleMeasures(time time.Time, measures ...Measure) {
 	}
 
 	size := b.bufferSize()
-	b.init(size)
+	b.prepare(size)
 
-	for {
-		buffer := b.acquireBuffer()
-		length := buffer.len()
-		buffer.append(b.Serializer, time, measures...)
+	buffer := b.acquireBuffer()
+	length := buffer.len()
+	buffer.append(b.Serializer, time, measures...)
 
-		if buffer.len() < size {
-			buffer.release()
-			break
+	if buffer.len() >= size {
+		if length == 0 {
+			// When there were no data in the buffer prior to writing the set of
+			// measures we unfortunately have to overflow the configured buffer
+			// size, but the Serializer documentation mentions that this corner
+			// case has to be handled.
+			length = buffer.len()
 		}
-
-		if length != 0 {
-			buffer.trimTo(length)
-		}
-
-		buffer.writeTo(b.Serializer)
-		buffer.reset()
-		buffer.release()
+		buffer.flush(b.Serializer, length)
 	}
+
+	buffer.release()
 }
 
 // Flush satisfies the Flusher interface.
 func (b *Buffer) Flush() {
-	b.init(b.bufferSize())
+	b.prepare(b.bufferSize())
 
 	for i := range b.buffers {
 		if buffer := &b.buffers[i]; buffer.acquire() {
-			buffer.writeTo(b.Serializer)
-			buffer.reset()
+			buffer.flush(b.Serializer, buffer.len())
 			buffer.release()
 		}
 	}
 }
 
-func (b *Buffer) init(bufferSize int) {
+func (b *Buffer) prepare(bufferSize int) {
 	b.once.Do(func() {
 		b.buffers = make([]buffer, b.bufferPoolSize())
 		for i := range b.buffers {
@@ -143,10 +140,6 @@ func (b *buffer) init(size int) {
 	b.data = make([]byte, 0, size+(size/4))
 }
 
-func (b *buffer) reset() {
-	b.data = b.data[:0]
-}
-
 func (b *buffer) append(s Serializer, t time.Time, m ...Measure) {
 	b.data = s.AppendMeasures(b.data, t, m...)
 }
@@ -159,10 +152,8 @@ func (b *buffer) cap() int {
 	return cap(b.data)
 }
 
-func (b *buffer) writeTo(w io.Writer) {
-	w.Write(b.data)
-}
-
-func (b *buffer) trimTo(n int) {
+func (b *buffer) flush(w io.Writer, n int) {
+	w.Write(b.data[:n])
+	n = copy(b.data, b.data[n:])
 	b.data = b.data[:n]
 }
