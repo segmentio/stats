@@ -10,6 +10,13 @@ import (
 // AppendMeasure is a formatting routine to append the dogstatsd protocol
 // representation of a measure to a memory buffer.
 func AppendMeasure(b []byte, m stats.Measure) []byte {
+	return AppendMeasureFiltered(b, m, nil)
+}
+
+// AppendMeasureFiltered is a formatting routine to append the dogstatsd protocol
+// representation of a measure to a memory buffer. Tags listed in the filters map
+// are removed. (some tags may not be suitable for submission to DataDog)
+func AppendMeasureFiltered(b []byte, m stats.Measure, filters map[string]struct{}) []byte {
 	for _, field := range m.Fields {
 		b = append(b, m.Name...)
 		if len(field.Name) != 0 {
@@ -50,12 +57,14 @@ func AppendMeasure(b []byte, m stats.Measure) []byte {
 			b = append(b, '|', '#')
 
 			for i, t := range m.Tags {
-				if i != 0 {
-					b = append(b, ',')
+				if _, ok := filters[t.Name]; !ok {
+					if i != 0 {
+						b = append(b, ',')
+					}
+					b = append(b, t.Name...)
+					b = append(b, ':')
+					b = append(b, t.Value...)
 				}
-				b = append(b, t.Name...)
-				b = append(b, ':')
-				b = append(b, t.Value...)
 			}
 		}
 
