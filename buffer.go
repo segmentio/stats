@@ -57,7 +57,10 @@ func (b *Buffer) HandleMeasures(time time.Time, measures ...Measure) {
 			break
 		}
 
-		buffer.trimTo(length)
+		if length != 0 {
+			buffer.trimTo(length)
+		}
+
 		buffer.writeTo(b.Serializer)
 		buffer.reset()
 		buffer.release()
