@@ -21,15 +21,17 @@ const (
 	// datadog.
 	DefaultBufferSize = 1024
 
-	// DefaultFilter is the default tag to filter before sending to
-	// datadog. Using the request path as a tag can overwhelm datadog's
-	// servers if there are too many unique routes due to unique IDs being a
-	// part of the path. Only change the default filter if there is a static
-	// number of routes.
-	DefaultFilter = "http_req_path"
-
 	// MaxBufferSize is a hard-limit on the max size of the datagram buffer.
 	MaxBufferSize = 65507
+)
+
+// DefaultFilter is the default tag to filter before sending to
+// datadog. Using the request path as a tag can overwhelm datadog's
+// servers if there are too many unique routes due to unique IDs being a
+// part of the path. Only change the default filter if there is a static
+// number of routes.
+var (
+	DefaultFilters = []string{"http_req_path"}
 )
 
 // The ClientConfig type is used to configure datadog clients.
@@ -40,7 +42,7 @@ type ClientConfig struct {
 	// Maximum size of batch of events sent to datadog.
 	BufferSize int
 
-	// List of tags to filter
+	// List of tags to filter. If left nil is set to DefaultFilters.
 	Filters []string
 }
 
@@ -72,9 +74,7 @@ func NewClientWith(config ClientConfig) *Client {
 	}
 
 	if config.Filters == nil {
-		config.Filters = []string{
-			DefaultFilter,
-		}
+		config.Filters = DefaultFilters
 	}
 
 	// transform filters from array to map
@@ -131,7 +131,7 @@ type serializer struct {
 
 func (s *serializer) AppendMeasures(b []byte, _ time.Time, measures ...stats.Measure) []byte {
 	for _, m := range measures {
-		b = AppendMeasure(b, m, s.filters)
+		b = AppendMeasureFiltered(b, m, s.filters)
 	}
 	return b
 }
