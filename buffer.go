@@ -2,7 +2,9 @@ package stats
 
 import (
 	"io"
+	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -21,13 +23,19 @@ type Buffer struct {
 	// decision of accepting or rejecting the metrics.
 	BufferSize int
 
+	// Size of the internal buffer pool, this controls how well the buffer
+	// performs in highly concurrent environments. If unset, 2 x GOMAXPROCS
+	// is used as a default value.
+	BufferPoolSize int
+
 	// The Serializer used to write the measures.
 	//
 	// This field cannot be nil.
 	Serializer Serializer
 
-	mutex  sync.Mutex
-	buffer *buffer
+	once    sync.Once
+	offset  uint64
+	buffers []buffer
 }
 
 // HandleMeasures satisfies the Handler interface.
@@ -36,61 +44,71 @@ func (b *Buffer) HandleMeasures(time time.Time, measures ...Measure) {
 		return
 	}
 
-	size := b.BufferSize
-	if size == 0 {
-		size = 1024
-	}
+	size := b.bufferSize()
+	b.init(size)
 
-	chunk := acquireChunk()
-	chunk.reset()
-	chunk.append(b.Serializer, time, measures...)
+	for {
+		buffer := b.acquireBuffer()
+		length := buffer.len()
+		buffer.append(b.Serializer, time, measures...)
 
-	// Chunks that are already larger than the maximum buffer size are directly
-	// passed to the serializer, no need to aggregate them in a larger buffer.
-	if chunk.len() >= size {
-		chunk.writeTo(b.Serializer)
-	} else {
-		for {
-			var flush *buffer
-
-			b.mutex.Lock()
-
-			if b.buffer == nil {
-				b.buffer = acquireBuffer()
-				b.buffer.reset(size)
-			}
-
-			if (b.buffer.len() + chunk.len()) > b.buffer.cap() {
-				b.buffer, flush = nil, b.buffer
-			} else {
-				b.buffer.append(chunk)
-			}
-
-			b.mutex.Unlock()
-
-			if flush == nil {
-				break
-			}
-
-			flush.writeTo(b.Serializer)
-			releaseBuffer(flush)
+		if buffer.len() < size {
+			buffer.release()
+			break
 		}
-	}
 
-	releaseChunk(chunk)
+		buffer.trimTo(length)
+		buffer.writeTo(b.Serializer)
+		buffer.reset()
+		buffer.release()
+	}
 }
 
 // Flush satisfies the Flusher interface.
 func (b *Buffer) Flush() {
-	b.mutex.Lock()
+	b.init(b.bufferSize())
 
-	if buffer := b.buffer; buffer != nil {
-		b.buffer = nil
-		buffer.writeTo(b.Serializer)
-		releaseBuffer(buffer)
+	for i := range b.buffers {
+		if buffer := &b.buffers[i]; buffer.acquire() {
+			buffer.writeTo(b.Serializer)
+			buffer.reset()
+			buffer.release()
+		}
 	}
+}
 
-	b.mutex.Unlock()
+func (b *Buffer) init(bufferSize int) {
+	b.once.Do(func() {
+		b.buffers = make([]buffer, b.bufferPoolSize())
+		for i := range b.buffers {
+			b.buffers[i].init(bufferSize)
+		}
+	})
+}
+
+func (b *Buffer) bufferSize() int {
+	if b.BufferSize != 0 {
+		return b.BufferSize
+	}
+	return 1024
+}
+
+func (b *Buffer) bufferPoolSize() int {
+	if b.BufferPoolSize != 0 {
+		return b.BufferPoolSize
+	}
+	return 2 * runtime.GOMAXPROCS(0)
+}
+
+func (b *Buffer) acquireBuffer() *buffer {
+	for {
+		offset := int(atomic.AddUint64(&b.offset, 1) % uint64(len(b.buffers)))
+		buffer := &b.buffers[offset]
+
+		if buffer.acquire() {
+			return buffer
+		}
+	}
 }
 
 // The Serializer interface is used to abstract the logic of serializing
@@ -105,63 +123,43 @@ type Serializer interface {
 }
 
 type buffer struct {
-	b []byte
+	lock uint64
+	data []byte
+	pad  [32]byte // padding to avoid false sharing between threads
 }
 
-func (buf *buffer) reset(size int) {
-	if cap(buf.b) < size {
-		buf.b = make([]byte, 0, size)
-	} else {
-		buf.b = buf.b[:0]
-	}
+func (b *buffer) acquire() bool {
+	return atomic.CompareAndSwapUint64(&b.lock, 0, 1)
 }
 
-func (buf *buffer) append(c *chunk) {
-	buf.b = append(buf.b, c.b...)
+func (b *buffer) release() {
+	atomic.StoreUint64(&b.lock, 0)
 }
 
-func (buf *buffer) len() int {
-	return len(buf.b)
+func (b *buffer) init(size int) {
+	b.data = make([]byte, 0, size+(size/4))
 }
 
-func (buf *buffer) cap() int {
-	return cap(buf.b)
+func (b *buffer) reset() {
+	b.data = b.data[:0]
 }
 
-func (buf *buffer) writeTo(w io.Writer) {
-	w.Write(buf.b)
+func (b *buffer) append(s Serializer, t time.Time, m ...Measure) {
+	b.data = s.AppendMeasures(b.data, t, m...)
 }
 
-type chunk struct {
-	b []byte
+func (b *buffer) len() int {
+	return len(b.data)
 }
 
-func (c *chunk) reset() {
-	c.b = c.b[:0]
+func (b *buffer) cap() int {
+	return cap(b.data)
 }
 
-func (c *chunk) append(s Serializer, t time.Time, m ...Measure) {
-	c.b = s.AppendMeasures(c.b, t, m...)
+func (b *buffer) writeTo(w io.Writer) {
+	w.Write(b.data)
 }
 
-func (c *chunk) len() int {
-	return len(c.b)
+func (b *buffer) trimTo(n int) {
+	b.data = b.data[:n]
 }
-
-func (c *chunk) writeTo(w io.Writer) {
-	w.Write(c.b)
-}
-
-var bufferPool = sync.Pool{
-	New: func() interface{} { return &buffer{} },
-}
-
-var chunkPool = sync.Pool{
-	New: func() interface{} { return &chunk{b: make([]byte, 1024)} },
-}
-
-func acquireBuffer() *buffer  { return bufferPool.Get().(*buffer) }
-func releaseBuffer(b *buffer) { bufferPool.Put(b) }
-
-func acquireChunk() *chunk  { return chunkPool.Get().(*chunk) }
-func releaseChunk(c *chunk) { chunkPool.Put(c) }
