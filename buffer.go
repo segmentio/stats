@@ -101,12 +101,19 @@ func (b *Buffer) bufferPoolSize() int {
 }
 
 func (b *Buffer) acquireBuffer() *buffer {
+	i := uint64(0)
+	n := uint64(len(b.buffers))
+
 	for {
-		offset := int(atomic.AddUint64(&b.offset, 1) % uint64(len(b.buffers)))
+		offset := atomic.AddUint64(&b.offset, 1) % n
 		buffer := &b.buffers[offset]
 
 		if buffer.acquire() {
 			return buffer
+		}
+
+		if i++; (i % n) == 0 {
+			runtime.Gosched()
 		}
 	}
 }
