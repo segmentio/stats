@@ -49,6 +49,7 @@ func StartCollectorWith(config Config) io.Closer {
 		defer close(join)
 
 		ticker := time.NewTicker(config.CollectInterval)
+		config.Collector.Collect()
 		for {
 			select {
 			case <-ticker.C:
