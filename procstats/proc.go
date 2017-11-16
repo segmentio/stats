@@ -124,7 +124,6 @@ func NewProcMetricsWith(eng *stats.Engine, pid int) *ProcMetrics {
 	p.threads.switches.voluntary.typ = "voluntary"
 	p.threads.switches.involuntary.typ = "involuntary"
 
-	p.lastTime = time.Now()
 	return p
 }
 
@@ -132,16 +131,19 @@ func NewProcMetricsWith(eng *stats.Engine, pid int) *ProcMetrics {
 func (p *ProcMetrics) Collect() {
 	if m, err := CollectProcInfo(p.pid); err == nil {
 		now := time.Now()
-		interval := now.Sub(p.lastTime)
 
-		p.cpu.user.time = m.CPU.User - p.last.CPU.User
-		p.cpu.user.percent = 100 * float64(p.cpu.user.time) / float64(interval)
+		if !p.lastTime.IsZero() {
+			interval := now.Sub(p.lastTime)
 
-		p.cpu.system.time = m.CPU.Sys - p.last.CPU.Sys
-		p.cpu.system.percent = 100 * float64(p.cpu.system.time) / float64(interval)
+			p.cpu.user.time = m.CPU.User - p.last.CPU.User
+			p.cpu.user.percent = 100 * float64(p.cpu.user.time) / float64(interval)
 
-		p.cpu.total.time = (m.CPU.User + m.CPU.Sys) - (p.last.CPU.User + p.last.CPU.Sys)
-		p.cpu.total.percent = 100 * float64(p.cpu.total.time) / float64(interval)
+			p.cpu.system.time = m.CPU.Sys - p.last.CPU.Sys
+			p.cpu.system.percent = 100 * float64(p.cpu.system.time) / float64(interval)
+
+			p.cpu.total.time = (m.CPU.User + m.CPU.Sys) - (p.last.CPU.User + p.last.CPU.Sys)
+			p.cpu.total.percent = 100 * float64(p.cpu.total.time) / float64(interval)
+		}
 
 		p.memory.available = m.Memory.Available
 		p.memory.size = m.Memory.Size
