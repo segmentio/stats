@@ -79,14 +79,14 @@ func MakeMeasures(prefix string, value interface{}, tags ...Tag) []Measure {
 	if !TagsAreSorted(tags) {
 		SortTags(tags)
 	}
-	return makeMeasures(prefix, reflect.ValueOf(value), tags...)
+	return makeMeasures(nil, prefix, reflect.ValueOf(value), tags...)
 }
 
-func makeMeasures(prefix string, value reflect.Value, tags ...Tag) []Measure {
-	return appendMeasures(nil, prefix, value, tags...)
+func makeMeasures(cache *measureCache, prefix string, value reflect.Value, tags ...Tag) []Measure {
+	return appendMeasures(nil, cache, prefix, value, tags...)
 }
 
-func appendMeasures(m []Measure, prefix string, v reflect.Value, tags ...Tag) []Measure {
+func appendMeasures(m []Measure, cache *measureCache, prefix string, v reflect.Value, tags ...Tag) []Measure {
 	var p reflect.Value
 	// The optimized routines for generating Measure values need to have the
 	// address of the value, which means it has to be addressable. In the event
@@ -106,18 +106,25 @@ func appendMeasures(m []Measure, prefix string, v reflect.Value, tags ...Tag) []
 	switch v.Kind() {
 	case reflect.Array, reflect.Slice:
 		for i, n := 0, v.Len(); i != n; i++ {
-			m = appendMeasures(m, prefix, v.Index(i), tags...)
+			m = appendMeasures(m, cache, prefix, v.Index(i), tags...)
 		}
 		return m
 	}
 
-	ptr := unsafe.Pointer(p.Pointer())
-	typ := v.Type()
+	var ptr = unsafe.Pointer(p.Pointer())
+	var typ = v.Type()
+	var mf []measureFuncs
+	var ok bool
 
-	mf, ok := cache.lookup(typ)
+	if cache != nil {
+		mf, ok = cache.lookup(typ)
+	}
+
 	if !ok {
 		mf = makeMeasureFuncs(typ, prefix)
-		cache.set(typ, mf)
+		if cache != nil {
+			cache.set(typ, mf)
+		}
 	}
 
 	used := len(m)
@@ -452,8 +459,6 @@ var measurePool = sync.Pool{
 type measureCache struct {
 	cache unsafe.Pointer
 }
-
-var cache measureCache
 
 func (c *measureCache) lookup(typ reflect.Type) ([]measureFuncs, bool) {
 	m := c.load()

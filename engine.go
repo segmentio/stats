@@ -13,8 +13,8 @@ import (
 // that inherit the configuration of the base they were created from.
 //
 // The program must not modify the engine's handler, prefix, or tags after it
-// started using it (by calling some of its methods). If changes need to be made
-// new engines must be created by calls to
+// started using it. If changes need to be made new engines must be created by
+// calls to WithPrefix or WithTags.
 type Engine struct {
 	// The measure handler that the engine forwards measures to.
 	Handler Handler
@@ -28,6 +28,13 @@ type Engine struct {
 	// helper methods WithPrefix, WithTags and the NewEngine function. A program
 	// that manipulates this field directly has to respect this requirement.
 	Tags []Tag
+
+	// This cache keeps track of the generated measure structures to avoid
+	// rebuilding them every time a same measure type is seen by the engine.
+	//
+	// The cached values include the engine prefix in the measure names, which
+	// is why the cache must be local to the engine.
+	cache measureCache
 }
 
 // NewEngine creates and returns a new engine configured with prefix, handler,
@@ -169,7 +176,7 @@ func (eng *Engine) ReportAt(time time.Time, metrics interface{}, tags ...Tag) {
 	}
 
 	mb := measurePool.Get().(*measuresBuffer)
-	mb.measures = appendMeasures(mb.measures[:0], eng.Prefix, reflect.ValueOf(metrics), tags...)
+	mb.measures = appendMeasures(mb.measures[:0], &eng.cache, eng.Prefix, reflect.ValueOf(metrics), tags...)
 
 	ms := mb.measures
 	eng.Handler.HandleMeasures(time, ms...)
