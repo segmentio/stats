@@ -28,8 +28,6 @@ type Engine struct {
 	// helper methods WithPrefix, WithTags and the NewEngine function. A program
 	// that manipulates this field directly has to respect this requirement.
 	Tags []Tag
-
-	cache measureCache
 }
 
 // NewEngine creates and returns a new engine configured with prefix, handler,
@@ -171,7 +169,7 @@ func (eng *Engine) ReportAt(time time.Time, metrics interface{}, tags ...Tag) {
 	}
 
 	mb := measurePool.Get().(*measuresBuffer)
-	mb.measures = appendMeasures(mb.measures[:0], &eng.cache, eng.Prefix, reflect.ValueOf(metrics), tags...)
+	mb.measures = appendMeasures(mb.measures[:0], eng.Prefix, reflect.ValueOf(metrics), tags...)
 
 	ms := mb.measures
 	eng.Handler.HandleMeasures(time, ms...)
