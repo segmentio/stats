@@ -1,16 +1,24 @@
 package procstats
 
 import (
+	"os"
 	"syscall"
 	"time"
 
 	"github.com/segmentio/stats/procstats/linux"
 )
 
-func getpagesize() uint64 { return uint64(syscall.Getpagesize()) }
-
-func collectProcMetrics(pid int) (m proc, err error) {
+func collectProcInfo(pid int) (info ProcInfo, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
+
+	pagesize := uint64(syscall.Getpagesize())
+	rusage := syscall.Rusage{}
+
+	if pid == os.Getpid() {
+		check(syscall.Getrusage(syscall.RUSAGE_SELF, &rusage))
+	} else {
+		// TODO: figure out how to get accurate stats for other processes
+	}
 
 	memoryLimit, err := linux.GetMemoryLimit(pid)
 	check(err)
@@ -30,35 +38,32 @@ func collectProcMetrics(pid int) (m proc, err error) {
 	fds, err := linux.GetOpenFileCount(pid)
 	check(err)
 
-	pagesize := getpagesize()
-	clockTicks := getclktck()
-
-	m = proc{
-		cpu: cpu{
-			user: (time.Duration(stat.Utime) * time.Nanosecond) / time.Duration(clockTicks),
-			sys:  (time.Duration(stat.Stime) * time.Nanosecond) / time.Duration(clockTicks),
+	info = ProcInfo{
+		CPU: CPUInfo{
+			User: time.Duration(rusage.Utime.Nano()),
+			Sys:  time.Duration(rusage.Stime.Nano()),
 		},
 
-		memory: memory{
-			available:       memoryLimit,
-			size:            pagesize * statm.Size,
-			resident:        pagesize * statm.Resident,
-			shared:          pagesize * statm.Share,
-			text:            pagesize * statm.Text,
-			data:            pagesize * statm.Data,
-			majorPageFaults: stat.Majflt,
-			minorPageFaults: stat.Minflt,
+		Memory: MemoryInfo{
+			Available:       memoryLimit,
+			Size:            pagesize * statm.Size,
+			Resident:        pagesize * statm.Resident,
+			Shared:          pagesize * statm.Share,
+			Text:            pagesize * statm.Text,
+			Data:            pagesize * statm.Data,
+			MajorPageFaults: uint64(rusage.Majflt),
+			MinorPageFaults: uint64(rusage.Minflt),
 		},
 
-		files: files{
-			open: fds,
-			max:  limits.OpenFiles.Soft,
+		Files: FileInfo{
+			Open: fds,
+			Max:  limits.OpenFiles.Soft,
 		},
 
-		threads: threads{
-			num: uint64(stat.NumThreads),
-			voluntaryContextSwitches:   sched.NRVoluntarySwitches,
-			involuntaryContextSwitches: sched.NRInvoluntarySwitches,
+		Threads: ThreadInfo{
+			Num: uint64(stat.NumThreads),
+			VoluntaryContextSwitches:   sched.NRVoluntarySwitches,
+			InvoluntaryContextSwitches: sched.NRInvoluntarySwitches,
 		},
 	}
 	return

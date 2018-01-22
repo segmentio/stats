@@ -9,56 +9,76 @@ import (
 	"github.com/segmentio/stats"
 )
 
-// NewHandler wraps h to produce metrics on eng for every request received and
-// every response sent.
-func NewHandler(eng *stats.Engine, h http.Handler, tags ...stats.Tag) http.Handler {
+// NewHandler wraps h to produce metrics on the default engine for every request
+// received and every response sent.
+func NewHandler(h http.Handler) http.Handler {
+	return NewHandlerWith(stats.DefaultEngine, h)
+}
+
+// NewHandlerWith wraps h to produce metrics on eng for every request received
+// and every response sent.
+func NewHandlerWith(eng *stats.Engine, h http.Handler) http.Handler {
 	return &handler{
 		handler: h,
-		metrics: MakeServerMetrics(eng, tags...),
+		eng:     eng,
 	}
 }
 
 type handler struct {
 	handler http.Handler
-	metrics Metrics
+	eng     *stats.Engine
 }
 
 func (h *handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	start := time.Now()
+	m := &metrics{}
 
-	req.Body, _ = h.metrics.ObserveRequest(req)
-
-	w := &httpResponseWriter{
+	w := &responseWriter{
 		ResponseWriter: res,
+		eng:            h.eng,
 		req:            req,
-		start:          start,
-		metrics:        h.metrics,
+		metrics:        m,
+		start:          time.Now(),
 	}
+	defer w.complete()
 
+	b := &requestBody{
+		body:    req.Body,
+		eng:     h.eng,
+		req:     req,
+		metrics: m,
+		op:      "read",
+	}
+	defer b.close()
+
+	req.Body = b
 	h.handler.ServeHTTP(w, req)
-	w.complete()
 }
 
-type httpResponseWriter struct {
+type responseWriter struct {
 	http.ResponseWriter
-	header  http.Header
-	bytes   int
-	status  int
-	metrics Metrics
-	start   time.Time
-	req     *http.Request
+	start       time.Time
+	eng         *stats.Engine
+	req         *http.Request
+	metrics     *metrics
+	status      int
+	bytes       int
+	wroteHeader bool
+	wroteStats  bool
 }
 
-func (w *httpResponseWriter) WriteHeader(status int) {
-	if w.header == nil {
+func (w *responseWriter) WriteHeader(status int) {
+	if !w.wroteHeader {
+		w.wroteHeader = true
 		w.status = status
-		w.header = copyHeader(w.Header())
 		w.ResponseWriter.WriteHeader(status)
 	}
 }
 
-func (w *httpResponseWriter) Write(b []byte) (n int, err error) {
-	w.WriteHeader(http.StatusOK)
+func (w *responseWriter) Write(b []byte) (n int, err error) {
+	if !w.wroteHeader {
+		w.wroteHeader = true
+		w.status = http.StatusOK
+	}
 
 	if n, err = w.ResponseWriter.Write(b); n > 0 {
 		w.bytes += n
@@ -67,38 +87,36 @@ func (w *httpResponseWriter) Write(b []byte) (n int, err error) {
 	return
 }
 
-func (w *httpResponseWriter) Hijack() (conn net.Conn, buf *bufio.ReadWriter, err error) {
+func (w *responseWriter) Hijack() (conn net.Conn, buf *bufio.ReadWriter, err error) {
 	if conn, buf, err = w.ResponseWriter.(http.Hijacker).Hijack(); err == nil {
+		w.wroteHeader = true
 		w.complete()
 	}
 	return
 }
 
-func (w *httpResponseWriter) complete() {
-	if w.header != nil {
-		w.req.Body.Close()
-
-		now := time.Now()
-		res := &http.Response{
-			ProtoMajor:    w.req.ProtoMajor,
-			ProtoMinor:    w.req.ProtoMinor,
-			StatusCode:    w.status,
-			Header:        w.header,
-			Request:       w.req,
-			ContentLength: -1,
-		}
-
-		tags := make([]stats.Tag, 0, len(w.metrics.resTags)+20)
-		tags = append(tags, w.metrics.resTags...)
-		tags = appendResponseTags(tags, res)
-		tags = appendRequestTags(tags, res.Request)
-
-		rawTags := stats.MakeRawTags(tags)
-
-		w.metrics.incrMessageCounter(tags, rawTags, now)
-		w.metrics.observeHeaderSize(len(res.Header), tags, rawTags, now)
-		w.metrics.observeHeaderLength(responseHeaderLength(res), tags, rawTags, now)
-		w.metrics.observeBodyLength(w.bytes, tags, rawTags, now)
-		w.metrics.observeRTT(now.Sub(w.start), tags, rawTags, now)
+func (w *responseWriter) complete() {
+	if w.wroteStats {
+		return
 	}
+	w.wroteStats = true
+
+	if !w.wroteHeader {
+		w.wroteHeader = true
+		w.status = http.StatusOK
+	}
+
+	now := time.Now()
+	res := &http.Response{
+		ProtoMajor:    w.req.ProtoMajor,
+		ProtoMinor:    w.req.ProtoMinor,
+		Proto:         w.req.Proto,
+		StatusCode:    w.status,
+		Header:        w.Header(),
+		Request:       w.req,
+		ContentLength: -1,
+	}
+
+	w.metrics.observeResponse(res, "write", w.bytes, now.Sub(w.start))
+	w.eng.ReportAt(w.start, w.metrics)
 }

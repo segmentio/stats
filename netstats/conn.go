@@ -2,6 +2,7 @@ package netstats
 
 import (
 	"io"
+	"math"
 	"net"
 	"sync"
 	"time"
@@ -9,39 +10,64 @@ import (
 	"github.com/segmentio/stats"
 )
 
+func init() {
+	stats.Buckets.Set("conn.read:bytes",
+		1e2, // 100 B
+		1e3, // 1 KB
+		1e4, // 10 KB
+		1e5, // 100 KB
+		math.Inf(+1),
+	)
+
+	stats.Buckets.Set("conn.write:bytes",
+		1e2, // 100 B
+		1e3, // 1 KB
+		1e4, // 10 KB
+		1e5, // 100 KB
+		math.Inf(+1),
+	)
+}
+
+// NewConn returns a net.Conn object that wraps c and produces metrics on the
+// default engine.
+func NewConn(c net.Conn) net.Conn {
+	return NewConnWith(stats.DefaultEngine, c)
+}
+
 // NewConn returns a net.Conn object that wraps c and produces metrics on eng.
-func NewConn(eng *stats.Engine, c net.Conn, tags ...stats.Tag) net.Conn {
-	t0 := make([]stats.Tag, 0, len(tags)+2)
-	t0 = append(t0, tags...)
-	t0 = append(t0, stats.Tag{Name: "protocol", Value: c.LocalAddr().Network()})
+func NewConnWith(eng *stats.Engine, c net.Conn) net.Conn {
+	nc := &conn{Conn: c, eng: eng}
 
-	nc := &conn{
-		Conn:   c,
-		close:  stats.MakeCounter(eng, "conn.close.count", t0...),
-		errors: stats.MakeCounter(eng, "conn.errors.count", t0...),
-	}
+	proto := c.LocalAddr().Network()
+	nc.r.metrics.protocol = proto
+	nc.w.metrics.protocol = proto
 
-	t1 := append(t0, stats.Tag{Name: "operation", Value: "read"})
-	nc.reads = stats.MakeHistogram(eng, "conn.iops", t1...)
-	nc.bytesIn = stats.MakeCounter(eng, "conn.bytes.count", t1...)
-
-	t2 := append(t0, stats.Tag{Name: "operation", Value: "write"})
-	nc.writes = stats.MakeHistogram(eng, "conn.iops", t2...)
-	nc.bytesOut = stats.MakeCounter(eng, "conn.bytes.count", t2...)
-
-	stats.MakeCounter(eng, "conn.open.count", t0...).Incr()
+	eng.Incr("conn.open:count", stats.Tag{"protocol", proto})
 	return nc
 }
 
 type conn struct {
 	net.Conn
-	once     sync.Once
-	close    stats.Counter
-	reads    stats.Histogram
-	writes   stats.Histogram
-	bytesIn  stats.Counter
-	bytesOut stats.Counter
-	errors   stats.Counter
+	eng  *stats.Engine
+	once sync.Once
+
+	r struct {
+		sync.Mutex
+		metrics struct {
+			count    int    `metric:"count" type:"counter"`
+			bytes    int    `metric:"bytes" type:"histogram"`
+			protocol string `tag:"protocol"`
+		} `metric:"conn.read"`
+	}
+
+	w struct {
+		sync.Mutex
+		metrics struct {
+			count    int    `metric:"count" type:"counter"`
+			bytes    int    `metric:"bytes" type:"histogram"`
+			protocol string `tag:"protocol"`
+		} `metric:"conn.write"`
+	}
 }
 
 func (c *conn) BaseConn() net.Conn {
@@ -51,10 +77,10 @@ func (c *conn) BaseConn() net.Conn {
 func (c *conn) Close() (err error) {
 	err = c.Conn.Close()
 	c.once.Do(func() {
+		c.eng.Incr("conn.close:count", stats.Tag{"protocol", c.w.metrics.protocol})
 		if err != nil {
 			c.error("close", err)
 		}
-		c.close.Incr()
 	})
 	return
 }
@@ -62,10 +88,11 @@ func (c *conn) Close() (err error) {
 func (c *conn) Read(b []byte) (n int, err error) {
 	n, err = c.Conn.Read(b)
 
-	if n > 0 {
-		c.reads.Observe(float64(n))
-		c.bytesIn.Add(float64(n))
-	}
+	c.r.Lock()
+	c.r.metrics.count = 1
+	c.r.metrics.bytes = n
+	c.eng.Report(&c.r)
+	c.r.Unlock()
 
 	if err != nil && err != io.EOF {
 		c.error("read", err)
@@ -77,10 +104,11 @@ func (c *conn) Read(b []byte) (n int, err error) {
 func (c *conn) Write(b []byte) (n int, err error) {
 	n, err = c.Conn.Write(b)
 
-	if n > 0 {
-		c.writes.Observe(float64(n))
-		c.bytesOut.Add(float64(n))
-	}
+	c.w.Lock()
+	c.w.metrics.count = 1
+	c.w.metrics.bytes = n
+	c.eng.Report(&c.w)
+	c.w.Unlock()
 
 	if err != nil {
 		c.error("write", err)
@@ -91,21 +119,21 @@ func (c *conn) Write(b []byte) (n int, err error) {
 
 func (c *conn) SetDeadline(t time.Time) (err error) {
 	if err = c.Conn.SetDeadline(t); err != nil {
-		c.error("set-timeout", err)
+		c.error("set-deadline", err)
 	}
 	return
 }
 
 func (c *conn) SetReadDeadline(t time.Time) (err error) {
 	if err = c.Conn.SetReadDeadline(t); err != nil {
-		c.error("set-read-timeout", err)
+		c.error("set-read-deadline", err)
 	}
 	return
 }
 
 func (c *conn) SetWriteDeadline(t time.Time) (err error) {
 	if err = c.Conn.SetWriteDeadline(t); err != nil {
-		c.error("set-write-timeout", err)
+		c.error("set-write-deadline", err)
 	}
 	return
 }
@@ -116,8 +144,11 @@ func (c *conn) error(op string, err error) {
 		// this is expected to happen when connections are closed
 	default:
 		// only report serious errors, others should be handled gracefully
-		if e, ok := err.(net.Error); !ok || !(e.Temporary() || e.Timeout()) {
-			c.errors.Clone(stats.Tag{Name: "operation", Value: op}).Incr()
+		if !isTemporary(err) {
+			c.eng.Incr("conn.error:count",
+				stats.Tag{"operation", op},
+				stats.Tag{"protocol", c.w.metrics.protocol},
+			)
 		}
 	}
 }

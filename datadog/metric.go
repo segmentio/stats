@@ -15,16 +15,17 @@ const (
 	Counter   MetricType = "c"
 	Gauge     MetricType = "g"
 	Histogram MetricType = "h"
+	Unknown   MetricType = "?"
 )
 
 // The Metric type is a representation of the metrics supported by datadog.
 type Metric struct {
-	Type      MetricType      // the metric type
-	Name      string          // the metric name
-	Value     float64         // the metric value
-	Rate      float64         // sample rate, a value between 0 and 1
-	Tags      []stats.Tag     // the list of tags set on the metric
-	Namespace stats.Namespace // the metric namespace (never populated by parsing operations)
+	Type      MetricType  // the metric type
+	Namespace string      // the metric namespace (never populated by parsing operations)
+	Name      string      // the metric name
+	Value     float64     // the metric value
+	Rate      float64     // sample rate, a value between 0 and 1
+	Tags      []stats.Tag // the list of tags set on the metric
 }
 
 // String satisfies the fmt.Stringer interface.

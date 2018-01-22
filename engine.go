@@ -3,293 +3,247 @@ package stats
 import (
 	"os"
 	"path/filepath"
-	"runtime"
+	"reflect"
 	"sync"
 	"time"
 )
 
-const (
-	// DefaultMaxPending is the maximum number of in-flight metrics operations
-	// on the default engine.
-	DefaultMaxPending = 1000
+// An Engine carries the context for producing metrics, it is configured by
+// setting the exported fields or using the helper methods to create sub-engines
+// that inherit the configuration of the base they were created from.
+//
+// The program must not modify the engine's handler, prefix, or tags after it
+// started using it (by calling some of its methods). If changes need to be made
+// new engines must be created by calls to
+type Engine struct {
+	// The measure handler that the engine forwards measures to.
+	Handler Handler
 
-	// DefaultMetricTimeout is the amount of time idle metrics are kept in the
-	// default engine before being evicted.
-	DefaultMetricTimeout = 10 * time.Second
-)
-
-// EngineConfig carries the different configuration values that can be set when
-// creating a new engine.
-type EngineConfig struct {
-	// Prefix is set on all metrics created for this engine.
+	// A prefix set on all metric names produced by the engine.
 	Prefix string
 
-	// Tags is the extra list of tags that are set on all metrics of the engine.
+	// A list of tags set on all metrics produced by the engine.
+	//
+	// The list of tags has to be sorted. This is automatically managed by the
+	// helper methods WithPrefix, WithTags and the NewEngine function. A program
+	// that manipulates this field directly has to respect this requirement.
 	Tags []Tag
 
-	// MaxPending is the maximum number of in-flight metrics operations on the
-	// engine.
-	MaxPending int
-
-	// MetricTimeout is the amount of time idle metrics are kept in the engine
-	// before being evicted.
-	MetricTimeout time.Duration
+	cache measureCache
 }
 
-// The Engine type receives metrics operations and stores metrocs states.
-//
-// The goal of this type is to maintain aggregated metric values between scraps
-// from clients that expose those metrics to different collection systems.
-//
-// Most applications don't need to create a stats engine and can simply use the
-// default one which is implicitly used by metrics when no engine is specified.
-type Engine struct {
-	// immutable state of the engine
-	config EngineConfig
-
-	// error channel used to report dropped metrics.
-	errch chan<- struct{}
-
-	// operation and query channels used to communicate with the engine.
-	opch  chan<- metricOp
-	reqch chan<- metricReq
-
-	// synchronization primitive to make Close idempotent.
-	once sync.Once
+// NewEngine creates and returns a new engine configured with prefix, handler,
+// and tags.
+func NewEngine(prefix string, handler Handler, tags ...Tag) *Engine {
+	return &Engine{
+		Handler: handler,
+		Prefix:  prefix,
+		Tags:    SortTags(copyTags(tags)),
+	}
 }
 
-var (
-	// DefaultEngine is the engine used by global metrics.
-	DefaultEngine = NewDefaultEngine()
-)
+// Register adds handler to eng.
+func (eng *Engine) Register(handler Handler) {
+	if eng.Handler == Discard {
+		eng.Handler = handler
+	} else {
+		eng.Handler = MultiHandler(eng.Handler, handler)
+	}
+}
 
-// Incr increments by one the metric identified by name and tags, a new counter
-// is created in the default engine if none existed.
+// Flush flushes eng's handler (if it implements the Flusher interface).
+func (eng *Engine) Flush() {
+	flush(eng.Handler)
+}
+
+// WithPrefix returns a copy of the engine with prefix appended to eng's current
+// prefix and tags set to the merge of eng's current tags and those passed as
+// argument. Both eng and the returned engine share the same handler.
+func (eng *Engine) WithPrefix(prefix string, tags ...Tag) *Engine {
+	return &Engine{
+		Handler: eng.Handler,
+		Prefix:  eng.makeName(prefix),
+		Tags:    eng.makeTags(tags),
+	}
+}
+
+// WithTags returns a copy of the engine with tags set to the merge of eng's
+// current tags and those passed as arguments. Both eng and the returned engine
+// share the same handler.
+func (eng *Engine) WithTags(tags ...Tag) *Engine {
+	return eng.WithPrefix("", tags...)
+}
+
+// Incr increments by one the counter identified by name and tags.
+func (eng *Engine) Incr(name string, tags ...Tag) {
+	eng.Add(name, 1, tags...)
+}
+
+// Add increments by value the counter identified by name and tags.
+func (eng *Engine) Add(name string, value interface{}, tags ...Tag) {
+	eng.measure(name, value, Counter, tags...)
+}
+
+// Set sets to value the gauge identified by name and tags.
+func (eng *Engine) Set(name string, value interface{}, tags ...Tag) {
+	eng.measure(name, value, Gauge, tags...)
+}
+
+// Observe reports value for the histogram identified by name and tags.
+func (eng *Engine) Observe(name string, value interface{}, tags ...Tag) {
+	eng.measure(name, value, Histogram, tags...)
+}
+
+// Clock returns a new clock identified by name and tags.
+func (eng *Engine) Clock(name string, tags ...Tag) *Clock {
+	cpy := make([]Tag, len(tags), len(tags)+1) // clock always appends a stamp.
+	copy(cpy, tags)
+	now := time.Now()
+	return &Clock{
+		name:  name,
+		first: now,
+		last:  now,
+		tags:  cpy,
+		eng:   eng,
+	}
+}
+
+func (eng *Engine) measure(name string, value interface{}, ftype FieldType, tags ...Tag) {
+	name, field := splitMeasureField(name)
+	mp := measureArrayPool.Get().(*[1]Measure)
+
+	m := &(*mp)[0]
+	m.Name = eng.makeName(name) // TODO: figure out how to optimize this
+	m.Fields = append(m.Fields[:0], MakeField(field, value, ftype))
+	m.Tags = append(m.Tags[:0], eng.Tags...)
+	m.Tags = append(m.Tags, tags...)
+
+	if len(tags) != 0 && !TagsAreSorted(m.Tags) {
+		SortTags(m.Tags)
+	}
+
+	eng.Handler.HandleMeasures(time.Now(), (*mp)[:]...)
+
+	for i := range m.Fields {
+		m.Fields[i] = Field{}
+	}
+
+	for i := range m.Tags {
+		m.Tags[i] = Tag{}
+	}
+
+	m.Name = ""
+	measureArrayPool.Put(mp)
+}
+
+func (eng *Engine) makeName(name string) string {
+	return concat(eng.Prefix, name)
+}
+
+func (eng *Engine) makeTags(tags []Tag) []Tag {
+	return SortTags(concatTags(eng.Tags, tags))
+}
+
+var measureArrayPool = sync.Pool{
+	New: func() interface{} { return new([1]Measure) },
+}
+
+// Report calls ReportAt with time.Now() as first argument.
+func (eng *Engine) Report(metrics interface{}, tags ...Tag) {
+	eng.ReportAt(time.Now(), metrics, tags...)
+}
+
+// ReportAt reports a set of metrics for a given time. The metrics must be of
+// type struct, pointer to struct, or a slice or array to one of those. See
+// MakeMeasures for details about how to make struct types exposing metrics.
+func (eng *Engine) ReportAt(time time.Time, metrics interface{}, tags ...Tag) {
+	var tb *tagsBuffer
+
+	if len(tags) == 0 {
+		// fast path for the common case where there are no dynamic tags
+		tags = eng.Tags
+	} else {
+		tb = tagsPool.Get().(*tagsBuffer)
+		tb.append(tags...)
+		tb.append(eng.Tags...)
+		tb.sort()
+		tags = tb.tags
+	}
+
+	mb := measurePool.Get().(*measuresBuffer)
+	mb.measures = appendMeasures(mb.measures[:0], &eng.cache, eng.Prefix, reflect.ValueOf(metrics), tags...)
+
+	ms := mb.measures
+	eng.Handler.HandleMeasures(time, ms...)
+
+	for i := range ms {
+		ms[i].reset()
+	}
+
+	if tb != nil {
+		tb.reset()
+		tagsPool.Put(tb)
+	}
+
+	measurePool.Put(mb)
+}
+
+// DefaultEngine is the engine used by global helper functions.
+var DefaultEngine = NewEngine(progname(), Discard)
+
+// Register adds handler to the default engine.
+func Register(handler Handler) {
+	DefaultEngine.Register(handler)
+}
+
+// Flush flushes the default engine.
+func Flush() {
+	DefaultEngine.Flush()
+}
+
+// WithPrefix returns a copy of the engine with prefix appended to default
+// engine's current prefix and tags set to the merge of eng's current tags and
+// those passed as argument. Both the default engine and the returned engine
+// share the same handler.
+func WithPrefix(prefix string, tags ...Tag) *Engine {
+	return DefaultEngine.WithPrefix(prefix, tags...)
+}
+
+// WithTags returns a copy of the engine with tags set to the merge of the
+// default engine's current tags and those passed as arguments. Both the default
+// engine and the returned engine share the same handler.
+func WithTags(tags ...Tag) *Engine {
+	return DefaultEngine.WithTags(tags...)
+}
+
+// Incr increments by one the counter identified by name and tags.
 func Incr(name string, tags ...Tag) {
-	C(name, tags...).Incr()
+	DefaultEngine.Incr(name, tags...)
 }
 
-// Add adds value to the metric identified by name and tags, a new counter is
-// created in the default engine if none existed.
-func Add(name string, value float64, tags ...Tag) {
-	C(name, tags...).Add(value)
+// Add increments by value the counter identified by name and tags.
+func Add(name string, value interface{}, tags ...Tag) {
+	DefaultEngine.Add(name, value, tags...)
 }
 
-// Set sets the value of the metric identified by name and tags, a new gauge is
-// created in the default engine if none existed.
-func Set(name string, value float64, tags ...Tag) {
-	G(name, tags...).Set(value)
+// Set sets to value the gauge identified by name and tags.
+func Set(name string, value interface{}, tags ...Tag) {
+	DefaultEngine.Set(name, value, tags...)
 }
 
-// Time returns a clock that produces metrics with name and tags and can be used
-// to report durations.
-func Time(name string, start time.Time, tags ...Tag) *Clock {
-	return T(name, tags...).StartAt(start)
+// Observe reports value for the histogram identified by name and tags.
+func Observe(name string, value interface{}, tags ...Tag) {
+	DefaultEngine.Observe(name, value, tags...)
 }
 
-// Duration reports a duration value of the metric identified by name and tags,
-// a new timer is created in the default engine if none existed.
-func Duration(name string, value time.Duration, tags ...Tag) {
-	T(name, tags...).Duration(value)
+// Report is a helper function that delegates to DefaultEngine.
+func Report(metrics interface{}, tags ...Tag) {
+	DefaultEngine.Report(metrics, tags...)
 }
 
-// NewDefaultEngine creates and returns an engine configured with default settings.
-func NewDefaultEngine() *Engine {
-	return NewEngine(EngineConfig{Prefix: progname()})
-}
-
-// NewEngine creates and returns an engine configured with config.
-func NewEngine(config EngineConfig) *Engine {
-	if config.MaxPending == 0 {
-		config.MaxPending = DefaultMaxPending
-	}
-
-	if config.MetricTimeout == 0 {
-		config.MetricTimeout = DefaultMetricTimeout
-	}
-
-	errch := make(chan struct{}, 1)
-	opch := make(chan metricOp, config.MaxPending)
-	reqch := make(chan metricReq)
-
-	eng := &Engine{
-		config: EngineConfig{
-			Prefix:        config.Prefix,
-			Tags:          copyTags(config.Tags),
-			MaxPending:    config.MaxPending,
-			MetricTimeout: config.MetricTimeout,
-		},
-		errch: errch,
-		opch:  opch,
-		reqch: reqch,
-	}
-
-	go runEngine(engine{
-		errch:   errch,
-		opch:    opch,
-		reqch:   reqch,
-		prefix:  config.Prefix,
-		tags:    config.Tags,
-		timeout: config.MetricTimeout,
-	})
-
-	runtime.SetFinalizer(eng, (*Engine).Close)
-	return eng
-}
-
-// Close stops eng and releases all its allocated resources. After calling this
-// method every use of metrics created for this engine will panic.
-func (eng *Engine) Close() error {
-	eng.once.Do(eng.close)
-	return nil
-}
-
-// Config returns the engine's configuration.
-//
-// This method is useful to implement clients that need to have insights into
-// the metric timeout or other properties of the engine they're fetching the
-// state from.
-func (eng *Engine) Config() EngineConfig {
-	config := eng.config
-	config.Tags = copyTags(config.Tags)
-	return config
-}
-
-// State returns the current state of the engine as a diff of metrics since a
-// specific version number.
-//
-// Passing zero will fetch the full state of the engine.
-func (eng *Engine) State(since uint64) (metrics []Metric, version uint64) {
-	res := make(chan metricRes, 1)
-	eng.reqch <- metricReq{res: res, since: since}
-	state := <-res
-	return state.metrics, state.version
-}
-
-// Add is a low-level method that sends an 'add' opertaion on a metric within
-// the engine.
-func (eng *Engine) Add(typ MetricType, key string, name string, tags []Tag, value float64, time time.Time) {
-	eng.push(metricOp{
-		typ:   typ,
-		key:   key,
-		name:  name,
-		tags:  tags,
-		value: value,
-		time:  time,
-		apply: metricOpAdd,
-	})
-}
-
-// Add is a low-level method that sends a 'set' opertaion on a metric within
-// the engine.
-func (eng *Engine) Set(typ MetricType, key string, name string, tags []Tag, value float64, time time.Time) {
-	eng.push(metricOp{
-		typ:   typ,
-		key:   key,
-		name:  name,
-		tags:  tags,
-		value: value,
-		time:  time,
-		apply: metricOpSet,
-	})
-}
-
-// Add is a low-level method that sends an 'observe' opertaion on a metric
-// within the engine.
-func (eng *Engine) Observe(typ MetricType, key string, name string, tags []Tag, value float64, time time.Time) {
-	eng.push(metricOp{
-		typ:   typ,
-		key:   key,
-		name:  name,
-		tags:  tags,
-		value: value,
-		time:  time,
-		apply: metricOpObserve,
-	})
-}
-
-func (eng *Engine) close() {
-	close(eng.opch)
-	close(eng.reqch)
-}
-
-func (eng *Engine) push(op metricOp) {
-	if eng == nil {
-		eng = DefaultEngine
-	}
-
-	select {
-	case eng.opch <- op:
-		return
-	default:
-		// Never block, we'd rather discard the metric than block the program.
-	}
-
-	select {
-	case eng.errch <- struct{}{}:
-	default:
-		// Never block either, we may not report an accurate count of discarded
-		// metrics but it's OK, the important part is giving a signal that some
-		// metrics are getting discarded because of how loaded the metrics queue
-		// is.
-	}
-}
-
-// engine is the internal implementation of the Engine type, it carries the
-// other end of the diverse communication channels and the local state on which
-// the engine's goroutine works.
-type engine struct {
-	errch   <-chan struct{}
-	opch    <-chan metricOp
-	reqch   <-chan metricReq
-	prefix  string
-	tags    []Tag
-	timeout time.Duration
-}
-
-func runEngine(e engine) {
-	ticker := time.NewTicker(e.timeout / 2)
-	defer ticker.Stop()
-
-	namespace := Namespace{
-		Name: e.prefix,
-		Tags: e.tags,
-	}
-
-	store := newMetricStore(metricStoreConfig{
-		timeout: e.timeout,
-	})
-
-	for {
-		select {
-		case <-e.errch:
-			store.apply(metricOp{
-				typ:   CounterType,
-				space: namespace,
-				key:   "stats.discarded?",
-				name:  "stats.discarded",
-				value: 1,
-				apply: metricOpAdd,
-			}, time.Now())
-
-		case op, ok := <-e.opch:
-			if !ok {
-				return // done
-			}
-			op.space = namespace
-			store.apply(op, time.Now())
-
-		case req, ok := <-e.reqch:
-			if !ok {
-				return // done
-			}
-			metrics, version := store.state(req.since)
-			req.res <- metricRes{metrics: metrics, version: version}
-
-		case now := <-ticker.C:
-			store.deleteExpiredMetrics(now)
-		}
-	}
+// ReportAt is a helper function that delegates to DefaultEngine.
+func ReportAt(time time.Time, metrics interface{}, tags ...Tag) {
+	DefaultEngine.ReportAt(time, metrics, tags...)
 }
 
 func progname() (name string) {

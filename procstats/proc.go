@@ -7,188 +7,202 @@ import (
 	"github.com/segmentio/stats"
 )
 
+// ProcMetrics is a metric collector that reports metrics on processes.
 type ProcMetrics struct {
-	Pid     int
-	CPU     CPU
-	Memory  Memory
-	Files   Files
-	Threads Threads
+	engine   *stats.Engine
+	pid      int
+	cpu      procCPU     `metric:"cpu"`
+	memory   procMemory  `metric:"memory"`
+	files    procFiles   `metric:"files"`
+	threads  procThreads `metric:"threads"`
+	last     ProcInfo
+	lastTime time.Time
 }
 
-type CPU struct {
+type procCPU struct {
 	// CPU time
-	User stats.Counter // user cpu time used by the process
-	Sys  stats.Counter // system cpu time used by the process
+	user struct { // user cpu time used by the process
+		time    time.Duration `metric:"usage.seconds" type:"counter"`
+		percent float64       `metric:"usage.percent" type:"gauge"`
+		typ     string        `tag:"type"` // user
+	}
+	system struct { // system cpu time used by the process
+		time    time.Duration `metric:"usage.seconds" type:"counter"`
+		percent float64       `metric:"usage.percent" type:"gauge"`
+		typ     string        `tag:"type"` // system
+	}
+	total struct {
+		time    time.Duration `metric:"usage_total.seconds" type:"counter"`
+		percent float64       `metric:"usage_total.percent" type:"gauge"`
+	}
 }
 
-type Memory struct {
+type procMemory struct {
 	// Memory
-	Available stats.Gauge // amound of RAM available to the process
-	Size      stats.Gauge // total program memory (including virtual mappings)
-	Resident  stats.Gauge // resident set size
-	Shared    stats.Gauge // shared pages (i.e., backed by a file)
-	Text      stats.Gauge // text (code)
-	Data      stats.Gauge // data + stack
+	available uint64 `metric:"available.bytes" type:"gauge"` // amound of RAM available to the process
+	size      uint64 `metric:"total.bytes"     type:"gauge"` // total program memory (including virtual mappings)
+
+	resident struct { // resident set size
+		usage   uint64  `metric:"usage.bytes"   type:"gauge"`
+		percent float64 `metric:"usage.percent" type:"gauge"`
+		typ     string  `tag:"type"` // resident
+	}
+
+	shared struct { // shared pages (i.e., backed by a file)
+		usage uint64 `metric:"usage.bytes" type:"gauge"`
+		typ   string `tag:"type"` // shared
+	}
+
+	text struct { // text (code)
+		usage uint64 `metric:"usage.bytes" type:"gauge"`
+		typ   string `tag:"type"` // text
+	}
+
+	data struct { // data + stack
+		usage uint64 `metric:"usage.bytes" type:"gauge"`
+		typ   string `tag:"type"` // data
+	}
 
 	// Page faults
-	MajorPageFaults stats.Counter
-	MinorPageFaults stats.Counter
+	pagefault struct {
+		major struct {
+			count uint64 `metric:"count" type:"counter"`
+			typ   string `tag:"type"` // major
+		}
+		minor struct {
+			count uint64 `metric:"count" type:"counter"`
+			typ   string `tag:"type"` // minor
+		}
+	} `metric:"pagefault"`
 }
 
-type Files struct {
+type procFiles struct {
 	// File descriptors
-	Open stats.Gauge // fds opened by the process
-	Max  stats.Gauge // max number of fds the process can open
+	open uint64 `metric:"open.count" type:"gauge"` // fds opened by the process
+	max  uint64 `metric:"open.max"   type:"gauge"` // max number of fds the process can open
 }
 
-type Threads struct {
+type procThreads struct {
 	// Thread count
-	Num stats.Gauge
+	num uint64 `metric:"count" type:"gauge"`
 
 	// Context switches
-	VoluntaryContextSwitches   stats.Counter
-	InvoluntaryContextSwitches stats.Counter
+	switches struct {
+		voluntary struct {
+			count uint64 `metric:"count" type:"counter"`
+			typ   string `tag:"type"` // voluntary
+		}
+		involuntary struct {
+			count uint64 `metric:"count" type:"counter"`
+			typ   string `tag:"type"` // involuntary
+		}
+	} `metric:"switch"`
 }
 
-func NewProcMetrics(eng *stats.Engine, tags ...stats.Tag) *ProcMetrics {
-	return NewProcMetricsFor(os.Getpid(), eng, tags...)
+// NewProdMetrics collects metrics on the current process and reports them to
+// the default stats engine.
+func NewProcMetrics() *ProcMetrics {
+	return NewProcMetricsWith(stats.DefaultEngine, os.Getpid())
 }
 
-func NewProcMetricsFor(pid int, eng *stats.Engine, tags ...stats.Tag) *ProcMetrics {
-	return &ProcMetrics{
-		Pid:     pid,
-		CPU:     makeCPU(eng, tags...),
-		Memory:  makeMemory(eng, tags...),
-		Files:   makeFiles(eng, tags...),
-		Threads: makeThreads(eng, tags...),
-	}
+// NewProcMetricsWith collects metrics on the process identified by pid and
+// reports them to eng.
+func NewProcMetricsWith(eng *stats.Engine, pid int) *ProcMetrics {
+	p := &ProcMetrics{engine: eng, pid: pid}
+
+	p.cpu.user.typ = "user"
+	p.cpu.system.typ = "system"
+
+	p.memory.resident.typ = "resident"
+	p.memory.shared.typ = "shared"
+	p.memory.text.typ = "text"
+	p.memory.data.typ = "data"
+
+	p.memory.pagefault.major.typ = "major"
+	p.memory.pagefault.minor.typ = "minor"
+
+	p.threads.switches.voluntary.typ = "voluntary"
+	p.threads.switches.involuntary.typ = "involuntary"
+
+	return p
 }
 
+// Collect satsifies the Collector interface.
 func (p *ProcMetrics) Collect() {
-	if m, err := collectProcMetrics(p.Pid); err == nil {
-		// CPU
-		p.CPU.User.Set(m.cpu.user.Seconds())
-		p.CPU.Sys.Set(m.cpu.sys.Seconds())
+	if m, err := CollectProcInfo(p.pid); err == nil {
+		now := time.Now()
 
-		// Memory
-		p.Memory.Available.Set(float64(m.memory.available))
-		p.Memory.Size.Set(float64(m.memory.size))
-		p.Memory.Resident.Set(float64(m.memory.resident))
-		p.Memory.Shared.Set(float64(m.memory.shared))
-		p.Memory.Text.Set(float64(m.memory.text))
-		p.Memory.Data.Set(float64(m.memory.data))
-		p.Memory.MajorPageFaults.Set(float64(m.memory.majorPageFaults))
-		p.Memory.MinorPageFaults.Set(float64(m.memory.minorPageFaults))
+		if !p.lastTime.IsZero() {
+			interval := now.Sub(p.lastTime)
 
-		// Files
-		p.Files.Open.Set(float64(m.files.open))
-		p.Files.Max.Set(float64(m.files.max))
+			p.cpu.user.time = m.CPU.User - p.last.CPU.User
+			p.cpu.user.percent = 100 * float64(p.cpu.user.time) / float64(interval)
 
-		// Threads
-		p.Threads.Num.Set(float64(m.threads.num))
-		p.Threads.VoluntaryContextSwitches.Set(float64(m.threads.voluntaryContextSwitches))
-		p.Threads.InvoluntaryContextSwitches.Set(float64(m.threads.involuntaryContextSwitches))
+			p.cpu.system.time = m.CPU.Sys - p.last.CPU.Sys
+			p.cpu.system.percent = 100 * float64(p.cpu.system.time) / float64(interval)
+
+			p.cpu.total.time = (m.CPU.User + m.CPU.Sys) - (p.last.CPU.User + p.last.CPU.Sys)
+			p.cpu.total.percent = 100 * float64(p.cpu.total.time) / float64(interval)
+		}
+
+		p.memory.available = m.Memory.Available
+		p.memory.size = m.Memory.Size
+		p.memory.resident.usage = m.Memory.Resident
+		p.memory.resident.percent = 100 * float64(p.memory.resident.usage) / float64(p.memory.available)
+		p.memory.shared.usage = m.Memory.Shared
+		p.memory.text.usage = m.Memory.Text
+		p.memory.data.usage = m.Memory.Data
+		p.memory.pagefault.major.count = m.Memory.MajorPageFaults - p.last.Memory.MajorPageFaults
+		p.memory.pagefault.minor.count = m.Memory.MinorPageFaults - p.last.Memory.MinorPageFaults
+
+		p.files.open = m.Files.Open
+		p.files.max = m.Files.Max
+
+		p.threads.num = m.Threads.Num
+		p.threads.switches.voluntary.count = m.Threads.VoluntaryContextSwitches - p.last.Threads.VoluntaryContextSwitches
+		p.threads.switches.involuntary.count = m.Threads.InvoluntaryContextSwitches - p.last.Threads.InvoluntaryContextSwitches
+
+		p.last = m
+		p.lastTime = now
+		p.engine.Report(p)
 	}
 }
 
-func makeCPU(eng *stats.Engine, tags ...stats.Tag) (cpu CPU) {
-	n := len(tags)
-	tags = append(tags, stats.Tag{})
-
-	tags[n] = stats.Tag{"type", "user"}
-	cpu.User = stats.MakeCounter(eng, "cpu.usage.seconds", tags...)
-
-	tags[n] = stats.Tag{"type", "sys"}
-	cpu.Sys = stats.MakeCounter(eng, "cpu.usage.seconds", tags...)
-
-	return cpu
+type ProcInfo struct {
+	CPU     CPUInfo
+	Memory  MemoryInfo
+	Files   FileInfo
+	Threads ThreadInfo
 }
 
-func makeMemory(eng *stats.Engine, tags ...stats.Tag) Memory {
-	mem := Memory{
-		Available: stats.MakeGauge(eng, "memory.available.bytes", tags...),
-		Size:      stats.MakeGauge(eng, "memory.total.bytes", tags...),
-	}
-
-	n := len(tags)
-	tags = append(tags, stats.Tag{})
-
-	tags[n] = stats.Tag{"type", "resident"}
-	mem.Resident = stats.MakeGauge(eng, "memory.usage.bytes", tags...)
-
-	tags[n] = stats.Tag{"type", "shared"}
-	mem.Shared = stats.MakeGauge(eng, "memory.usage.bytes", tags...)
-
-	tags[n] = stats.Tag{"type", "text"}
-	mem.Text = stats.MakeGauge(eng, "memory.usage.bytes", tags...)
-
-	tags[n] = stats.Tag{"type", "data"}
-	mem.Data = stats.MakeGauge(eng, "memory.usage.bytes", tags...)
-
-	tags[n] = stats.Tag{"type", "major"}
-	mem.MajorPageFaults = stats.MakeCounter(eng, "memory.pagefault.count", tags...)
-
-	tags[n] = stats.Tag{"type", "minor"}
-	mem.MinorPageFaults = stats.MakeCounter(eng, "memory.pagefault.count", tags...)
-
-	return mem
+func CollectProcInfo(pid int) (ProcInfo, error) {
+	return collectProcInfo(pid)
 }
 
-func makeFiles(eng *stats.Engine, tags ...stats.Tag) Files {
-	return Files{
-		Open: stats.MakeGauge(eng, "files.open.count", tags...),
-		Max:  stats.MakeGauge(eng, "files.open.max", tags...),
-	}
+type CPUInfo struct {
+	User time.Duration // user cpu time used by the process
+	Sys  time.Duration // system cpu time used by the process
 }
 
-func makeThreads(eng *stats.Engine, tags ...stats.Tag) Threads {
-	threads := Threads{
-		Num: stats.MakeGauge(eng, "thread.count", tags...),
-	}
+type MemoryInfo struct {
+	Available uint64 // amound of RAM available to the process
+	Size      uint64 // total program memory (including virtual mappings)
+	Resident  uint64 // resident set size
+	Shared    uint64 // shared pages (i.e., backed by a file)
+	Text      uint64 // text (code)
+	Data      uint64 // data + stack
 
-	n := len(tags)
-	tags = append(tags, stats.Tag{})
-
-	tags[n] = stats.Tag{"type", "voluntary"}
-	threads.VoluntaryContextSwitches = stats.MakeCounter(eng, "thread.switch.count", tags...)
-
-	tags[n] = stats.Tag{"type", "involuntary"}
-	threads.InvoluntaryContextSwitches = stats.MakeCounter(eng, "thread.switch.count", tags...)
-
-	return threads
+	MajorPageFaults uint64
+	MinorPageFaults uint64
 }
 
-type proc struct {
-	cpu     cpu
-	memory  memory
-	files   files
-	threads threads
+type FileInfo struct {
+	Open uint64 // fds opened by the process
+	Max  uint64 // max number of fds the process can open
 }
 
-type cpu struct {
-	user time.Duration
-	sys  time.Duration
-}
-
-type memory struct {
-	available uint64
-	size      uint64
-	resident  uint64
-	shared    uint64
-	text      uint64
-	data      uint64
-
-	majorPageFaults uint64
-	minorPageFaults uint64
-}
-
-type files struct {
-	open uint64
-	max  uint64
-}
-
-type threads struct {
-	num                        uint64
-	voluntaryContextSwitches   uint64
-	involuntaryContextSwitches uint64
+type ThreadInfo struct {
+	Num                        uint64
+	VoluntaryContextSwitches   uint64
+	InvoluntaryContextSwitches uint64
 }

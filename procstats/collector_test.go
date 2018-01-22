@@ -5,16 +5,17 @@ import (
 	"time"
 
 	"github.com/segmentio/stats"
+	"github.com/segmentio/stats/statstest"
 )
 
 func TestCollector(t *testing.T) {
-	engine := stats.NewDefaultEngine()
-	defer engine.Close()
+	h := &statstest.Handler{}
+	e := stats.NewEngine("", h)
 
 	c := StartCollectorWith(Config{
 		CollectInterval: 100 * time.Microsecond,
 		Collector: MultiCollector(
-			NewGoMetrics(engine),
+			NewGoMetricsWith(e),
 		),
 	})
 
@@ -22,13 +23,12 @@ func TestCollector(t *testing.T) {
 	time.Sleep(time.Millisecond)
 	c.Close()
 
-	// Let the engine process the metrics.
-	time.Sleep(10 * time.Millisecond)
+	if len(h.Measures()) == 0 {
+		t.Error("no measures were reported by the stats collector")
+	}
 
-	metrics, _ := engine.State(0)
-
-	if len(metrics) == 0 {
-		t.Error("no metrics were reported by the stats collector")
+	for _, m := range h.Measures() {
+		t.Log(m)
 	}
 }
 

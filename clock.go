@@ -7,30 +7,11 @@ import "time"
 // Clocks are useful to measure the duration taken by sequential execution steps
 // and therefore aren't safe to be used concurrently by multiple goroutines.
 type Clock struct {
-	metric Histogram
-	last   time.Time
-}
-
-// Name returns the name of the clock.
-func (c *Clock) Name() string {
-	return c.metric.Name()
-}
-
-// Tags returns the list of tags set on the clock.
-//
-// The returned slice is a copy of the internal slice maintained by the clock,
-// the program owns it and can safely modify it without affecting the clock.
-func (c *Clock) Tags() []Tag {
-	return c.metric.Tags()
-}
-
-// Clone returns a copy of the clock, potentially setting tags on the returned
-// object.
-func (c *Clock) Clone(tags ...Tag) *Clock {
-	return &Clock{
-		metric: c.metric.Clone(tags...),
-		last:   c.last,
-	}
+	name  string
+	first time.Time
+	last  time.Time
+	tags  []Tag
+	eng   *Engine
 }
 
 // Stamp reports the time difference between now and the last time the method
@@ -46,11 +27,11 @@ func (c *Clock) Stamp(name string) {
 //
 // The metric produced by this method call will have a "stamp" tag set to name.
 func (c *Clock) StampAt(name string, now time.Time) {
-	c.observe(name, now)
+	c.observe(name, now.Sub(c.last))
+	c.last = now
 }
 
-// Stop reports the time difference between now and the last time the Stamp
-// method was called (or since the clock was created).
+// Stop reports the time difference between now and the time the clock was created at.
 //
 // The metric produced by this method call will have a "stamp" tag set to
 // "total".
@@ -58,21 +39,15 @@ func (c *Clock) Stop() {
 	c.StopAt(time.Now())
 }
 
-// StopAt reports the time difference between now and the last time the Stamp
-// method was called (or since the clock was created).
+// StopAt reports the time difference between now and the time the clock was created at.
 //
 // The metric produced by this method call will have a "stamp" tag set to
 // "total".
 func (c *Clock) StopAt(now time.Time) {
-	c.observe("total", now)
+	c.observe("total", now.Sub(c.first))
 }
 
-func (c *Clock) observe(stamp string, now time.Time) {
-	h := c.metric
-	h.key += "&stamp=" + stamp
-	h.tags = make([]Tag, 0, len(c.metric.tags)+1)
-	h.tags = append(h.tags, c.metric.tags...)
-	h.tags = append(h.tags, Tag{"stamp", stamp})
-	h.Observe(now.Sub(c.last).Seconds())
-	c.last = now
+func (c *Clock) observe(stamp string, d time.Duration) {
+	tags := append(c.tags, Tag{"stamp", stamp})
+	c.eng.Observe(c.name, d, tags...)
 }

@@ -88,7 +88,7 @@ func client(cmd string, args ...string) {
 		}
 	}
 
-	dd := datadog.NewClient(datadog.ClientConfig{Address: addr})
+	dd := datadog.NewClient(addr)
 	defer dd.Close()
 
 	switch cmd {
@@ -99,9 +99,9 @@ func client(cmd string, args ...string) {
 		stats.Set(name, value, tags...)
 
 	case "time":
-		clock := stats.Time(name, time.Now(), tags...)
+		start := time.Now()
 		run(extra...)
-		clock.Stop()
+		stats.Observe(name, time.Now().Sub(start), tags...)
 	}
 }
 

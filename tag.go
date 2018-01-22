@@ -1,47 +1,70 @@
 package stats
 
-import "sort"
+import (
+	"sort"
+	"sync"
+)
 
-// Tag represents a single tag that can be set on a metric.
+// A Tag is a pair of a string key and value set on measures to define the
+// dimensions of the metrics.
 type Tag struct {
 	Name  string
 	Value string
 }
 
-// RawTags are a list of tags in a serialized from that can be used to construct
-// a metric key.
-//
-// This is a low-level API that is intended to be used for optimization purposes
-// and most application should not need it.
-type RawTags string
-
-// MakeRawTags converts a slice of tags to their RawTags representation.
-func MakeRawTags(tags []Tag) RawTags {
-	return RawTags(appendTags(make([]byte, 0, tagsLen(tags)), tags))
+// T is shorthand for `stats.Tag{Name: "blah", Value: "foo"}`  It returns
+// the tag for Name k and Value v
+func T(k, v string) Tag {
+	return Tag{Name: k, Value: v}
 }
 
-type tags []Tag
-
-func (t tags) Less(i int, j int) bool {
-	t1 := t[i]
-	t2 := t[j]
-	return t1.Name < t2.Name || (t1.Name == t2.Name && t1.Value < t2.Value)
+func (t Tag) String() string {
+	return t.Name + "=" + t.Value
 }
 
-func (t tags) Swap(i int, j int) {
-	t[i], t[j] = t[j], t[i]
+// TagsAreSorted returns true if the given list of tags is sorted by tag name,
+// false otherwise.
+func TagsAreSorted(tags []Tag) bool {
+	if len(tags) > 1 {
+		min := tags[0].Name
+		for _, tag := range tags[1:] {
+			if tag.Name < min {
+				return false
+			}
+			min = tag.Name
+		}
+	}
+	return true
 }
 
-func (t tags) Len() int {
-	return len(t)
+// SortTags sorts the slice of tags.
+func SortTags(tags []Tag) []Tag {
+	// Insertion sort since these arrays are very small and allocation is the
+	// primary enemy of performance here.
+	if len(tags) >= 20 {
+		sort.Sort(tagsByName(tags))
+	} else {
+		for i := 0; i < len(tags); i++ {
+			for j := i; j > 0 && tags[j-1].Name > tags[j].Name; j-- {
+				tags[j], tags[j-1] = tags[j-1], tags[j]
+			}
+		}
+	}
+	return tags
 }
 
-func sortTags(t []Tag) {
-	sort.Sort(tags(t))
-}
+type tagsByName []Tag
+
+func (t tagsByName) Len() int               { return len(t) }
+func (t tagsByName) Less(i int, j int) bool { return t[i].Name < t[j].Name }
+func (t tagsByName) Swap(i int, j int)      { t[i], t[j] = t[j], t[i] }
 
 func concatTags(t1 []Tag, t2 []Tag) []Tag {
-	t3 := make([]Tag, 0, len(t1)+len(t2))
+	n := len(t1) + len(t2)
+	if n == 0 {
+		return nil
+	}
+	t3 := make([]Tag, 0, n)
 	t3 = append(t3, t1...)
 	t3 = append(t3, t2...)
 	return t3
@@ -56,24 +79,25 @@ func copyTags(tags []Tag) []Tag {
 	return ctags
 }
 
-func appendTags(b []byte, tags []Tag) []byte {
-	for i, t := range tags {
-		if i != 0 {
-			b = append(b, '&')
-		}
-		b = append(b, t.Name...)
-		b = append(b, '=')
-		b = append(b, t.Value...)
-	}
-	return b
+type tagsBuffer struct {
+	tags tagsByName
 }
 
-func tagsLen(tags []Tag) (n int) {
-	if len(tags) != 0 {
-		for _, t := range tags {
-			n += len(t.Name) + len(t.Value) + 2
-		}
-		n--
+func (b *tagsBuffer) reset() {
+	for i := range b.tags {
+		b.tags[i] = Tag{}
 	}
-	return
+	b.tags = b.tags[:0]
+}
+
+func (b *tagsBuffer) sort() {
+	sort.Sort(&b.tags)
+}
+
+func (b *tagsBuffer) append(tags ...Tag) {
+	b.tags = append(b.tags, tags...)
+}
+
+var tagsPool = sync.Pool{
+	New: func() interface{} { return &tagsBuffer{tags: make([]Tag, 0, 8)} },
 }
