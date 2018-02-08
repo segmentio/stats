@@ -151,7 +151,7 @@ func main() {
 }
 ```
 
-### Sending Metrics
+### Flushing Metrics
 
 Metrics are stored in a buffer, which will be flushed when it reaches its
 capacity. _For most use-cases, you do not need to explicitly send out metrics._
