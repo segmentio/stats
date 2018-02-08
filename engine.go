@@ -13,8 +13,8 @@ import (
 // that inherit the configuration of the base they were created from.
 //
 // The program must not modify the engine's handler, prefix, or tags after it
-// started using it (by calling some of its methods). If changes need to be made
-// new engines must be created by calls to
+// started using it. If changes need to be made new engines must be created by
+// calls to WithPrefix or WithTags.
 type Engine struct {
 	// The measure handler that the engine forwards measures to.
 	Handler Handler
@@ -29,6 +29,11 @@ type Engine struct {
 	// that manipulates this field directly has to respect this requirement.
 	Tags []Tag
 
+	// This cache keeps track of the generated measure structures to avoid
+	// rebuilding them every time a same measure type is seen by the engine.
+	//
+	// The cached values include the engine prefix in the measure names, which
+	// is why the cache must be local to the engine.
 	cache measureCache
 }
 
