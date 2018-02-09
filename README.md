@@ -151,6 +151,31 @@ func main() {
 }
 ```
 
+### Flushing Metrics
+
+Metrics are stored in a buffer, which will be flushed when it reaches its
+capacity. _For most use-cases, you do not need to explicitly send out metrics._
+
+If you're producing metrics only very infrequently, you may have metrics that
+stay in the buffer and never get sent out. In that case, you can manually
+trigger stats flushes like so:
+
+```go
+func main() {
+    stats.Register(datadog.NewClient("localhost:8125"))
+    defer stats.Flush()
+
+    // Force a metrics flush every second
+    go func() {
+      for range time.Tick(time.Second) {
+        stats.Flush()
+      }
+    }()
+
+    // ...
+}
+```
+
 Monitoring
 ----------
 
