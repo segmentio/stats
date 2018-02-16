@@ -28,12 +28,12 @@ func TestListener(t *testing.T) {
 		{
 			Name:   "netstats.test.conn.open",
 			Fields: []stats.Field{stats.MakeField("count", 1, stats.Counter)},
-			Tags:   []stats.Tag{{"protocol", "tcp"}},
+			Tags:   []stats.Tag{stats.T("protocol", "tcp")},
 		},
 		{
 			Name:   "netstats.test.conn.close",
 			Fields: []stats.Field{stats.MakeField("count", 1, stats.Counter)},
-			Tags:   []stats.Tag{{"protocol", "tcp"}},
+			Tags:   []stats.Tag{stats.T("protocol", "tcp")},
 		},
 	}
 
@@ -62,7 +62,7 @@ func TestListenerError(t *testing.T) {
 		{
 			Name:   "netstats.test.conn.error",
 			Fields: []stats.Field{stats.MakeField("count", 1, stats.Counter)},
-			Tags:   []stats.Tag{{"operation", "accept"}, {"protocol", "tcp"}},
+			Tags:   []stats.Tag{stats.T("operation", "accept"), stats.T("protocol", "tcp")},
 		},
 	}
 

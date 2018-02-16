@@ -31,8 +31,8 @@ var (
 					{Name: "rtt", Value: stats.ValueOf(100 * time.Millisecond)},
 				},
 				Tags: []stats.Tag{
-					{"answer", "42"},
-					{"hello", "world"},
+					stats.T("answer", "42"),
+					stats.T("hello", "world"),
 				},
 			},
 			s: `request,answer=42,hello=world count=5,rtt=0.1 1500780960123456789`,

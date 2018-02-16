@@ -31,8 +31,8 @@ var (
 					stats.MakeField("rtt", 100*time.Millisecond, stats.Histogram),
 				},
 				Tags: []stats.Tag{
-					{"answer", "42"},
-					{"hello", "world"},
+					stats.T("answer", "42"),
+					stats.T("hello", "world"),
 				},
 			},
 			s: `request.count:5|c|#answer:42,hello:world

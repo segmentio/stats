@@ -39,7 +39,7 @@ func TestConn(t *testing.T) {
 			Fields: []stats.Field{
 				stats.MakeField("count", 1, stats.Counter),
 			},
-			Tags: []stats.Tag{{"protocol", "tcp"}},
+			Tags: []stats.Tag{stats.T("protocol", "tcp")},
 		},
 		{
 			Name: "netstats.test.conn.write",
@@ -47,7 +47,7 @@ func TestConn(t *testing.T) {
 				stats.MakeField("count", 1, stats.Counter),
 				stats.MakeField("bytes", 12, stats.Histogram),
 			},
-			Tags: []stats.Tag{{"protocol", "tcp"}},
+			Tags: []stats.Tag{stats.T("protocol", "tcp")},
 		},
 		{
 			Name: "netstats.test.conn.read",
@@ -55,14 +55,14 @@ func TestConn(t *testing.T) {
 				stats.MakeField("count", 1, stats.Counter),
 				stats.MakeField("bytes", 12, stats.Histogram),
 			},
-			Tags: []stats.Tag{{"protocol", "tcp"}},
+			Tags: []stats.Tag{stats.T("protocol", "tcp")},
 		},
 		{
 			Name: "netstats.test.conn.close",
 			Fields: []stats.Field{
 				stats.MakeField("count", 1, stats.Counter),
 			},
-			Tags: []stats.Tag{{"protocol", "tcp"}},
+			Tags: []stats.Tag{stats.T("protocol", "tcp")},
 		},
 	}
 
@@ -95,28 +95,37 @@ func TestConnError(t *testing.T) {
 			Fields: []stats.Field{
 				stats.MakeField("count", 1, stats.Counter),
 			},
-			Tags: []stats.Tag{{"protocol", "tcp"}},
+			Tags: []stats.Tag{stats.T("protocol", "tcp")},
 		},
 		{
 			Name: "netstats.test.conn.error",
 			Fields: []stats.Field{
 				stats.MakeField("count", 1, stats.Counter),
 			},
-			Tags: []stats.Tag{{"operation", "set-deadline"}, {"protocol", "tcp"}},
+			Tags: []stats.Tag{
+				stats.T("operation", "set-deadline"),
+				stats.T("protocol", "tcp"),
+			},
 		},
 		{
 			Name: "netstats.test.conn.error",
 			Fields: []stats.Field{
 				stats.MakeField("count", 1, stats.Counter),
 			},
-			Tags: []stats.Tag{{"operation", "set-read-deadline"}, {"protocol", "tcp"}},
+			Tags: []stats.Tag{
+				stats.T("operation", "set-read-deadline"),
+				stats.T("protocol", "tcp"),
+			},
 		},
 		{
 			Name: "netstats.test.conn.error",
 			Fields: []stats.Field{
 				stats.MakeField("count", 1, stats.Counter),
 			},
-			Tags: []stats.Tag{{"operation", "set-write-deadline"}, {"protocol", "tcp"}},
+			Tags: []stats.Tag{
+				stats.T("operation", "set-write-deadline"),
+				stats.T("protocol", "tcp"),
+			},
 		},
 		{
 			Name: "netstats.test.conn.write",
@@ -124,14 +133,19 @@ func TestConnError(t *testing.T) {
 				stats.MakeField("count", 1, stats.Counter),
 				stats.MakeField("bytes", 0, stats.Histogram),
 			},
-			Tags: []stats.Tag{{"protocol", "tcp"}},
+			Tags: []stats.Tag{
+				stats.T("protocol", "tcp"),
+			},
 		},
 		{
 			Name: "netstats.test.conn.error",
 			Fields: []stats.Field{
 				stats.MakeField("count", 1, stats.Counter),
 			},
-			Tags: []stats.Tag{{"operation", "write"}, {"protocol", "tcp"}},
+			Tags: []stats.Tag{
+				stats.T("operation", "write"),
+				stats.T("protocol", "tcp"),
+			},
 		},
 		{
 			Name: "netstats.test.conn.read",
@@ -139,28 +153,38 @@ func TestConnError(t *testing.T) {
 				stats.MakeField("count", 1, stats.Counter),
 				stats.MakeField("bytes", 0, stats.Histogram),
 			},
-			Tags: []stats.Tag{{"protocol", "tcp"}},
+			Tags: []stats.Tag{
+				stats.T("protocol", "tcp"),
+			},
 		},
 		{
 			Name: "netstats.test.conn.error",
 			Fields: []stats.Field{
 				stats.MakeField("count", 1, stats.Counter),
 			},
-			Tags: []stats.Tag{{"operation", "read"}, {"protocol", "tcp"}},
+			Tags: []stats.Tag{
+				stats.T("operation", "read"),
+				stats.T("protocol", "tcp"),
+			},
 		},
 		{
 			Name: "netstats.test.conn.close",
 			Fields: []stats.Field{
 				stats.MakeField("count", 1, stats.Counter),
 			},
-			Tags: []stats.Tag{{"protocol", "tcp"}},
+			Tags: []stats.Tag{
+				stats.T("protocol", "tcp"),
+			},
 		},
 		{
 			Name: "netstats.test.conn.error",
 			Fields: []stats.Field{
 				stats.MakeField("count", 1, stats.Counter),
 			},
-			Tags: []stats.Tag{{"operation", "close"}, {"protocol", "tcp"}},
+			Tags: []stats.Tag{
+				stats.T("operation", "close"),
+				stats.T("protocol", "tcp"),
+			},
 		},
 	}
 

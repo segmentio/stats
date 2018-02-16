@@ -24,8 +24,8 @@ func TestClient(t *testing.T) {
 				{Name: "rtt", Value: stats.ValueOf(100 * time.Millisecond)},
 			},
 			Tags: []stats.Tag{
-				{"answer", "42"},
-				{"hello", "world"},
+				stats.T("answer", "42"),
+				stats.T("hello", "world"),
 			},
 		})
 	}
@@ -88,8 +88,8 @@ func BenchmarkClient(b *testing.B) {
 						{Name: "value", Value: stats.ValueOf(42)},
 					},
 					Tags: []stats.Tag{
-						{"answer", "42"},
-						{"hello", "world"},
+						stats.T("answer", "42"),
+						stats.T("hello", "world"),
 					},
 				}
 			}

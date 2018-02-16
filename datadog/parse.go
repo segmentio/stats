@@ -92,7 +92,7 @@ func parseMetric(s string) (m Metric, err error) {
 
 			if tag, tags = nextToken(tags, ','); len(tag) != 0 {
 				name, value := split(tag, ':')
-				m.Tags = append(m.Tags, stats.Tag{name, value})
+				m.Tags = append(m.Tags, stats.T(name, value))
 			}
 		}
 	}

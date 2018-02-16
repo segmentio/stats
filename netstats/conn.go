@@ -42,7 +42,7 @@ func NewConnWith(eng *stats.Engine, c net.Conn) net.Conn {
 	nc.r.metrics.protocol = proto
 	nc.w.metrics.protocol = proto
 
-	eng.Incr("conn.open:count", stats.Tag{"protocol", proto})
+	eng.Incr("conn.open:count", stats.T("protocol", proto))
 	return nc
 }
 
@@ -77,7 +77,7 @@ func (c *conn) BaseConn() net.Conn {
 func (c *conn) Close() (err error) {
 	err = c.Conn.Close()
 	c.once.Do(func() {
-		c.eng.Incr("conn.close:count", stats.Tag{"protocol", c.w.metrics.protocol})
+		c.eng.Incr("conn.close:count", stats.T("protocol", c.w.metrics.protocol))
 		if err != nil {
 			c.error("close", err)
 		}
@@ -146,8 +146,8 @@ func (c *conn) error(op string, err error) {
 		// only report serious errors, others should be handled gracefully
 		if !isTemporary(err) {
 			c.eng.Incr("conn.error:count",
-				stats.Tag{"operation", op},
-				stats.Tag{"protocol", c.w.metrics.protocol},
+				stats.T("operation", op),
+				stats.T("protocol", c.w.metrics.protocol),
 			)
 		}
 	}

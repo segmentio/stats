@@ -69,11 +69,11 @@ func TestServeHTTP(t *testing.T) {
 		{Fields: []stats.Field{stats.MakeField("A", 1, stats.Counter)}},
 		{Fields: []stats.Field{stats.MakeField("A", 2, stats.Counter)}},
 		{Fields: []stats.Field{stats.MakeField("C", 0.1, stats.Histogram)}},
-		{Fields: []stats.Field{stats.MakeField("B", 1, stats.Gauge)}, Tags: []stats.Tag{{"a", "1"}, {"b", "2"}}},
-		{Fields: []stats.Field{stats.MakeField("A", 4, stats.Counter)}, Tags: []stats.Tag{{"id", "123"}}},
-		{Fields: []stats.Field{stats.MakeField("B", 42, stats.Gauge)}, Tags: []stats.Tag{{"a", "1"}}},
+		{Fields: []stats.Field{stats.MakeField("B", 1, stats.Gauge)}, Tags: []stats.Tag{stats.T("a", "1"), stats.T("b", "2")}},
+		{Fields: []stats.Field{stats.MakeField("A", 4, stats.Counter)}, Tags: []stats.Tag{stats.T("id", "123")}},
+		{Fields: []stats.Field{stats.MakeField("B", 42, stats.Gauge)}, Tags: []stats.Tag{stats.T("a", "1")}},
 		{Fields: []stats.Field{stats.MakeField("C", 0.1, stats.Histogram)}},
-		{Fields: []stats.Field{stats.MakeField("B", 21, stats.Gauge)}, Tags: []stats.Tag{{"a", "1"}, {"b", "2"}}},
+		{Fields: []stats.Field{stats.MakeField("B", 21, stats.Gauge)}, Tags: []stats.Tag{stats.T("a", "1"), stats.T("b", "2")}},
 		{Fields: []stats.Field{stats.MakeField("C", 0.5, stats.Histogram)}},
 		{Fields: []stats.Field{stats.MakeField("C", 10, stats.Histogram)}},
 	}
@@ -133,15 +133,15 @@ func BenchmarkHandleMetric(b *testing.B) {
 	metrics := []stats.Measure{
 		{
 			Fields: []stats.Field{stats.MakeField("A", 1, stats.Counter)},
-			Tags:   []stats.Tag{{"a", "1"}, {"b", "2"}},
+			Tags:   []stats.Tag{stats.T("a", "1"), stats.T("b", "2")},
 		},
 		{
 			Fields: []stats.Field{stats.MakeField("B", 1, stats.Gauge)},
-			Tags:   []stats.Tag{{"a", "1"}, {"b", "2"}},
+			Tags:   []stats.Tag{stats.T("a", "1"), stats.T("b", "2")},
 		},
 		{
 			Fields: []stats.Field{stats.MakeField("C", 0.1, stats.Histogram)},
-			Tags:   []stats.Tag{{"a", "1"}, {"b", "2"}},
+			Tags:   []stats.Tag{stats.T("a", "1"), stats.T("b", "2")},
 		},
 	}
 
