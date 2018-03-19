@@ -37,6 +37,15 @@ var (
 			s: `MONITORING|1521194400123456789|10|count|cache.hit|#bob=alice,foo=bar
 MONITORING|1521194400123456789|5|count|cache.miss|#bob=alice,foo=bar`,
 		},
+		{
+			m: stats.Measure{
+				Name: "user",
+				Fields: []stats.Field{
+					{Value: stats.ValueOf(10)},
+				},
+			},
+			s: `MONITORING|1521194400123456789|10|count|user`,
+		},
 	}
 )
 

@@ -29,9 +29,15 @@ func AppendMeasure(b []byte, t time.Time, m stats.Measure) []byte {
 			b = append(b, "count"...)
 		case stats.Gauge:
 			b = append(b, "gauge"...)
+		case stats.Histogram:
+			b = append(b, "histogram"...)
 		}
 		b = append(b, '|')
-		b = append(b, (m.Name + "." + field.Name)...)
+		if len(field.Name) == 0 {
+			b = append(b, m.Name...)
+		} else {
+			b = append(b, (m.Name + "." + field.Name)...)
+		}
 		if len(m.Tags) > 0 {
 			b = append(b, '|')
 			b = append(b, tags...)
