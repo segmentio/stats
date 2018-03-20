@@ -20,7 +20,7 @@ var (
 					{Name: "count", Value: stats.ValueOf(42)},
 				},
 			},
-			s: `MONITORING|1521194400123456789|42|count|request.count`,
+			s: `MONITORING|1521194400|42|count|request.count`,
 		},
 		{
 			m: stats.Measure{
@@ -34,8 +34,8 @@ var (
 					stats.T("foo", "bar"),
 				},
 			},
-			s: `MONITORING|1521194400123456789|10|count|cache.hit|#bob=alice,foo=bar
-MONITORING|1521194400123456789|5|count|cache.miss|#bob=alice,foo=bar`,
+			s: `MONITORING|1521194400|10|count|cache.hit|#bob=alice,foo=bar
+MONITORING|1521194400|5|count|cache.miss|#bob=alice,foo=bar`,
 		},
 		{
 			m: stats.Measure{
@@ -44,7 +44,7 @@ MONITORING|1521194400123456789|5|count|cache.miss|#bob=alice,foo=bar`,
 					{Value: stats.ValueOf(10)},
 				},
 			},
-			s: `MONITORING|1521194400123456789|10|count|user`,
+			s: `MONITORING|1521194400|10|count|user`,
 		},
 	}
 )

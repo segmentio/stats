@@ -13,7 +13,7 @@ func AppendMeasure(b []byte, t time.Time, m stats.Measure) []byte {
 
 	for _, field := range m.Fields {
 		b = append(b, "MONITORING|"...)
-		b = strconv.AppendInt(b, t.UnixNano(), 10)
+		b = strconv.AppendInt(b, t.Unix(), 10)
 		b = append(b, '|')
 		switch v := field.Value; v.Type() {
 		case stats.Int:

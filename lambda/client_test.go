@@ -11,7 +11,7 @@ import (
 func BenchmarkClient(b *testing.B) {
 	for _, N := range []int{1, 10, 110} {
 		b.Run(fmt.Sprintf("write %d measures", N), func(b *testing.B) {
-			client := Client{}
+			client := NewClient()
 
 			timestamp := time.Now()
 			measures := make([]stats.Measure, N)
