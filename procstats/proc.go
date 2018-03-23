@@ -2,10 +2,13 @@ package procstats
 
 import (
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/segmentio/stats"
 )
+
+var numCPU = runtime.NumCPU()
 
 // ProcMetrics is a metric collector that reports metrics on processes.
 type ProcMetrics struct {
@@ -22,18 +25,21 @@ type ProcMetrics struct {
 type procCPU struct {
 	// CPU time
 	user struct { // user cpu time used by the process
-		time    time.Duration `metric:"usage.seconds" type:"counter"`
-		percent float64       `metric:"usage.percent" type:"gauge"`
-		typ     string        `tag:"type"` // user
+		time        time.Duration `metric:"usage.seconds" type:"counter"`
+		percent     float64       `metric:"usage.percent" type:"gauge"`
+		corePercent float64       `metric:"usage.corePercent" type:"gauge"`
+		typ         string        `tag:"type"` // user
 	}
 	system struct { // system cpu time used by the process
-		time    time.Duration `metric:"usage.seconds" type:"counter"`
-		percent float64       `metric:"usage.percent" type:"gauge"`
-		typ     string        `tag:"type"` // system
+		time        time.Duration `metric:"usage.seconds" type:"counter"`
+		percent     float64       `metric:"usage.percent" type:"gauge"`
+		corePercent float64       `metric:"usage.corePercent" type:"gauge"`
+		typ         string        `tag:"type"` // system
 	}
 	total struct {
-		time    time.Duration `metric:"usage_total.seconds" type:"counter"`
-		percent float64       `metric:"usage_total.percent" type:"gauge"`
+		time        time.Duration `metric:"usage_total.seconds" type:"counter"`
+		percent     float64       `metric:"usage_total.percent" type:"gauge"`
+		corePercent float64       `metric:"usage_total.corePercent" type:"gauge"`
 	}
 }
 
@@ -137,12 +143,15 @@ func (p *ProcMetrics) Collect() {
 
 			p.cpu.user.time = m.CPU.User - p.last.CPU.User
 			p.cpu.user.percent = 100 * float64(p.cpu.user.time) / float64(interval)
+			p.cpu.user.corePercent = float64(p.cpu.user.time) / float64(interval) * float64(numCPU)
 
 			p.cpu.system.time = m.CPU.Sys - p.last.CPU.Sys
 			p.cpu.system.percent = 100 * float64(p.cpu.system.time) / float64(interval)
+			p.cpu.system.corePercent = float64(p.cpu.system.time) / float64(interval) * float64(numCPU)
 
 			p.cpu.total.time = (m.CPU.User + m.CPU.Sys) - (p.last.CPU.User + p.last.CPU.Sys)
 			p.cpu.total.percent = 100 * float64(p.cpu.total.time) / float64(interval)
+			p.cpu.total.corePercent = float64(p.cpu.total.time) / float64(interval) * float64(numCPU)
 		}
 
 		p.memory.available = m.Memory.Available
