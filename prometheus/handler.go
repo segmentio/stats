@@ -122,9 +122,6 @@ func (h *Handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	metrics := h.metrics.collect(make([]metric, 0, 10000))
-	sort.Sort(byNameAndLabels(metrics))
-
 	w := io.Writer(res)
 	res.Header().Set("Content-Type", "text/plain; version=0.0.4")
 
@@ -135,9 +132,16 @@ func (h *Handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		w = zw
 	}
 
+	h.WriteStats(w)
+}
+
+func (h *Handler) WriteStats(w io.Writer) {
 	b := make([]byte, 1024)
 
 	var lastMetricName string
+	metrics := h.metrics.collect(make([]metric, 0, 10000))
+	sort.Sort(byNameAndLabels(metrics))
+
 	for i, m := range metrics {
 		b = b[:0]
 		name := m.rootName()
