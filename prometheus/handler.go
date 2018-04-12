@@ -135,6 +135,9 @@ func (h *Handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	h.WriteStats(w)
 }
 
+// WriteStats accepts a writer and pushes metrics (one at a time) to it.
+// An example could be if you just want to print all the metrics on to Stdout
+// It will not call flush. Make sure the Close and Flush are handled at the caller
 func (h *Handler) WriteStats(w io.Writer) {
 	b := make([]byte, 1024)
 
