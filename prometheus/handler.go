@@ -122,9 +122,6 @@ func (h *Handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	metrics := h.metrics.collect(make([]metric, 0, 10000))
-	sort.Sort(byNameAndLabels(metrics))
-
 	w := io.Writer(res)
 	res.Header().Set("Content-Type", "text/plain; version=0.0.4")
 
@@ -135,9 +132,19 @@ func (h *Handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		w = zw
 	}
 
+	h.WriteStats(w)
+}
+
+// WriteStats accepts a writer and pushes metrics (one at a time) to it.
+// An example could be if you just want to print all the metrics on to Stdout
+// It will not call flush. Make sure the Close and Flush are handled at the caller
+func (h *Handler) WriteStats(w io.Writer) {
 	b := make([]byte, 1024)
 
 	var lastMetricName string
+	metrics := h.metrics.collect(make([]metric, 0, 10000))
+	sort.Sort(byNameAndLabels(metrics))
+
 	for i, m := range metrics {
 		b = b[:0]
 		name := m.rootName()
