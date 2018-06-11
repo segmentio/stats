@@ -14,6 +14,10 @@ type Handler interface {
 	// HandleMetric is called when a dogstatsd server receives a metric.
 	// The method receives the metric and the address from which it was sent.
 	HandleMetric(Metric, net.Addr)
+
+	// HandleEvent is called when a dogstatsd server receives an event.
+	// The method receives the metric and the address from which it was sent.
+	HandleEvent(Event, net.Addr)
 }
 
 // HandlerFunc makes it possible for function types to be used as metric
@@ -23,6 +27,11 @@ type HandlerFunc func(Metric, net.Addr)
 // HandleMetric calls f(m, a).
 func (f HandlerFunc) HandleMetric(m Metric, a net.Addr) {
 	f(m, a)
+}
+
+// HandleEvent is a no-op for backwards compatibility.
+func (f HandlerFunc) HandleEvent(e Event, a net.Addr) {
+	return
 }
 
 // ListenAndServe starts a new dogstatsd server, listening for UDP datagrams on
@@ -89,12 +98,21 @@ func serve(conn net.PacketConn, handler Handler, done chan<- error) {
 
 			ln, s = s[:off], s[off:]
 
-			m, err := parseMetric(string(ln))
-			if err != nil {
-				continue
-			}
+			if bytes.HasPrefix(ln, []byte("_e")) {
+				e, err := parseEvent(string(ln))
+				if err != nil {
+					continue
+				}
 
-			handler.HandleMetric(m, a)
+				handler.HandleEvent(e, a)
+			} else {
+				m, err := parseMetric(string(ln))
+				if err != nil {
+					continue
+				}
+
+				handler.HandleMetric(m, a)
+			}
 		}
 	}
 }
