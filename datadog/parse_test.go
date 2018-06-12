@@ -48,3 +48,25 @@ func BenchmarkParseMetric(b *testing.B) {
 		})
 	}
 }
+
+func TestParseEventSuccess(t *testing.T) {
+	for _, test := range testEvents {
+		t.Run(test.s, func(t *testing.T) {
+			if e, err := parseEvent(test.s); err != nil {
+				t.Error(err)
+			} else if !reflect.DeepEqual(e, test.e) {
+				t.Errorf("%#v:\n- %#v\n- %#v", test.s, test.e, e)
+			}
+		})
+	}
+}
+
+func BenchmarkParseEvent(b *testing.B) {
+	for _, test := range testEvents {
+		b.Run(test.e.Title, func(b *testing.B) {
+			for i := 0; i != b.N; i++ {
+				parseEvent(test.s)
+			}
+		})
+	}
+}

@@ -113,9 +113,17 @@ func server(args ...string) {
 	fset.Parse(args)
 	log.Printf("listening for incoming UDP datagram on %s", bind)
 
-	datadog.ListenAndServe(bind, datadog.HandlerFunc(func(metric datadog.Metric, from net.Addr) {
-		log.Print(metric)
-	}))
+	datadog.ListenAndServe(bind, handlers{})
+}
+
+type handlers struct{}
+
+func (h handlers) HandleMetric(m datadog.Metric, a net.Addr) {
+	log.Print(m)
+}
+
+func (h handlers) HandleEvent(e datadog.Event, a net.Addr) {
+	log.Print(e)
 }
 
 func run(args ...string) {
