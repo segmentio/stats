@@ -3,6 +3,7 @@ package procstats
 import (
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
@@ -14,38 +15,45 @@ import (
 
 var (
 	clockTickOnce  sync.Once
-	clockTickValue uint64
+	clockTickHertz uint64
 	clockTickError error
 )
+
+func clockTicksToDuration(ticks uint64) time.Duration {
+	clockTickOnce.Do(func() { clockTickHertz, clockTickError = clockTick() })
+	check(clockTickError)
+	return time.Duration(1e9 * float64(ticks) / float64(clockTickHertz))
+}
 
 func clockTick() (uint64, error) {
 	s, err := getconf("CLK_TCK")
 	if err != nil {
 		return 0, err
 	}
-	return strconv.ParseUint(strings.TrimSpace(s), 10)
+	return strconv.ParseUint(strings.TrimSpace(s), 10, 64)
 }
 
 func getconf(name string) (string, error) {
-	file, err := exec.LookupPath("getconf")
+	file, err := exec.LookPath("getconf")
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 
 	r, w, err := os.Pipe()
 	if err != nil {
-		return 0, nil
+		return "", nil
 	}
 	defer r.Close()
 	defer w.Close()
 
 	p, err := os.StartProcess(file, []string{"getconf", name}, &os.ProcAttr{
-		Files: []*os.File{os.Stdin, stdout, os.Stderr},
+		Files: []*os.File{os.Stdin, w, os.Stderr},
 	})
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 
+	w.Close()
 	b, err := ioutil.ReadAll(r)
 	p.Wait()
 	return string(b), err
@@ -83,11 +91,9 @@ func collectProcInfo(pid int) (info ProcInfo, err error) {
 			Sys:  time.Duration(rusage.Stime.Nano()),
 		}
 	} else {
-		clockTickOnce.Do(func() { clockTick, clockTickError = clockTick() })
-		check(clockTickError)
 		cpu = CPUInfo{
-			User: time.Duration(stat.Utime) * (time.Nanosecond / time.Duration(clockTick)),
-			User: time.Duration(stat.Stime) * (time.Nanosecond / time.Duration(clockTick)),
+			User: clockTicksToDuration(stat.Utime),
+			Sys:  clockTicksToDuration(stat.Stime),
 		}
 	}
 
