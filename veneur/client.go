@@ -11,6 +11,10 @@ const (
 	GlobalOnly = "veneurglobalonly"
 	LocalOnly  = "veneurlocalonly"
 	SinkOnly   = "veneursinkonly"
+
+	SignalfxSink = "signalfx"
+	DatadogSink  = "datadog"
+	KafkaSink    = "kafka"
 )
 
 // The ClientConfig type is used to configure datadog clients.
