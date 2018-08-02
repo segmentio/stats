@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	TagVeneurGlobalOnly = "veneurglobalonly"
-	TagVeneurLocalOnly  = "veneurlocalonly"
-	TagVeneurSinkOnly   = "veneursinkonly"
+	GlobalOnly = "veneurglobalonly"
+	LocalOnly  = "veneurlocalonly"
+	SinkOnly   = "veneursinkonly"
 )
 
 // The ClientConfig type is used to configure datadog clients.
@@ -50,12 +50,12 @@ func NewClientWith(config ClientConfig) *Client {
 	// Construct Veneur-specific Tags we will append to measures
 	tags := []stats.Tag{}
 	if config.GlobalOnly {
-		tags = append(tags, stats.Tag{Name: TagVeneurGlobalOnly})
+		tags = append(tags, stats.Tag{Name: GlobalOnly})
 	} else if config.LocalOnly {
-		tags = append(tags, stats.Tag{Name: TagVeneurLocalOnly})
+		tags = append(tags, stats.Tag{Name: LocalOnly})
 	}
 	for _, t := range config.SinksOnly {
-		tags = append(tags, stats.Tag{Name: TagVeneurSinkOnly, Value: t})
+		tags = append(tags, stats.Tag{Name: SinkOnly, Value: t})
 	}
 
 	return &Client{
@@ -70,8 +70,18 @@ func NewClientWith(config ClientConfig) *Client {
 
 // HandleMetric satisfies the stats.Handler interface.
 func (c *Client) HandleMeasures(time time.Time, measures ...stats.Measure) {
-	for _, m := range measures {
-		m.Tags = append(m.Tags, c.tags...)
+
+	// If there are no tags to add, call HandleMeasures with measures directly
+	if len(c.tags) == 0 {
+		c.Client.HandleMeasures(time, measures...)
+		return
 	}
-	c.Client.HandleMeasures(time, measures...)
+
+	finalMeasures := make([]stats.Measure, len(measures))
+	for i, _ := range measures {
+		finalMeasures[i] = measures[i].Clone()
+		finalMeasures[i].Tags = append(measures[i].Tags, c.tags...)
+	}
+
+	c.Client.HandleMeasures(time, finalMeasures...)
 }
