@@ -17,7 +17,15 @@ const (
 	KafkaSink    = "kafka"
 )
 
-// The ClientConfig type is used to configure datadog clients.
+var (
+	TagSignalfxOnly = stats.Tag{Name: SinkOnly, Value: SignalfxSink}
+	TagDatadogOnly  = stats.Tag{Name: SinkOnly, Value: DatadogSink}
+	TagKafkaOnly    = stats.Tag{Name: SinkOnly, Value: KafkaSink}
+)
+
+// The ClientConfig type is used to configure veneur clients.
+// It inherits the datadog config since the veneur client reuses
+// the logic in the datadog client to emit metrics
 type ClientConfig struct {
 	datadog.ClientConfig
 
@@ -34,20 +42,25 @@ type ClientConfig struct {
 	SinksOnly []string
 }
 
-// Client represents an datadog client that implements the stats.Handler
+// Client represents an veneur client that implements the stats.Handler
 // interface.
 type Client struct {
 	*datadog.Client
 	tags []stats.Tag
 }
 
-// NewClient creates and returns a new datadog client publishing metrics to the
+// NewClient creates and returns a new veneur client publishing metrics to the
 // server running at addr.
 func NewClient(addr string) *Client {
 	return NewClientWith(ClientConfig{ClientConfig: datadog.ClientConfig{Address: addr}})
 }
 
-// NewClientWith creates and returns a new datadog client configured with the
+// NewClientGlobal creates a client that sends all metrics to the Global Veneur Aggregator
+func NewClientGlobal(addr string) *Client {
+	return NewClientWith(ClientConfig{ClientConfig: datadog.ClientConfig{Address: addr}, GlobalOnly: true})
+}
+
+// NewClientWith creates and returns a new veneur client configured with the
 // given config.
 func NewClientWith(config ClientConfig) *Client {
 
