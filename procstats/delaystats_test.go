@@ -16,9 +16,12 @@ import (
 )
 
 func TestProcMetrics(t *testing.T) {
+	rand.Seed(time.Now().UnixNano())
+
 	t.Run("self", func(t *testing.T) {
 		testProcMetrics(t, os.Getpid())
 	})
+
 	t.Run("child", func(t *testing.T) {
 		cmd := exec.Command("yes")
 		cmd.Stdin = os.Stdin
@@ -46,21 +49,34 @@ func testProcMetrics(t *testing.T, pid int) {
 		}
 		defer os.Remove(tmpfile.Name())
 
-		b := make([]byte, rand.Int31n(1000000))
+		fsize := alignUp(t, rand.Int31n(1000000), directio.AlignSize)
+
+		b := make([]byte, fsize)
+
 		if _, err := rand.Read(b); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := tmpfile.Write(b); err != nil {
 			t.Fatal(err)
 		}
+		if err := tmpfile.Sync(); err != nil {
+			t.Fatal(err)
+		}
 		if err := tmpfile.Close(); err != nil {
 			t.Fatal(err)
 		}
 
-		in, err := directio.OpenFile(tmpfile.Name(), os.O_RDONLY, 0666)
 		block := directio.AlignedBlock(directio.BlockSize)
-		if _, err := io.ReadFull(in, block); err != nil {
-			t.Fatal(err)
+
+		in, err := directio.OpenFile(tmpfile.Name(), os.O_RDONLY, 0666)
+		for {
+			_, err = io.ReadFull(in, block)
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				t.Fatal(err)
+			}
 		}
 
 		t.Logf("collect number %d", i)
@@ -75,6 +91,15 @@ func testProcMetrics(t *testing.T, pid int) {
 		}
 
 		h.Clear()
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 	}
+}
+
+func alignUp(t *testing.T, size, alignment int32) int32 {
+	if size%alignment == 0 {
+		return size
+	}
+	size += alignment
+	remainder := size % alignment
+	return size - remainder
 }
