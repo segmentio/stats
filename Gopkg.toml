@@ -27,10 +27,6 @@
 
 [[constraint]]
   branch = "master"
-  name = "github.com/mdlayher/genetlink"
-
-[[constraint]]
-  branch = "master"
   name = "github.com/segmentio/fasthash"
 
 [[constraint]]
@@ -40,3 +36,7 @@
 [prune]
   go-tests = true
   unused-packages = true
+
+[[constraint]]
+  branch = "feature/tgid"
+  name = "github.com/segmentio/taskstats"

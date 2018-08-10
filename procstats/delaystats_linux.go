@@ -3,7 +3,7 @@ package procstats
 import (
 	"syscall"
 
-	"github.com/mdlayher/taskstats"
+	"github.com/segmentio/taskstats"
 )
 
 func collectDelayInfo(pid int) (info DelayInfo, err error) {
@@ -13,7 +13,7 @@ func collectDelayInfo(pid int) (info DelayInfo, err error) {
 	stats, err := client.PID(pid)
 	if err != nil {
 		if err1, ok := err.(syscall.Errno); ok && err1 == syscall.EPERM {
-			panic("Failed to open Netlink socket: permission denied.  Ensure CAP_NET_RAW is enabled for this process, or run as root.")
+			panic("Failed to open Netlink socket: permission denied.  Ensure CAP_NET_RAW is enabled for this process, or run it with root privileges.")
 		}
 		check(err)
 	}

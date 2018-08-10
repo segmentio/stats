@@ -11,30 +11,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:68c2783a034d49b254c6155fd589e529dbd9dc75f18c6bdcd95c6a53688e1592"
+  digest = "1:9cb419c9a8401d169e1827e51d1ae32ceae9a38d1c4a7351e8e247be1e3bd85b"
   name = "github.com/mdlayher/netlink"
   packages = [
     ".",
     "nlenc",
   ]
   pruneopts = "UT"
-  revision = "3d8cc9af89458b8b6a9ce675d4dfa50a724e9025"
-
-[[projects]]
-  branch = "master"
-  digest = "1:d7f2f88abd134b54c6169ecbf3e8d819d1663fb981a67ee430fe00c0520305f8"
-  name = "github.com/mdlayher/taskstats"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "237d1d6b109dcbdc251806d49759895624ccdee6"
-
-[[projects]]
-  digest = "1:4bcdd59b50429728c28530c3bb9df3f288a150d9aba86de95d598f09abb38358"
-  name = "github.com/ncw/directio"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "17018d97cb6f2cd62f84c69903d327e596b7a93e"
-  version = "v1.0.4"
+  revision = "80a6f93efd374ddee4e0ea862ca0085ef42eed65"
 
 [[projects]]
   branch = "master"
@@ -57,6 +41,14 @@
   version = "0.1.0"
 
 [[projects]]
+  branch = "feature/tgid"
+  digest = "1:4d56ff0260fb650d271d9b4133e4005b727015901b8291232ac7261f626fb4e5"
+  name = "github.com/segmentio/taskstats"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "1836ed27ccb2c2cfd7f26332bac397f4ddafe303"
+
+[[projects]]
   branch = "master"
   digest = "1:ed32e5b8c2cb13ea42eaca9f9dda1233ee78e9e5aa9a9839afd7911c52f121fa"
   name = "golang.org/x/net"
@@ -66,21 +58,20 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:76b5ca88193bf744f729c2fde12151b24364ffaca3fd092069d9ca2ea6e1f999"
+  digest = "1:33a43cb31975899cfcd81600d1390467db1778ae87102f80668a753fed8c663e"
   name = "golang.org/x/sys"
   packages = ["unix"]
   pruneopts = "UT"
-  revision = "904bdc257025c7b3f43c19360ad3ab85783fad78"
+  revision = "98c5dad5d1a0e8a73845ecc8897d0bd56586511d"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/mdlayher/taskstats",
-    "github.com/ncw/directio",
     "github.com/segmentio/fasthash/jody",
     "github.com/segmentio/objconv",
     "github.com/segmentio/objconv/json",
+    "github.com/segmentio/taskstats",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
