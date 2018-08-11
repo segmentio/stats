@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -44,6 +45,17 @@ func TestProcMetrics(t *testing.T) {
 		}
 
 		t.Logf("collect number %d", i)
+
+		// Work around issues testing on Docker containers that don't use host networking
+		defer func() {
+			if r := recover(); r != nil {
+				if r1, ok := r.(error); ok && strings.HasPrefix(r1.Error(), "Failed to communicate with taskstats Netlink family") {
+					t.Skip()
+					return
+				}
+				panic(r)
+			}
+		}()
 		proc.Collect()
 
 		if len(h.Measures()) == 0 {
