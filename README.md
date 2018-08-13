@@ -181,10 +181,11 @@ Monitoring
 
 ### Processes
 
-The [github.com/segmentio/stats/procstats](https://godoc.org/github.com/segmentio/stats/procstats)
-exposes an API for creating stats collector on local processes. Stats are
-collected for current the process and metrics like goroutines count or memory
-usage are reported.
+The
+[github.com/segmentio/stats/procstats](https://godoc.org/github.com/segmentio/stats/procstats)
+package exposes an API for creating a statistics collector on local processes.
+Statistics are collected for the current process and metrics including Goroutine
+count and memory usage are reported.
 
 Here's an example of how to use the collector:
 ```go
@@ -207,6 +208,20 @@ func main() {
     defer c.Close()
 
     // ...
+}
+```
+
+One can also collect additional statistics on resource delays, such as
+CPU delays, block I/O delays, and paging/swapping delays.  This capability
+is currently only available on Linux, and can be optionally enabled as follows:
+
+```
+func main() {
+    // As above...
+
+    // Start a new collector for the current process, reporting Go metrics.
+    c := procstats.StartCollector(procstats.NewDelayMetrics())
+    defer c.Close()
 }
 ```
 
