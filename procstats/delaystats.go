@@ -27,8 +27,7 @@ func NewDelayMetrics() *DelayMetrics {
 // NewDelayStatsWith collects metrics on the process identified by pid and
 // reports them to eng.
 func NewDelayMetricsWith(eng *stats.Engine, pid int) *DelayMetrics {
-	p := &DelayMetrics{engine: eng, pid: pid}
-	return p
+	return &DelayMetrics{engine: eng, pid: pid}
 }
 
 // Collect satisfies the Collector interface.
