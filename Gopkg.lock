@@ -22,6 +22,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:114b812944649a6d7d5aeb648d19bb8bcb4578558792f2fcd2d245a987616b77"
+  name = "github.com/mdlayher/taskstats"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "2addfb90f49484c870cc4527322a9fda29b61c83"
+
+[[projects]]
+  branch = "master"
   digest = "1:266d05c3dd75b5314dabf1bd7d67fd3b74a5b0fdb1dc57462641c5c0fb312cbb"
   name = "github.com/segmentio/fasthash"
   packages = ["jody"]
@@ -39,14 +47,6 @@
   pruneopts = "UT"
   revision = "8998c9cea5fb978cf489f7a8ad69159aa7be3d50"
   version = "0.1.0"
-
-[[projects]]
-  branch = "feature/tgid"
-  digest = "1:4d56ff0260fb650d271d9b4133e4005b727015901b8291232ac7261f626fb4e5"
-  name = "github.com/segmentio/taskstats"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "1836ed27ccb2c2cfd7f26332bac397f4ddafe303"
 
 [[projects]]
   branch = "master"
@@ -68,10 +68,10 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/mdlayher/taskstats",
     "github.com/segmentio/fasthash/jody",
     "github.com/segmentio/objconv",
     "github.com/segmentio/objconv/json",
-    "github.com/segmentio/taskstats",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

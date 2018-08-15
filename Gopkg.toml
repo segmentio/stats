@@ -36,7 +36,3 @@
 [prune]
   go-tests = true
   unused-packages = true
-
-[[constraint]]
-  branch = "feature/tgid"
-  name = "github.com/segmentio/taskstats"
