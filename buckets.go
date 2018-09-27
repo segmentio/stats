@@ -34,10 +34,10 @@ func makeKey(s string) Key {
 }
 
 func splitMeasureField(s string) (measure string, field string) {
-	if i := strings.LastIndexByte(s, ':'); i >= 0 {
+	if i := strings.LastIndexByte(s, '.'); i >= 0 {
 		measure, field = s[:i], s[i+1:]
 	} else {
-		measure = s
+		field = s
 	}
 	return
 }
