@@ -109,6 +109,41 @@ func TestTagsAreSorted(t *testing.T) {
 	}
 }
 
+func TestM(t *testing.T) {
+	tests := []struct {
+		input    map[string]string
+		expected []Tag
+	}{
+		{
+			input: map[string]string{
+				"A": "",
+			},
+			expected: []Tag{
+				T("A", ""),
+			},
+		},
+		{
+			input: map[string]string{
+				"a": "A",
+				"b": "B",
+				"c": "C",
+			},
+			expected: []Tag{
+				T("a", "A"),
+				T("b", "B"),
+				T("c", "C"),
+			},
+		},
+	}
+
+	for _, test := range tests {
+		actual := M(test.input)
+		if !reflect.DeepEqual(SortTags(test.expected), SortTags(actual)) {
+			t.Errorf("expected %v, got %v", test.expected, actual)
+		}
+	}
+}
+
 func BenchmarkTagsOrder(b *testing.B) {
 	b.Run("TagsAreSorted", func(b *testing.B) {
 		benchmarkTagsOrder(b, TagsAreSorted)
