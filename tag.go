@@ -22,6 +22,15 @@ func (t Tag) String() string {
 	return t.Name + "=" + t.Value
 }
 
+// M allows for creating a tag list from a map.
+func M(m map[string]string) []Tag {
+	tags := make([]Tag, 0, len(m))
+	for k, v := range m {
+		tags = append(tags, T(k, v))
+	}
+	return tags
+}
+
 // TagsAreSorted returns true if the given list of tags is sorted by tag name,
 // false otherwise.
 func TagsAreSorted(tags []Tag) bool {
