@@ -22,7 +22,7 @@ func (f Field) Type() FieldType {
 
 func (f *Field) setType(t FieldType) {
 	// We pack the field type into the value's padding space to make copies and
-	// assignments of fields more time efficent.
+	// assignments of fields more time efficient.
 	// Here are the results of a microbenchmark showing the performance of
 	// a simple assignment for a Field type of 40 bytes (with a Type field) vs
 	// an assignment of a Tag type (32 bytes).
@@ -47,7 +47,7 @@ const (
 	// Counter represents incrementing counter metrics.
 	Counter FieldType = iota
 
-	// Guage represents metrics that snapshot a value that may increase and
+	// Gauge represents metrics that snapshot a value that may increase and
 	// decrease.
 	Gauge
 
