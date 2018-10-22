@@ -127,7 +127,7 @@ func NewProcMetricsWith(eng *stats.Engine, pid int) *ProcMetrics {
 	return p
 }
 
-// Collect satsifies the Collector interface.
+// Collect satisfies the Collector interface.
 func (p *ProcMetrics) Collect() {
 	if m, err := CollectProcInfo(p.pid); err == nil {
 		now := time.Now()

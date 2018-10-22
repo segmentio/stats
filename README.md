@@ -229,7 +229,7 @@ func main() {
 
 The [github.com/segmentio/stats/httpstats](https://godoc.org/github.com/segmentio/stats/httpstats)
 package exposes a decorator of `http.Handler` that automatically adds metric
-colleciton to a HTTP handler, reporting things like request processing time,
+collection to a HTTP handler, reporting things like request processing time,
 error counters, header and body sizes...
 
 Here's an example of how to use the decorator:
@@ -265,7 +265,7 @@ The [github.com/segmentio/stats/httpstats](https://godoc.org/github.com/segmenti
 package exposes a decorator of `http.RoundTripper` which collects and reports
 metrics for client requests the same way it's done on the server side.
 
-Here's an exmaple of how to use the decorator:
+Here's an example of how to use the decorator:
 ```go
 package main
 
@@ -327,7 +327,7 @@ package exposes:
   [`redis.ServeRedis`](https://godoc.org/github.com/segmentio/redis-go#HandlerFunc.ServeRedis)
   which collects metrics for server requests.
 
-Here's an exmaple of how to use the decorator on the client side:
+Here's an example of how to use the decorator on the client side:
 ```go
 package main
 
