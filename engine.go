@@ -101,13 +101,18 @@ func (eng *Engine) Observe(name string, value interface{}, tags ...Tag) {
 
 // Clock returns a new clock identified by name and tags.
 func (eng *Engine) Clock(name string, tags ...Tag) *Clock {
+	return eng.ClockAt(name, time.Now(), tags...)
+}
+
+// ClockAt returns a new clock identified by name and tags with a specified
+// start time.
+func (eng *Engine) ClockAt(name string, start time.Time, tags ...Tag) *Clock {
 	cpy := make([]Tag, len(tags), len(tags)+1) // clock always appends a stamp.
 	copy(cpy, tags)
-	now := time.Now()
 	return &Clock{
 		name:  name,
-		first: now,
-		last:  now,
+		first: start,
+		last:  start,
 		tags:  cpy,
 		eng:   eng,
 	}
