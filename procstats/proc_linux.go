@@ -65,35 +65,74 @@ func collectProcInfo(pid int) (info ProcInfo, err error) {
 	var pagesize = uint64(syscall.Getpagesize())
 	var cpu CPUInfo
 
-	memoryLimit, err := linux.GetMemoryLimit(pid)
+	memoryLimit, err := linux.ReadMemoryLimit(pid)
 	check(err)
 
-	limits, err := linux.GetProcLimits(pid)
+	limits, err := linux.ReadProcLimits(pid)
 	check(err)
 
-	stat, err := linux.GetProcStat(pid)
+	stat, err := linux.ReadProcStat(pid)
 	check(err)
 
-	statm, err := linux.GetProcStatm(pid)
+	statm, err := linux.ReadProcStatm(pid)
 	check(err)
 
-	sched, err := linux.GetProcSched(pid)
+	sched, err := linux.ReadProcSched(pid)
 	check(err)
 
-	fds, err := linux.GetOpenFileCount(pid)
+	fds, err := linux.ReadOpenFileCount(pid)
 	check(err)
 
 	if pid == os.Getpid() {
 		rusage := syscall.Rusage{}
 		check(syscall.Getrusage(syscall.RUSAGE_SELF, &rusage))
+
+		cpuPeriod, _ := linux.ReadCPUPeriod("")
+		cpuQuota, _ := linux.ReadCPUQuota("")
+		cpuShares, _ := linux.ReadCPUShares("")
+
 		cpu = CPUInfo{
-			User: time.Duration(rusage.Utime.Nano()),
-			Sys:  time.Duration(rusage.Stime.Nano()),
+			User:   time.Duration(rusage.Utime.Nano()),
+			Sys:    time.Duration(rusage.Stime.Nano()),
+			Period: cpuPeriod,
+			Quota:  cpuQuota,
+			Shares: cpuShares,
 		}
 	} else {
+		selfCGroups, _ := linux.ReadProcCGroup(os.Getpid())
+		procCGroups, _ := linux.ReadProcCGroup(pid)
+
+		selfCPU, _ := selfCGroups.Lookup("cpu,cpuacct")
+		procCPU, _ := procCGroups.Lookup("cpu,cpuacct")
+
+		var (
+			cpuPeriod time.Duration
+			cpuQuota  time.Duration
+			cpuShares int64
+		)
+
+		// The calling program and the target are both in the same cgroup, we
+		// can use the cpu period, quota, and shares of the calling process.
+		//
+		// We do this instead of looking directly into the cgroup directory
+		// because we don't have any garantees that the path is exposed to the
+		// current process (but it should always have access to its own cgroup).
+		if selfCPU.Path == procCPU.Path {
+			cpuPeriod, _ = linux.ReadCPUPeriod("")
+			cpuQuota, _ = linux.ReadCPUQuota("")
+			cpuShares, _ = linux.ReadCPUShares("")
+		} else {
+			cpuPeriod, _ = linux.ReadCPUPeriod(procCPU.Path)
+			cpuQuota, _ = linux.ReadCPUQuota(procCPU.Path)
+			cpuShares, _ = linux.ReadCPUShares(procCPU.Path)
+		}
+
 		cpu = CPUInfo{
-			User: clockTicksToDuration(stat.Utime),
-			Sys:  clockTicksToDuration(stat.Stime),
+			User:   clockTicksToDuration(stat.Utime),
+			Sys:    clockTicksToDuration(stat.Stime),
+			Period: cpuPeriod,
+			Quota:  cpuQuota,
+			Shares: cpuShares,
 		}
 	}
 
@@ -122,5 +161,6 @@ func collectProcInfo(pid int) (info ProcInfo, err error) {
 			InvoluntaryContextSwitches: sched.NRInvoluntarySwitches,
 		},
 	}
+
 	return
 }

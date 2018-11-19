@@ -45,62 +45,61 @@ func TestParseProcCGroup(t *testing.T) {
 	}
 }
 
-func TestProcCGroupGetByID(t *testing.T) {
+func TestProcCGroupLookup(t *testing.T) {
 	tests := []struct {
-		proc    ProcCGroup
-		id      int
-		cgroups []CGroup
+		proc   ProcCGroup
+		name   string
+		cgroup CGroup
 	}{
 		{
-			proc:    ProcCGroup{{1, "A", "/"}, {2, "B", "/"}, {2, "C", "/"}},
-			id:      0,
-			cgroups: nil,
+			proc: ProcCGroup{{1, "A", "/"}, {2, "B", "/"}, {2, "C", "/"}},
+			name: "",
 		},
 		{
-			proc:    ProcCGroup{{1, "A", "/"}, {2, "B", "/"}, {2, "C", "/"}},
-			id:      1,
-			cgroups: []CGroup{{1, "A", "/"}},
+			proc:   ProcCGroup{{1, "A", "/"}, {2, "B", "/"}, {2, "C", "/"}},
+			name:   "A",
+			cgroup: CGroup{1, "A", "/"},
 		},
 		{
-			proc:    ProcCGroup{{1, "A", "/"}, {2, "B", "/"}, {2, "C", "/"}},
-			id:      2,
-			cgroups: []CGroup{{2, "B", "/"}, {2, "C", "/"}},
+			proc:   ProcCGroup{{1, "A", "/"}, {2, "B", "/"}, {2, "C", "/"}},
+			name:   "B",
+			cgroup: CGroup{2, "B", "/"},
 		},
 	}
 
 	for _, test := range tests {
-		if cgroups := test.proc.GetByID(test.id); !reflect.DeepEqual(cgroups, test.cgroups) {
-			t.Errorf("bad cgroups from id %v: %v != %v", test.id, test.cgroups, cgroups)
+		if cgroup, _ := test.proc.Lookup(test.name); !reflect.DeepEqual(cgroup, test.cgroup) {
+			t.Errorf("bad cgroups from name %v: %+v != %+v", test.name, test.cgroup, cgroup)
 		}
 	}
 }
 
-func TestProcCGroupGetByName(t *testing.T) {
-	tests := []struct {
-		proc    ProcCGroup
-		name    string
-		cgroups []CGroup
-	}{
-		{
-			proc:    ProcCGroup{{1, "A", "/"}, {2, "B", "/"}, {2, "C", "/"}},
-			name:    "",
-			cgroups: nil,
-		},
-		{
-			proc:    ProcCGroup{{1, "A", "/"}, {2, "B", "/"}, {2, "C", "/"}},
-			name:    "A",
-			cgroups: []CGroup{{1, "A", "/"}},
-		},
-		{
-			proc:    ProcCGroup{{1, "A", "/"}, {2, "B", "/"}, {2, "C", "/"}},
-			name:    "B",
-			cgroups: []CGroup{{2, "B", "/"}},
-		},
+func TestReadCPUPeriod(t *testing.T) {
+	period, err := ReadCPUPeriod("")
+	if err != nil {
+		t.Fatal(err)
 	}
+	if period == 0 {
+		t.Fatal("invalid CPU period:", period)
+	}
+}
 
-	for _, test := range tests {
-		if cgroups := test.proc.GetByName(test.name); !reflect.DeepEqual(cgroups, test.cgroups) {
-			t.Errorf("bad cgroups from name %v: %v != %v", test.name, test.cgroups, cgroups)
-		}
+func TestReadCPUQuota(t *testing.T) {
+	quota, err := ReadCPUQuota("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if quota == 0 {
+		t.Fatal("invalid CPU quota:", quota)
+	}
+}
+
+func TestReadCPUShares(t *testing.T) {
+	shares, err := ReadCPUShares("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if shares == 0 {
+		t.Fatal("invalid CPU shares:", shares)
 	}
 }

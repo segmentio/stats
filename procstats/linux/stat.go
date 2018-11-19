@@ -84,7 +84,7 @@ type ProcStat struct {
 	ExitCode            int32     // (52) exit_code
 }
 
-func GetProcStat(pid int) (proc ProcStat, err error) {
+func ReadProcStat(pid int) (proc ProcStat, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
 	return ParseProcStat(readProcFile(pid, "stat"))
 }

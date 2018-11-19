@@ -2,13 +2,13 @@ package linux
 
 import "os"
 
-func GetOpenFileCount(pid int) (n uint64, err error) {
+func ReadOpenFileCount(pid int) (n uint64, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
-	n = getOpenFileCount(pid)
+	n = readOpenFileCount(pid)
 	return
 }
 
-func getOpenFileCount(pid int) uint64 {
+func readOpenFileCount(pid int) uint64 {
 	f, err := os.Open(procPath(pid, "fd"))
 	check(err)
 	defer f.Close()

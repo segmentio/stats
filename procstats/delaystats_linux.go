@@ -7,7 +7,7 @@ import (
 	"github.com/segmentio/taskstats"
 )
 
-func collectDelayInfo(pid int) (info DelayInfo, err error) {
+func collectDelayInfo(pid int) DelayInfo {
 	client, err := taskstats.New()
 	if err == syscall.ENOENT {
 		err = errors.New("Failed to communicate with taskstats Netlink family.  Ensure this program is not running in a network namespace.")
@@ -20,10 +20,10 @@ func collectDelayInfo(pid int) (info DelayInfo, err error) {
 	}
 	check(err)
 
-	info.BlockIODelay = stats.BlockIODelay
-	info.CPUDelay = stats.CPUDelay
-	info.FreePagesDelay = stats.FreePagesDelay
-	info.SwapInDelay = stats.SwapInDelay
-
-	return info, nil
+	return DelayInfo{
+		BlockIODelay:   stats.BlockIODelay,
+		CPUDelay:       stats.CPUDelay,
+		FreePagesDelay: stats.FreePagesDelay,
+		SwapInDelay:    stats.SwapInDelay,
+	}
 }

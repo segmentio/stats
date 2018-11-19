@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-func TestGetProcSched(t *testing.T) {
-	if _, err := GetProcSched(os.Getpid()); err != nil {
-		t.Error("GetProcSched:", err)
+func TestReadProcSched(t *testing.T) {
+	if _, err := ReadProcSched(os.Getpid()); err != nil {
+		t.Error("ReadProcSched:", err)
 	}
 }

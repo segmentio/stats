@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-func TestGetMemoryLimit(t *testing.T) {
-	if limit, err := GetMemoryLimit(os.Getpid()); err != nil {
+func TestReadMemoryLimit(t *testing.T) {
+	if limit, err := ReadMemoryLimit(os.Getpid()); err != nil {
 		t.Error(err)
 
 	} else if limit == 0 {

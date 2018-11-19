@@ -8,31 +8,31 @@ import (
 	"syscall"
 )
 
-func getMemoryLimit(pid int) (limit uint64, err error) {
-	if limit = getCGroupMemoryLimit(pid); limit == unlimitedMemoryLimit {
-		limit, err = getSysinfoMemoryLimit()
+func readMemoryLimit(pid int) (limit uint64, err error) {
+	if limit = readCGroupMemoryLimit(pid); limit == unlimitedMemoryLimit {
+		limit, err = readSysinfoMemoryLimit()
 	}
 	return
 }
 
-func getCGroupMemoryLimit(pid int) (limit uint64) {
-	if cgroups, err := GetProcCGroup(pid); err == nil {
-		limit = getProcCGroupMemoryLimit(cgroups)
+func readCGroupMemoryLimit(pid int) (limit uint64) {
+	if cgroups, err := ReadProcCGroup(pid); err == nil {
+		limit = readProcCGroupMemoryLimit(cgroups)
 	}
 	return
 }
 
-func getProcCGroupMemoryLimit(cgroups ProcCGroup) (limit uint64) {
-	if memory := cgroups.GetByName("memory"); len(memory) != 0 {
-		limit = getMemoryCGroupMemoryLimit(memory[0]) // can there be more?
+func readProcCGroupMemoryLimit(cgroups ProcCGroup) (limit uint64) {
+	if memory, ok := cgroups.Lookup("memory"); ok {
+		limit = readMemoryCGroupMemoryLimit(memory)
 	}
 	return
 }
 
-func getMemoryCGroupMemoryLimit(cgroup CGroup) (limit uint64) {
+func readMemoryCGroupMemoryLimit(cgroup CGroup) (limit uint64) {
 	limit = unlimitedMemoryLimit // default value if something doesn't work
 
-	if b, err := ioutil.ReadFile(getMemoryCGroupMemoryLimitFilePath(cgroup.Path)); err == nil {
+	if b, err := ioutil.ReadFile(readMemoryCGroupMemoryLimitFilePath(cgroup.Path)); err == nil {
 		if v, err := strconv.ParseUint(strings.TrimSpace(string(b)), 10, 64); err == nil {
 			limit = v
 		}
@@ -41,7 +41,7 @@ func getMemoryCGroupMemoryLimit(cgroup CGroup) (limit uint64) {
 	return
 }
 
-func getMemoryCGroupMemoryLimitFilePath(cgroupPath string) string {
+func readMemoryCGroupMemoryLimitFilePath(cgroupPath string) string {
 	path := "/sys/fs/cgroup/memory"
 
 	// Docker generates weird cgroup paths that don't really exist on the file
@@ -53,7 +53,7 @@ func getMemoryCGroupMemoryLimitFilePath(cgroupPath string) string {
 	return filepath.Join(path, "memory.limit_in_bytes")
 }
 
-func getSysinfoMemoryLimit() (limit uint64, err error) {
+func readSysinfoMemoryLimit() (limit uint64, err error) {
 	var sysinfo syscall.Sysinfo_t
 
 	if err = syscall.Sysinfo(&sysinfo); err == nil {

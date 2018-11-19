@@ -6,20 +6,26 @@ import (
 	"unicode"
 )
 
-func forEachLine(text string, call func(string)) {
+func forEachToken(text, split string, call func(string)) {
 	for len(text) != 0 {
 		var line string
 
-		if i := strings.IndexByte(text, '\n'); i >= 0 {
-			line, text = text[:i], text[i+1:]
+		if i := strings.Index(text, split); i >= 0 {
+			line, text = text[:i], text[i+len(split):]
 		} else {
 			line, text = text, ""
 		}
 
-		if line = strings.TrimSpace(line); len(line) != 0 {
+		call(line)
+	}
+}
+
+func forEachLine(text string, call func(string)) {
+	forEachToken(text, "\n", func(line string) {
+		if line = strings.TrimSpace(line); line != "" {
 			call(line)
 		}
-	}
+	})
 }
 
 func forEachLineExceptFirst(text string, call func(string)) {
