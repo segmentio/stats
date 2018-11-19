@@ -2,6 +2,7 @@ package procstats
 
 import (
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/segmentio/stats"
@@ -139,6 +140,8 @@ func (p *ProcMetrics) Collect() {
 				ratio = float64(m.CPU.Quota) / float64(m.CPU.Period)
 			case m.CPU.Shares > 0:
 				ratio = float64(m.CPU.Shares) / 1024
+			default:
+				ratio = 1 / float64(runtime.NumCPU())
 			}
 
 			interval := ratio * float64(now.Sub(p.lastTime))
