@@ -195,6 +195,10 @@ type CPUInfo struct {
 	// Linux-specific details about the CPU configuration of the process.
 	//
 	// The values are all zero if they are not known.
+	//
+	// For more details on what those values represent see:
+	//	https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt
+	//	https://kernel.googlesource.com/pub/scm/linux/kernel/git/glommer/memcg/+/cpu_stat/Documentation/cgroups/cpu.txt
 	Period time.Duration // scheduler period
 	Quota  time.Duration // time quota in the scheduler period
 	Shares int64         // 1024 scaled value representing the CPU shares
