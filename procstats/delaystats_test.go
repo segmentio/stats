@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"os/user"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +15,12 @@ import (
 )
 
 func TestProcMetrics(t *testing.T) {
+	u, err := user.Current()
+	if err != nil || u.Uid != "0" {
+		t.Log("test needs to be run as root")
+		t.Skip()
+	}
+
 	rand.Seed(time.Now().UnixNano())
 
 	h := &statstest.Handler{}
