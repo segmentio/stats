@@ -12,7 +12,7 @@ type ProcStatm struct {
 	Dt       uint64 // (7) dt
 }
 
-func GetProcStatm(pid int) (proc ProcStatm, err error) {
+func ReadProcStatm(pid int) (proc ProcStatm, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
 	return ParseProcStatm(readProcFile(pid, "statm"))
 }

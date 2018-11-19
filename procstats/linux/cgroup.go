@@ -1,6 +1,9 @@
 package linux
 
-import "strings"
+import (
+	"strings"
+	"time"
+)
 
 type ProcCGroup []CGroup
 
@@ -10,24 +13,20 @@ type CGroup struct {
 	Path string // Path in /sys/fs/cgroup
 }
 
-func (pcg ProcCGroup) GetByID(id int) []CGroup {
-	return pcg.GetByFunc(func(cg CGroup) bool { return cg.ID == id })
-}
-
-func (pcg ProcCGroup) GetByName(name string) []CGroup {
-	return pcg.GetByFunc(func(cg CGroup) bool { return cg.Name == name })
-}
-
-func (pcg ProcCGroup) GetByFunc(f func(CGroup) bool) (res []CGroup) {
-	for _, cg := range pcg {
-		if f(cg) {
-			res = append(res, cg)
+func (pcg ProcCGroup) Lookup(name string) (cgroup CGroup, ok bool) {
+	forEachToken(name, ",", func(key1 string) {
+		for _, cg := range pcg {
+			forEachToken(cg.Name, ",", func(key2 string) {
+				if key1 == key2 {
+					cgroup, ok = cg, true
+				}
+			})
 		}
-	}
+	})
 	return
 }
 
-func GetProcCGroup(pid int) (proc ProcCGroup, err error) {
+func ReadProcCGroup(pid int) (proc ProcCGroup, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
 	proc = parseProcCGroup(readProcFile(pid, "cgroup"))
 	return
@@ -57,4 +56,34 @@ func parseProcCGroup(s string) (proc ProcCGroup) {
 		}
 	})
 	return
+}
+
+func ReadCPUPeriod(cgroup string) (period time.Duration, err error) {
+	defer func() { err = convertPanicToError(recover()) }()
+	period = readCPUPeriod(cgroup)
+	return
+}
+
+func ReadCPUQuota(cgroup string) (quota time.Duration, err error) {
+	defer func() { err = convertPanicToError(recover()) }()
+	quota = readCPUQuota(cgroup)
+	return
+}
+
+func ReadCPUShares(cgroup string) (shares int64, err error) {
+	defer func() { err = convertPanicToError(recover()) }()
+	shares = readCPUShares(cgroup)
+	return
+}
+
+func readCPUPeriod(cgroup string) time.Duration {
+	return readMicrosecondFile(cgroupPath("cpu", cgroup, "cpu.cfs_period_us"))
+}
+
+func readCPUQuota(cgroup string) time.Duration {
+	return readMicrosecondFile(cgroupPath("cpu", cgroup, "cpu.cfs_quota_us"))
+}
+
+func readCPUShares(cgroup string) int64 {
+	return readIntFile(cgroupPath("cpu", cgroup, "cpu.shares"))
 }

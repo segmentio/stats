@@ -133,16 +133,25 @@ func (p *ProcMetrics) Collect() {
 		now := time.Now()
 
 		if !p.lastTime.IsZero() {
-			interval := now.Sub(p.lastTime)
+			ratio := 1.0
+			switch {
+			case m.CPU.Period > 0 && m.CPU.Quota > 0:
+				ratio = float64(m.CPU.Quota) / float64(m.CPU.Period)
+			case m.CPU.Shares > 0:
+				ratio = float64(m.CPU.Shares) / 1024
+			}
+
+			interval := ratio * float64(now.Sub(p.lastTime))
 
 			p.cpu.user.time = m.CPU.User - p.last.CPU.User
-			p.cpu.user.percent = 100 * float64(p.cpu.user.time) / float64(interval)
+			p.cpu.user.percent = 100 * float64(p.cpu.user.time) / interval
 
 			p.cpu.system.time = m.CPU.Sys - p.last.CPU.Sys
-			p.cpu.system.percent = 100 * float64(p.cpu.system.time) / float64(interval)
+			p.cpu.system.percent = 100 * float64(p.cpu.system.time) / interval
 
 			p.cpu.total.time = (m.CPU.User + m.CPU.Sys) - (p.last.CPU.User + p.last.CPU.Sys)
-			p.cpu.total.percent = 100 * float64(p.cpu.total.time) / float64(interval)
+			p.cpu.total.percent = 100 * float64(p.cpu.total.time) / interval
+
 		}
 
 		p.memory.available = m.Memory.Available
@@ -182,6 +191,13 @@ func CollectProcInfo(pid int) (ProcInfo, error) {
 type CPUInfo struct {
 	User time.Duration // user cpu time used by the process
 	Sys  time.Duration // system cpu time used by the process
+
+	// Linux-specific details about the CPU configuration of the process.
+	//
+	// The values are all zero if they are not known.
+	Period time.Duration // scheduler period
+	Quota  time.Duration // time quota in the scheduler period
+	Shares int64         // 1024 scaled value representing the CPU shares
 }
 
 type MemoryInfo struct {

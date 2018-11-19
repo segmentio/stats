@@ -5,10 +5,10 @@ import (
 	"testing"
 )
 
-func TestGetProcStatm(t *testing.T) {
-	if statm, err := GetProcStatm(os.Getpid()); err != nil {
-		t.Error("GetProcStatm:", err)
+func TestReadProcStatm(t *testing.T) {
+	if statm, err := ReadProcStatm(os.Getpid()); err != nil {
+		t.Error("ReadProcStatm:", err)
 	} else if statm.Size == 0 {
-		t.Error("GetPorcStatm: size cannot be zero")
+		t.Error("ReadPorcStatm: size cannot be zero")
 	}
 }

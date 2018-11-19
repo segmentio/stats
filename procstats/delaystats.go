@@ -48,6 +48,8 @@ type DelayInfo struct {
 	FreePagesDelay time.Duration
 }
 
-func CollectDelayInfo(pid int) (DelayInfo, error) {
-	return collectDelayInfo(pid)
+func CollectDelayInfo(pid int) (info DelayInfo, err error) {
+	defer func() { err = convertPanicToError(recover()) }()
+	info = collectDelayInfo(pid)
+	return
 }

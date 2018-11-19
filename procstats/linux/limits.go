@@ -32,7 +32,7 @@ type ProcLimits struct {
 	RealtimeTimeout  Limits
 }
 
-func GetProcLimits(pid int) (proc ProcLimits, err error) {
+func ReadProcLimits(pid int) (proc ProcLimits, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
 	proc = parseProcLimits(readProcFile(pid, "limits"))
 	return

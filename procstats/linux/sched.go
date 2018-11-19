@@ -12,7 +12,7 @@ type ProcSched struct {
 	SEAvgUtilAvg          uint64 // se.avg.util_avg
 }
 
-func GetProcSched(pid int) (proc ProcSched, err error) {
+func ReadProcSched(pid int) (proc ProcSched, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
 	proc = parseProcSched(readProcFile(pid, "sched"))
 	return

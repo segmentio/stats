@@ -5,10 +5,10 @@ import (
 	"testing"
 )
 
-func TestGetOpenFileCount(t *testing.T) {
-	if count, err := GetOpenFileCount(os.Getpid()); err != nil {
-		t.Error("GetOpenFileCount:", err)
+func TestReadOpenFileCount(t *testing.T) {
+	if count, err := ReadOpenFileCount(os.Getpid()); err != nil {
+		t.Error("ReadOpenFileCount:", err)
 	} else if count == 0 {
-		t.Error("GetOpenFileCount: cannot return zero")
+		t.Error("ReadOpenFileCount: cannot return zero")
 	}
 }
