@@ -84,19 +84,39 @@ func (eng *Engine) Incr(name string, tags ...Tag) {
 	eng.Add(name, 1, tags...)
 }
 
+// Incr increments by one the counter identified by name and tags.
+func (eng *Engine) IncrAt(time time.Time, name string, tags ...Tag) {
+	eng.AddAt(time, name, 1, tags...)
+}
+
 // Add increments by value the counter identified by name and tags.
 func (eng *Engine) Add(name string, value interface{}, tags ...Tag) {
-	eng.measure(name, value, Counter, tags...)
+	eng.measure(time.Now(), name, value, Counter, tags...)
+}
+
+// Add increments by value the counter identified by name and tags.
+func (eng *Engine) AddAt(t time.Time, name string, value interface{}, tags ...Tag) {
+	eng.measure(t, name, value, Counter, tags...)
 }
 
 // Set sets to value the gauge identified by name and tags.
 func (eng *Engine) Set(name string, value interface{}, tags ...Tag) {
-	eng.measure(name, value, Gauge, tags...)
+	eng.measure(time.Now(), name, value, Gauge, tags...)
+}
+
+// Set sets to value the gauge identified by name and tags.
+func (eng *Engine) SetAt(t time.Time, name string, value interface{}, tags ...Tag) {
+	eng.measure(t, name, value, Gauge, tags...)
 }
 
 // Observe reports value for the histogram identified by name and tags.
 func (eng *Engine) Observe(name string, value interface{}, tags ...Tag) {
-	eng.measure(name, value, Histogram, tags...)
+	eng.measure(time.Now(), name, value, Histogram, tags...)
+}
+
+// Observe reports value for the histogram identified by name and tags.
+func (eng *Engine) ObserveAt(t time.Time, name string, value interface{}, tags ...Tag) {
+	eng.measure(t, name, value, Histogram, tags...)
 }
 
 // Clock returns a new clock identified by name and tags.
@@ -118,7 +138,7 @@ func (eng *Engine) ClockAt(name string, start time.Time, tags ...Tag) *Clock {
 	}
 }
 
-func (eng *Engine) measure(name string, value interface{}, ftype FieldType, tags ...Tag) {
+func (eng *Engine) measure(t time.Time, name string, value interface{}, ftype FieldType, tags ...Tag) {
 	name, field := splitMeasureField(name)
 	mp := measureArrayPool.Get().(*[1]Measure)
 
@@ -132,7 +152,7 @@ func (eng *Engine) measure(name string, value interface{}, ftype FieldType, tags
 		SortTags(m.Tags)
 	}
 
-	eng.Handler.HandleMeasures(time.Now(), (*mp)[:]...)
+	eng.Handler.HandleMeasures(t, (*mp)[:]...)
 
 	for i := range m.Fields {
 		m.Fields[i] = Field{}
