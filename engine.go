@@ -251,9 +251,19 @@ func Incr(name string, tags ...Tag) {
 	DefaultEngine.Incr(name, tags...)
 }
 
+// Incr increments by one the counter identified by name and tags.
+func IncrAt(time time.Time, name string, tags ...Tag) {
+	DefaultEngine.IncrAt(time, name, tags...)
+}
+
 // Add increments by value the counter identified by name and tags.
 func Add(name string, value interface{}, tags ...Tag) {
 	DefaultEngine.Add(name, value, tags...)
+}
+
+// Add increments by value the counter identified by name and tags.
+func AddAt(time time.Time, name string, value interface{}, tags ...Tag) {
+	DefaultEngine.AddAt(time, name, value, tags...)
 }
 
 // Set sets to value the gauge identified by name and tags.
@@ -261,9 +271,19 @@ func Set(name string, value interface{}, tags ...Tag) {
 	DefaultEngine.Set(name, value, tags...)
 }
 
+// Set sets to value the gauge identified by name and tags.
+func SetAt(time time.Time, name string, value interface{}, tags ...Tag) {
+	DefaultEngine.SetAt(time, name, value, tags...)
+}
+
 // Observe reports value for the histogram identified by name and tags.
 func Observe(name string, value interface{}, tags ...Tag) {
 	DefaultEngine.Observe(name, value, tags...)
+}
+
+// Observe reports value for the histogram identified by name and tags.
+func ObserveAt(time time.Time, name string, value interface{}, tags ...Tag) {
+	DefaultEngine.ObserveAt(time, name, value, tags...)
 }
 
 // Report is a helper function that delegates to DefaultEngine.
