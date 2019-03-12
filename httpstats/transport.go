@@ -7,6 +7,11 @@ import (
 	"github.com/segmentio/stats"
 )
 
+// Reporter is the interface for reporting stats at a given time
+type Reporter interface {
+	ReportAt(time time.Time, metrics interface{}, tags ...stats.Tag)
+}
+
 // NewTransport wraps t to produce metrics on the default engine for every request
 // sent and every response received.
 func NewTransport(t http.RoundTripper) http.RoundTripper {
@@ -15,7 +20,7 @@ func NewTransport(t http.RoundTripper) http.RoundTripper {
 
 // NewTransportWith wraps t to produce metrics on eng for every request sent and
 // every response received.
-func NewTransportWith(eng *stats.Engine, t http.RoundTripper) http.RoundTripper {
+func NewTransportWith(eng Reporter, t http.RoundTripper) http.RoundTripper {
 	return &transport{
 		transport: t,
 		eng:       eng,
@@ -24,7 +29,7 @@ func NewTransportWith(eng *stats.Engine, t http.RoundTripper) http.RoundTripper 
 
 type transport struct {
 	transport http.RoundTripper
-	eng       *stats.Engine
+	eng       Reporter
 }
 
 func (t *transport) RoundTrip(req *http.Request) (res *http.Response, err error) {

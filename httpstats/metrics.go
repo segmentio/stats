@@ -62,7 +62,7 @@ func (n *nullBody) Read(b []byte) (int, error) { return 0, io.EOF }
 
 type requestBody struct {
 	body    io.ReadCloser
-	eng     *stats.Engine
+	eng     Reporter
 	req     *http.Request
 	metrics *metrics
 	bytes   int
@@ -92,7 +92,7 @@ func (r *requestBody) complete() {
 }
 
 type responseBody struct {
-	eng     *stats.Engine
+	eng     Reporter
 	res     *http.Response
 	metrics *metrics
 	body    io.ReadCloser
