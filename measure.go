@@ -104,7 +104,7 @@ func appendMeasures(m []Measure, cache *measureCache, prefix string, v reflect.V
 	}
 
 	switch v.Kind() {
-	case reflect.Array, reflect.Slice:
+	case reflect.Slice:
 		for i, n := 0, v.Len(); i != n; i++ {
 			m = appendMeasures(m, cache, prefix, v.Index(i), tags...)
 		}
