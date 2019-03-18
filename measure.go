@@ -222,9 +222,23 @@ func makeMeasureFuncs(typ reflect.Type, prefix string) []measureFuncs {
 
 func appendMeasureFuncs(measures []measureFuncs, typ reflect.Type, name string, tags tagFuncMap, offset uintptr) []measureFuncs {
 	tags = tags.copy()
+	kind := typ.Kind()
 
-	if typ.Kind() != reflect.Struct {
-		panic("measures can only be constructed from struct type but " + typ.String() + " was given")
+	switch kind {
+	case reflect.Struct, reflect.Array:
+	default:
+		panic("measures can only be constructed from struct type and array types but " + typ.String() + " was given")
+	}
+
+	if kind == reflect.Array {
+		elemType := typ.Elem()
+		elemSize := elemType.Size()
+
+		for ai, an := 0, typ.Len(); ai < an; ai++ {
+			measures = appendMeasureFuncs(measures, elemType, name, tags, offset+(uintptr(ai)*elemSize))
+		}
+
+		return measures
 	}
 
 	for i, n := 0, typ.NumField(); i != n; i++ {
@@ -248,8 +262,9 @@ func appendMeasureFuncs(measures []measureFuncs, typ reflect.Type, name string, 
 		metric := field.Tag.Get("metric")
 
 		switch field.Type.Kind() {
-		case reflect.Struct:
+		case reflect.Struct, reflect.Array:
 			measures = appendMeasureFuncs(measures, field.Type, concat(name, metric), tags, offset+field.Offset)
+
 		default:
 			if len(metric) != 0 {
 				sf := structField{typ: field.Type, off: offset + field.Offset}

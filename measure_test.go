@@ -43,6 +43,11 @@ func TestMakeMeasures(t *testing.T) {
 			O time.Duration `metric:"o" type:"histogram"`
 		}
 
+		Array [3]struct {
+			V int  `metric:"v" type:"counter"`
+			X bool `metric:"x" type:"gauge"`
+		} `metric:"array"`
+
 		// tests that global tags are inherited by sub-fields
 		Host        string `tag:"host"`
 		Environment string `tag:"environment"`
@@ -68,6 +73,13 @@ func TestMakeMeasures(t *testing.T) {
 	testMetrics.Simple.N = 13
 	testMetrics.Simple.O = 14
 
+	testMetrics.Array[0].V = 1
+	testMetrics.Array[0].X = true
+	testMetrics.Array[1].V = 2
+	testMetrics.Array[1].X = false
+	testMetrics.Array[2].V = 3
+	testMetrics.Array[2].X = true
+
 	testMetrics.Host = "localhost"
 	testMetrics.Environment = "development"
 
@@ -82,6 +94,7 @@ func TestMakeMeasures(t *testing.T) {
 				{"type", "timeout"},
 			},
 		},
+
 		{
 			Name: "test",
 			Fields: []Field{
@@ -107,6 +120,45 @@ func TestMakeMeasures(t *testing.T) {
 				{"service", "test-service"},
 			},
 		},
+
+		{
+			Name: "test.array",
+			Fields: []Field{
+				MakeField("v", 1, Counter),
+				MakeField("x", true, Gauge),
+			},
+			Tags: []Tag{
+				{"environment", "development"},
+				{"host", "localhost"},
+				{"service", "test-service"},
+			},
+		},
+
+		{
+			Name: "test.array",
+			Fields: []Field{
+				MakeField("v", 2, Counter),
+				MakeField("x", false, Gauge),
+			},
+			Tags: []Tag{
+				{"environment", "development"},
+				{"host", "localhost"},
+				{"service", "test-service"},
+			},
+		},
+
+		{
+			Name: "test.array",
+			Fields: []Field{
+				MakeField("v", 3, Counter),
+				MakeField("x", true, Gauge),
+			},
+			Tags: []Tag{
+				{"environment", "development"},
+				{"host", "localhost"},
+				{"service", "test-service"},
+			},
+		},
 	}
 
 	measures := MakeMeasures("test", testMetrics,
@@ -116,6 +168,6 @@ func TestMakeMeasures(t *testing.T) {
 	if !reflect.DeepEqual(measures, testMeasures) {
 		t.Error("bad measures:")
 		t.Logf("expected: %#v", testMeasures)
-		t.Logf("founc:    %#v", measures)
+		t.Logf("found:    %#v", measures)
 	}
 }
