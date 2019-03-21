@@ -104,7 +104,7 @@ func appendMeasures(m []Measure, cache *measureCache, prefix string, v reflect.V
 	}
 
 	switch v.Kind() {
-	case reflect.Slice:
+	case reflect.Array, reflect.Slice:
 		for i, n := 0, v.Len(); i != n; i++ {
 			m = appendMeasures(m, cache, prefix, v.Index(i), tags...)
 		}
@@ -227,7 +227,7 @@ func appendMeasureFuncs(measures []measureFuncs, typ reflect.Type, name string, 
 	switch kind {
 	case reflect.Struct, reflect.Array:
 	default:
-		panic("measures can only be constructed from struct type and array types but " + typ.String() + " was given")
+		return measures
 	}
 
 	if kind == reflect.Array {
