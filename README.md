@@ -315,6 +315,30 @@ func main() {
 }
 ```
 
+You may also add specific tags per request.
+```go
+package main
+
+import (
+    "net/http"
+
+    "github.com/segmentio/stats/datadog"
+    "github.com/segmentio/stats/httpstats"
+)
+
+func main() {
+     stats.Register(datadog.NewClient("localhost:8125"))
+     defer stats.Flush()
+
+    // Wraps the default HTTP client's transport.
+    http.DefaultClient.Transport = httpstats.NewTransport(http.DefaultClient.Transport)
+    req, _ := http.NewRequest("GET", "/", nil)
+    req = httpstats.RequestWithTags(req, stats.Tag{ Name: "req_name", Value: "fetch_assets"})
+
+    // ...
+}
+```
+
 ### Redis
 
 The [github.com/segmentio/stats/redisstats](https://godoc.org/github.com/segmentio/stats/redisstats)

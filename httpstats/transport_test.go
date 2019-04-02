@@ -13,9 +13,29 @@ import (
 )
 
 func TestTransport(t *testing.T) {
-	newRequest := func(method string, path string, body io.Reader) *http.Request {
+	type testRequest struct {
+		req  *http.Request
+		tags []stats.Tag
+	}
+
+	assertRequestTags := func(t *testing.T, actual []stats.Tag, expect []stats.Tag) {
+		mapped := make(map[string]stats.Tag)
+		for _, a := range actual {
+			mapped[a.Name] = a
+		}
+		for _, e := range expect {
+			if _, exists := mapped[e.Name]; !exists {
+				t.Errorf("expected tag %s not found", e.Name)
+			}
+		}
+	}
+
+	newRequest := func(method string, path string, body io.Reader, tags ...stats.Tag) testRequest {
 		req, _ := http.NewRequest(method, path, body)
-		return req
+		return testRequest{
+			req:  req,
+			tags: tags,
+		}
 	}
 
 	for _, transport := range []http.RoundTripper{
@@ -25,13 +45,16 @@ func TestTransport(t *testing.T) {
 		http.DefaultClient.Transport,
 	} {
 		t.Run("", func(t *testing.T) {
-			for _, req := range []*http.Request{
+			for _, reqCase := range []testRequest{
 				newRequest("GET", "/", nil),
 				newRequest("POST", "/", strings.NewReader("Hi")),
+				newRequest("GET", "/", nil, stats.Tag{Name: "custom", Value: "perrequest"}),
 			} {
 				t.Run("", func(t *testing.T) {
 					h := &statstest.Handler{}
 					e := stats.NewEngine("", h)
+					req := reqCase.req
+					tags := reqCase.tags
 
 					server := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 						ioutil.ReadAll(req.Body)
@@ -46,6 +69,9 @@ func TestTransport(t *testing.T) {
 					req.URL.Scheme = "http"
 					req.URL.Host = server.URL[7:]
 
+					if len(tags) > 0 {
+						req = RequestWithTags(req, tags...)
+					}
 					res, err := httpc.Do(req)
 					if err != nil {
 						t.Error(err)
@@ -59,6 +85,7 @@ func TestTransport(t *testing.T) {
 					}
 
 					for _, m := range h.Measures() {
+						assertRequestTags(t, m.Tags, tags)
 						for _, tag := range m.Tags {
 							if tag.Name == "bucket" {
 								switch tag.Value {
