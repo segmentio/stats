@@ -8,8 +8,8 @@ import (
 // A Tag is a pair of a string key and value set on measures to define the
 // dimensions of the metrics.
 type Tag struct {
-	Name  string
-	Value string
+	Name  string `json:"name"`
+	Value string `json:"value"`
 }
 
 // T is shorthand for `stats.Tag{Name: "blah", Value: "foo"}`  It returns
