@@ -128,13 +128,13 @@ func testEngineIncr(t *testing.T, eng *stats.Engine) {
 
 	checkMeasuresEqual(t, eng,
 		stats.Measure{
-			Name:   "test.measure.count",
-			Fields: []stats.Field{stats.MakeField("", 1, stats.Counter)},
+			Name:   "test.measure",
+			Fields: []stats.Field{stats.MakeField("count", 1, stats.Counter)},
 			Tags:   []stats.Tag{stats.T("service", "test-service")},
 		},
 		stats.Measure{
-			Name:   "test.measure.count",
-			Fields: []stats.Field{stats.MakeField("", 1, stats.Counter)},
+			Name:   "test.measure",
+			Fields: []stats.Field{stats.MakeField("count", 1, stats.Counter)},
 			Tags:   []stats.Tag{stats.T("service", "test-service"), stats.T("type", "testing")},
 		},
 	)
@@ -146,13 +146,13 @@ func testEngineAdd(t *testing.T, eng *stats.Engine) {
 
 	checkMeasuresEqual(t, eng,
 		stats.Measure{
-			Name:   "test.measure.count",
-			Fields: []stats.Field{stats.MakeField("", 42, stats.Counter)},
+			Name:   "test.measure",
+			Fields: []stats.Field{stats.MakeField("count", 42, stats.Counter)},
 			Tags:   []stats.Tag{stats.T("service", "test-service")},
 		},
 		stats.Measure{
-			Name:   "test.measure.count",
-			Fields: []stats.Field{stats.MakeField("", 10, stats.Counter)},
+			Name:   "test.measure",
+			Fields: []stats.Field{stats.MakeField("count", 10, stats.Counter)},
 			Tags:   []stats.Tag{stats.T("service", "test-service"), stats.T("type", "testing")},
 		},
 	)
@@ -164,13 +164,13 @@ func testEngineSet(t *testing.T, eng *stats.Engine) {
 
 	checkMeasuresEqual(t, eng,
 		stats.Measure{
-			Name:   "test.measure.level",
-			Fields: []stats.Field{stats.MakeField("", 42, stats.Gauge)},
+			Name:   "test.measure",
+			Fields: []stats.Field{stats.MakeField("level", 42, stats.Gauge)},
 			Tags:   []stats.Tag{stats.T("service", "test-service")},
 		},
 		stats.Measure{
-			Name:   "test.measure.level",
-			Fields: []stats.Field{stats.MakeField("", 10, stats.Gauge)},
+			Name:   "test.measure",
+			Fields: []stats.Field{stats.MakeField("level", 10, stats.Gauge)},
 			Tags:   []stats.Tag{stats.T("service", "test-service"), stats.T("type", "testing")},
 		},
 	)
@@ -182,13 +182,13 @@ func testEngineObserve(t *testing.T, eng *stats.Engine) {
 
 	checkMeasuresEqual(t, eng,
 		stats.Measure{
-			Name:   "test.measure.size",
-			Fields: []stats.Field{stats.MakeField("", 42, stats.Histogram)},
+			Name:   "test.measure",
+			Fields: []stats.Field{stats.MakeField("size", 42, stats.Histogram)},
 			Tags:   []stats.Tag{stats.T("service", "test-service")},
 		},
 		stats.Measure{
-			Name:   "test.measure.size",
-			Fields: []stats.Field{stats.MakeField("", 10, stats.Histogram)},
+			Name:   "test.measure",
+			Fields: []stats.Field{stats.MakeField("size", 10, stats.Histogram)},
 			Tags:   []stats.Tag{stats.T("service", "test-service"), stats.T("type", "testing")},
 		},
 	)
@@ -277,7 +277,7 @@ func testEngineClock(t *testing.T, eng *stats.Engine) {
 	stamps := []string{"compress", "grayscale", "total"}
 
 	for i, m := range found {
-		if m.Name != "test.upload" {
+		if m.Name != "test" {
 			t.Errorf("measure name mismatch, got %q", m.Name)
 		}
 
