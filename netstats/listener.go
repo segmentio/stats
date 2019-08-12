@@ -49,7 +49,7 @@ func (l *listener) Addr() net.Addr {
 
 func (l *listener) error(op string, err error) {
 	if !isTemporary(err) {
-		l.eng.Incr("conn.error:count",
+		l.eng.Incr("conn.error.count",
 			stats.T("operation", op),
 			stats.T("protocol", l.Addr().Network()),
 		)
