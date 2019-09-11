@@ -21,12 +21,26 @@ func NewHandlerWith(eng *stats.Engine, h http.Handler) http.Handler {
 	return &handler{
 		handler: h,
 		eng:     eng,
+		config:  defaultHandlerConfig,
 	}
+}
+
+type HandlerConfig struct {
+	DisableUserAgent bool
+}
+
+var defaultHandlerConfig = HandlerConfig{
+	DisableUserAgent: true,
 }
 
 type handler struct {
 	handler http.Handler
 	eng     *stats.Engine
+	config  HandlerConfig
+}
+
+func (h *handler) Configure(c HandlerConfig) {
+	h.config = c
 }
 
 func (h *handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
@@ -39,7 +53,7 @@ func (h *handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		metrics:        m,
 		start:          time.Now(),
 	}
-	defer w.complete()
+	defer w.complete(h.config)
 
 	b := &requestBody{
 		body:    req.Body,
@@ -95,7 +109,7 @@ func (w *responseWriter) Hijack() (conn net.Conn, buf *bufio.ReadWriter, err err
 	return
 }
 
-func (w *responseWriter) complete() {
+func (w *responseWriter) complete(c HandlerConfig) {
 	if w.wroteStats {
 		return
 	}
@@ -118,5 +132,12 @@ func (w *responseWriter) complete() {
 	}
 
 	w.metrics.observeResponse(res, "write", w.bytes, now.Sub(w.start))
+
+	// UserAgent can result in high cardinality. Allow mechanism for disabling the tag
+	if !c.DisableUserAgent {
+		w.metrics.http.userAgent = ""
+
+	}
+
 	w.eng.ReportAt(w.start, w.metrics)
 }
