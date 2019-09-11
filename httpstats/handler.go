@@ -21,7 +21,7 @@ func NewHandlerWith(eng *stats.Engine, h http.Handler) http.Handler {
 	return &handler{
 		handler: h,
 		eng:     eng,
-		config:  defaultHandlerConfig,
+		conf:    defaultHandlerConfig,
 	}
 }
 
@@ -29,18 +29,18 @@ type HandlerConfig struct {
 	DisableUserAgent bool
 }
 
-var defaultHandlerConfig = HandlerConfig{
+var defaultHandlerConfig = &HandlerConfig{
 	DisableUserAgent: true,
 }
 
 type handler struct {
 	handler http.Handler
 	eng     *stats.Engine
-	config  HandlerConfig
+	conf    *HandlerConfig
 }
 
-func (h *handler) Configure(c HandlerConfig) {
-	h.config = c
+func (h *handler) Configure(c *HandlerConfig) {
+	h.conf = c
 }
 
 func (h *handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
@@ -49,11 +49,12 @@ func (h *handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	w := &responseWriter{
 		ResponseWriter: res,
 		eng:            h.eng,
+		conf:           h.conf,
 		req:            req,
 		metrics:        m,
 		start:          time.Now(),
 	}
-	defer w.complete(h.config)
+	defer w.complete()
 
 	b := &requestBody{
 		body:    req.Body,
@@ -72,6 +73,7 @@ type responseWriter struct {
 	http.ResponseWriter
 	start       time.Time
 	eng         *stats.Engine
+	conf        *HandlerConfig
 	req         *http.Request
 	metrics     *metrics
 	status      int
@@ -109,7 +111,7 @@ func (w *responseWriter) Hijack() (conn net.Conn, buf *bufio.ReadWriter, err err
 	return
 }
 
-func (w *responseWriter) complete(c HandlerConfig) {
+func (w *responseWriter) complete() {
 	if w.wroteStats {
 		return
 	}
@@ -134,7 +136,7 @@ func (w *responseWriter) complete(c HandlerConfig) {
 	w.metrics.observeResponse(res, "write", w.bytes, now.Sub(w.start))
 
 	// UserAgent can result in high cardinality. Allow mechanism for disabling the tag
-	if !c.DisableUserAgent {
+	if w.conf.DisableUserAgent {
 		w.metrics.http.userAgent = ""
 
 	}
