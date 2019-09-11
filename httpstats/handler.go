@@ -25,6 +25,16 @@ func NewHandlerWith(eng *stats.Engine, h http.Handler) http.Handler {
 	}
 }
 
+// NewHandlerWithConfig wraps h to produce metrics on eng for every request received
+// and every response sent and uses the provided configuration for customization
+func NewHandlerWithConfig(conf *HandlerConfig, eng *stats.Engine, h http.Handler) http.Handler {
+	return &handler{
+		handler: h,
+		eng:     eng,
+		conf:    conf,
+	}
+}
+
 type HandlerConfig struct {
 	DisableUserAgent bool
 }
@@ -37,10 +47,6 @@ type handler struct {
 	handler http.Handler
 	eng     *stats.Engine
 	conf    *HandlerConfig
-}
-
-func (h *handler) Configure(c *HandlerConfig) {
-	h.conf = c
 }
 
 func (h *handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {

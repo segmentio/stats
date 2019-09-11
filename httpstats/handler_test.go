@@ -53,6 +53,57 @@ func TestHandler(t *testing.T) {
 	}
 }
 
+func TestDisableUserAgent(t *testing.T) {
+
+	h := &statstest.Handler{}
+	e := stats.NewEngine("", h)
+
+	handler := NewHandlerWithConfig(&HandlerConfig{DisableUserAgent: true}, e, http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		ioutil.ReadAll(req.Body)
+		res.WriteHeader(http.StatusOK)
+		res.Write([]byte("Hello World"))
+	}))
+
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	userAgent := "Stats_UnitTests/1.0"
+	client := &http.Client{}
+
+	req, err := http.NewRequest("POST", server.URL, strings.NewReader("Hi"))
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	req.Header.Set("User-Agent", userAgent)
+
+	res, err := client.Do(req)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	ioutil.ReadAll(res.Body)
+	res.Body.Close()
+
+	measures := h.Measures()
+
+	if len(measures) == 0 {
+		t.Error("no measures reported by http handler")
+	}
+
+	for _, m := range measures {
+		for _, tag := range m.Tags {
+			if tag.Name == "http_req_user_agent" {
+				if tag.Value != "" {
+					t.Errorf("expected user agent to be empty string. got:  %#v\n", tag.Value)
+				}
+			}
+		}
+	}
+
+}
+
 func TestHandlerHijack(t *testing.T) {
 	h := &statstest.Handler{}
 	e := stats.NewEngine("", h)
