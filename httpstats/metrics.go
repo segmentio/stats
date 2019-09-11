@@ -171,6 +171,7 @@ type metrics struct {
 		contentType      string `tag:"http_req_content_type"`
 		host             string `tag:"http_req_host"`
 		method           string `tag:"http_req_method"`
+		userAgent        string `tag:"http_req_user_agent"`
 		path             string `tag:"http_req_path"`
 		protocol         string `tag:"http_req_protocol"`
 		transferEncoding string `tag:"http_req_transfer_encoding"`
@@ -195,6 +196,7 @@ func (m *metrics) observeRequest(req *http.Request, op string, bodyLen int) {
 	m.http.contentEncoding = contentEncoding
 	m.http.contentType = contentType
 	m.http.host = host
+	m.http.userAgent = req.UserAgent()
 	m.http.method = req.Method
 	m.http.protocol = req.Proto
 	m.http.transferEncoding = transferEncoding
