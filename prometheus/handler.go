@@ -1,6 +1,7 @@
 package prometheus
 
 import (
+	"bytes"
 	"compress/gzip"
 	"io"
 	"net/http"
@@ -47,6 +48,16 @@ type Handler struct {
 
 	opcount uint64
 	metrics metricStore
+	filters []byte
+}
+
+// FilterLabels will remove the passed labels from the observation
+func (h *Handler) FilterLabels(labelNames []string) {
+	b := make([][]byte, len(labelNames))
+	for i := range labelNames {
+		b[i] = []byte(labelNames[i])
+	}
+	h.filters = bytes.Join(b, []byte{0x00})
 }
 
 // HandleMetric satisfies the stats.Handler interface.
@@ -146,6 +157,7 @@ func (h *Handler) WriteStats(w io.Writer) {
 	sort.Sort(byNameAndLabels(metrics))
 
 	for i, m := range metrics {
+		m.labels = m.labels.filterNamed(h.filters)
 		b = b[:0]
 		name := m.rootName()
 
