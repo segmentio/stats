@@ -46,18 +46,21 @@ type Handler struct {
 	// If nil, stats.Buckets is used instead.
 	Buckets stats.HistogramBuckets
 
-	opcount uint64
-	metrics metricStore
-	filters []byte
+	opcount       uint64
+	metrics       metricStore
+	ignoredLabels []byte
 }
 
-// FilterLabels will remove the passed labels from the observation
-func (h *Handler) FilterLabels(labelNames []string) {
+// IgnoreLabels will remove the passed labels from the observation
+func (h *Handler) IgnoreLabels(labelNames []string) {
 	b := make([][]byte, len(labelNames))
 	for i := range labelNames {
 		b[i] = []byte(labelNames[i])
 	}
-	h.filters = bytes.Join(b, []byte{0x00})
+	// This flattens all the ignored labels into a single byte slice
+	// so we dont have to do an explicit O(n^2) lookup when we filter
+	// labels out of the observation
+	h.ignoredLabels = bytes.Join(b, []byte{0x00})
 }
 
 // HandleMetric satisfies the stats.Handler interface.
@@ -157,7 +160,7 @@ func (h *Handler) WriteStats(w io.Writer) {
 	sort.Sort(byNameAndLabels(metrics))
 
 	for i, m := range metrics {
-		m.labels = m.labels.filterNamed(h.filters)
+		m.labels = m.labels.ignoreNamed(h.ignoredLabels)
 		b = b[:0]
 		name := m.rootName()
 

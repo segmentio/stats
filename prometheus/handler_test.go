@@ -119,7 +119,7 @@ C_sum 10.7 1496614320000
 	}
 }
 
-func TestFilterLabels(t *testing.T) {
+func TestIgnoreLabels(t *testing.T) {
 	tests := []struct{
 		name string
 		labels []string
@@ -145,9 +145,9 @@ func TestFilterLabels(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			h := &Handler{}
-			h.FilterLabels(test.labels)
-			if !reflect.DeepEqual(h.filters, test.expect) {
-				t.Errorf("\nexpected: %#v\n     got: %#v", test.expect, h.filters)
+			h.IgnoreLabels(test.labels)
+			if !reflect.DeepEqual(h.ignoredLabels, test.expect) {
+				t.Errorf("\nexpected: %#v\n     got: %#v", test.expect, h.ignoredLabels)
 			}
 		})
 	}

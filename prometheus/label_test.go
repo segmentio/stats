@@ -63,7 +63,7 @@ func TestLabelsLess(t *testing.T) {
 	}
 }
 
-func TestFilter(t *testing.T) {
+func TestIgnoreNamed(t *testing.T) {
 	var testFilter = []byte{'l', '1', 0x00, 'l', '2'}
 	var testLabels = labels{
 		{
@@ -92,13 +92,13 @@ func TestFilter(t *testing.T) {
 			expect: make(labels, 0),
 		},
 		{
-			name:   "no filters",
+			name:   "no ignored labels",
 			in:     testLabels,
 			filter: []byte(nil),
 			expect: testLabels,
 		},
 		{
-			name: "active filters",
+			name: "actively ignoring labels",
 			in: testLabels,
 			filter:testFilter,
 			expect: labels{{name: "l3"}, {name: "l4"}},
@@ -107,7 +107,7 @@ func TestFilter(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			l := test.in.filterNamed(test.filter)
+			l := test.in.ignoreNamed(test.filter)
 
 			if !reflect.DeepEqual(l, test.expect) {
 				t.Errorf("\nexpected: %#v\n     got: %#v", test.expect, l)

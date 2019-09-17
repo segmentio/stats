@@ -35,7 +35,7 @@ func makeLabels(l ...label) labels {
 	return m
 }
 
-func (l labels) filterNamed(names []byte) labels {
+func (l labels) ignoreNamed(names []byte) labels {
 	if len(names) == 0 {
 		return l
 	}
