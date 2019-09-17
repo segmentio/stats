@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 	"time"
 
@@ -115,6 +116,40 @@ C_sum 10.7 1496614320000
 		t.Error("bad output:")
 		t.Log("expected:", expects)
 		t.Log("found:", s)
+	}
+}
+
+func TestIgnoreLabels(t *testing.T) {
+	tests := []struct{
+		name string
+		labels []string
+		expect []byte
+	}{
+		{
+			name: "no labels",
+			labels: []string(nil),
+			expect: make([]byte, 0),
+		},
+		{
+			name: "http_req_path",
+			labels: []string{"http_req_path"},
+			expect: []byte("http_req_path"),
+		},
+		{
+			name: "multiple labels",
+			labels: []string{"l1", "l2", "l3"},
+			expect: []byte{'l', '1', 0x00, 'l', '2', 0x00, 'l', '3'},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			h := &Handler{}
+			h.IgnoreLabels(test.labels)
+			if !reflect.DeepEqual(h.ignoredLabels, test.expect) {
+				t.Errorf("\nexpected: %#v\n     got: %#v", test.expect, h.ignoredLabels)
+			}
+		})
 	}
 }
 
