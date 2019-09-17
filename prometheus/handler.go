@@ -1,7 +1,6 @@
 package prometheus
 
 import (
-	"bytes"
 	"compress/gzip"
 	"io"
 	"net/http"
@@ -48,19 +47,12 @@ type Handler struct {
 
 	opcount       uint64
 	metrics       metricStore
-	ignoredLabels []byte
+	ignoredLabels []string
 }
 
-// IgnoreLabels will remove the passed labels from the observation
+// IgnoreLabels will specify which labels are to be removed from the observation
 func (h *Handler) IgnoreLabels(labelNames []string) {
-	b := make([][]byte, len(labelNames))
-	for i := range labelNames {
-		b[i] = []byte(labelNames[i])
-	}
-	// This flattens all the ignored labels into a single byte slice
-	// so we dont have to do an explicit O(n^2) lookup when we filter
-	// labels out of the observation
-	h.ignoredLabels = bytes.Join(b, []byte{0x00})
+	h.ignoredLabels = labelNames
 }
 
 // HandleMetric satisfies the stats.Handler interface.

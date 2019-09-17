@@ -1,8 +1,6 @@
 package prometheus
 
 import (
-	"bytes"
-
 	"github.com/segmentio/fasthash/jody"
 	"github.com/segmentio/stats"
 )
@@ -35,16 +33,24 @@ func makeLabels(l ...label) labels {
 	return m
 }
 
-func (l labels) ignoreNamed(names []byte) labels {
+func (l labels) ignoreNamed(names []string) labels {
 	if len(names) == 0 {
 		return l
 	}
 	out := make(labels, 0, len(l))
 	for i := range l {
-		if !bytes.Contains(names, []byte(l[i].name)) {
+		var contains bool
+		for j := range names {
+			if names[j] == l[i].name {
+				contains = true
+				break
+			}
+		}
+		if !contains {
 			out = append(out, l[i])
 		}
 	}
+
 	return out
 }
 
