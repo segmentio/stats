@@ -123,22 +123,22 @@ func TestIgnoreLabels(t *testing.T) {
 	tests := []struct{
 		name string
 		labels []string
-		expect []byte
+		expect []string
 	}{
 		{
 			name: "no labels",
 			labels: []string(nil),
-			expect: make([]byte, 0),
+			expect: []string(nil),
 		},
 		{
 			name: "http_req_path",
 			labels: []string{"http_req_path"},
-			expect: []byte("http_req_path"),
+			expect: []string{"http_req_path"},
 		},
 		{
 			name: "multiple labels",
 			labels: []string{"l1", "l2", "l3"},
-			expect: []byte{'l', '1', 0x00, 'l', '2', 0x00, 'l', '3'},
+			expect: []string{"l1", "l2", "l3"},
 		},
 	}
 

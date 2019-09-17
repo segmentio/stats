@@ -64,7 +64,7 @@ func TestLabelsLess(t *testing.T) {
 }
 
 func TestIgnoreNamed(t *testing.T) {
-	var testFilter = []byte{'l', '1', 0x00, 'l', '2'}
+	var testFilter = []string{"l1", "l2"}
 	var testLabels = labels{
 		{
 			name: "l1",
@@ -82,7 +82,7 @@ func TestIgnoreNamed(t *testing.T) {
 	tests := []struct {
 		name   string
 		in     labels
-		filter []byte
+		filter []string
 		expect labels
 	}{
 		{
@@ -94,7 +94,7 @@ func TestIgnoreNamed(t *testing.T) {
 		{
 			name:   "no ignored labels",
 			in:     testLabels,
-			filter: []byte(nil),
+			filter: []string(nil),
 			expect: testLabels,
 		},
 		{
