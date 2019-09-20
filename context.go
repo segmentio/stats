@@ -33,11 +33,11 @@ func getTagSlice(ctx context.Context) *[]Tag {
 type tagsKey struct{}
 
 // String is Stringer implementation
-func (k *tagsKey) String() string {
+func (k tagsKey) String() string {
 	return "stats_tags_context_key"
 }
 
 // contextKeyReqTags is contextKey for tags
 var (
-	contextKeyReqTags = &tagsKey{}
+	contextKeyReqTags = tagsKey{}
 )

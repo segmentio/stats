@@ -118,5 +118,5 @@ func (w *responseWriter) complete() {
 	}
 
 	w.metrics.observeResponse(res, "write", w.bytes, now.Sub(w.start))
-	w.eng.ReportAt(w.start, w.metrics, Tags(w.req)...)
+	w.eng.ReportAt(w.start, w.metrics, RequestTags(w.req)...)
 }

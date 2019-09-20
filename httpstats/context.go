@@ -14,6 +14,6 @@ func RequestWithTags(req *http.Request, tags ...stats.Tag) *http.Request {
 	return req.WithContext(stats.ContextWithTags(req.Context(), tags...))
 }
 
-func Tags(req *http.Request) []stats.Tag {
+func RequestTags(req *http.Request) []stats.Tag {
 	return stats.ContextTags(req.Context())
 }

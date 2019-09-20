@@ -37,7 +37,7 @@ func (t *transport) RoundTrip(req *http.Request) (res *http.Response, err error)
 		rtrip = http.DefaultTransport
 	}
 
-	if tags := Tags(req); len(tags) > 0 {
+	if tags := RequestTags(req); len(tags) > 0 {
 		eng = eng.WithTags(tags...)
 	}
 
