@@ -10,7 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestContextTags(t *testing.T) {
+// TestRequestContextTagPropegation verifies that the root ancestor tags are
+// updated in the event the context or request has children.  It's nearly
+// identical to the context_test in the stats package itself, but we want to
+// keep this to ensure that changes to the request context code doesn't drift
+// and cause bugs.
+func TestRequestContextTagPropegation(t *testing.T) {
 	// dummy request
 	x := httptest.NewRequest(http.MethodGet, "http://example.com/blah", nil)
 

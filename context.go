@@ -1,13 +1,18 @@
 package stats
 
-import "context"
+import (
+	"context"
+	"sync"
+)
 
 // ContextWithTags returns a new child context with the given tags.  If the
 // parent context already has tags set on it, they are _not_ propegated into
 // the context children.
 func ContextWithTags(ctx context.Context, tags ...Tag) context.Context {
 	// initialize the context reference and return a new context
-	return context.WithValue(ctx, contextKeyReqTags, &tags)
+	return context.WithValue(ctx, contextKeyReqTags, &tagSlice{
+		tags: tags,
+	})
 }
 
 // ContextAddTags adds the given tags to the given context, if the tags have
@@ -19,7 +24,9 @@ func ContextWithTags(ctx context.Context, tags ...Tag) context.Context {
 // that returns false, then call ContextWithTags instead.
 func ContextAddTags(ctx context.Context, tags ...Tag) bool {
 	if x := getTagSlice(ctx); x != nil {
-		*x = append(*x, tags...)
+		x.lock.Lock()
+		x.tags = append(x.tags, tags...)
+		x.lock.Unlock()
 		return true
 	}
 	return false
@@ -29,18 +36,25 @@ func ContextAddTags(ctx context.Context, tags ...Tag) bool {
 // if they don't exist
 func ContextTags(ctx context.Context) []Tag {
 	if x := getTagSlice(ctx); x != nil {
-		ret := make([]Tag, len(*x))
-		copy(ret, *x)
+		x.lock.Lock()
+		ret := make([]Tag, len(x.tags))
+		copy(ret, x.tags)
+		x.lock.Unlock()
 		return ret
 	}
 	return nil
 }
 
-func getTagSlice(ctx context.Context) *[]Tag {
-	if tags, ok := ctx.Value(contextKeyReqTags).(*[]Tag); ok {
+func getTagSlice(ctx context.Context) *tagSlice {
+	if tags, ok := ctx.Value(contextKeyReqTags).(*tagSlice); ok {
 		return tags
 	}
 	return nil
+}
+
+type tagSlice struct {
+	tags []Tag
+	lock sync.Mutex
 }
 
 // tagsKey is a value for use with context.WithValue. It's used as
