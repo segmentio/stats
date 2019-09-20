@@ -7,11 +7,17 @@ import (
 	"github.com/segmentio/stats"
 )
 
-// RequestWithTags returns a shallow copy of req with its context changed with this provided tags
-// so the they can be used later during the RoundTrip in the metrics recording.
-// The provided ctx must be non-nil.
+// RequestWithTags returns a shallow copy of req with its context changed with
+// this provided tags so the they can be used later.  The provided ctx must be
+// non-nil.  If the context value has already been initialized, it appends the
+// tags to the existing reference and returns the existing Request.
 func RequestWithTags(req *http.Request, tags ...stats.Tag) *http.Request {
 	ctx := req.Context()
+	// first try adding tags to the request
+	if AddTagsToRequest(req, tags...) {
+		return req
+	}
+	// otherwise initialize the context reference and return a shallow copy
 	ctx = context.WithValue(ctx, contextKeyReqTags, &tags)
 	return req.WithContext(ctx)
 }
