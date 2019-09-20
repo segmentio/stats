@@ -3,12 +3,16 @@ package stats
 import "context"
 
 func ContextWithTags(ctx context.Context, tags ...Tag) context.Context {
-	if x := getTagSlice(ctx); x != nil {
-		*x = append(*x, tags...)
-		return ctx
-	}
 	// initialize the context reference and return a new context
 	return context.WithValue(ctx, contextKeyReqTags, &tags)
+}
+
+func ContextAddTags(ctx context.Context, tags ...Tag) bool {
+	if x := getTagSlice(ctx); x != nil {
+		*x = append(*x, tags...)
+		return true
+	}
+	return false
 }
 
 func ContextTags(ctx context.Context) []Tag {
