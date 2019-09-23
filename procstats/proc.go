@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/segmentio/stats"
+	"github.com/segmentio/stats/v4"
 )
 
 // ProcMetrics is a metric collector that reports metrics on processes.

@@ -1,6 +1,6 @@
 package grafanatest
 
-import "github.com/segmentio/stats/grafana"
+import "github.com/segmentio/stats/v4/grafana"
 
 // AnnotationsResponse is an implementation of the grafana.AnnotationsResponse
 // interface which captures the values passed to its method calls.

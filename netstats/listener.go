@@ -4,7 +4,7 @@ import (
 	"net"
 	"sync/atomic"
 
-	"github.com/segmentio/stats"
+	"github.com/segmentio/stats/v4"
 )
 
 func NewListener(lstn net.Listener) net.Listener {

@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/segmentio/stats"
+	"github.com/segmentio/stats/v4"
 )
 
 const (

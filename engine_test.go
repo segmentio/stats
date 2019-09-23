@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/segmentio/stats"
-	"github.com/segmentio/stats/datadog"
-	"github.com/segmentio/stats/influxdb"
-	"github.com/segmentio/stats/prometheus"
-	"github.com/segmentio/stats/statstest"
+	"github.com/segmentio/stats/v4"
+	"github.com/segmentio/stats/v4/datadog"
+	"github.com/segmentio/stats/v4/influxdb"
+	"github.com/segmentio/stats/v4/prometheus"
+	"github.com/segmentio/stats/v4/statstest"
 )
 
 func TestEngine(t *testing.T) {

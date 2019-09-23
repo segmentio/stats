@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/segmentio/stats"
+	"github.com/segmentio/stats/v4"
 )
 
 func TestServer(t *testing.T) {

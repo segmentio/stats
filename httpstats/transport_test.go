@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/segmentio/stats"
-	"github.com/segmentio/stats/statstest"
+	"github.com/segmentio/stats/v4"
+	"github.com/segmentio/stats/v4/statstest"
 )
 
 func TestTransport(t *testing.T) {

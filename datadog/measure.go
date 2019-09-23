@@ -4,7 +4,7 @@ import (
 	"math"
 	"strconv"
 
-	"github.com/segmentio/stats"
+	"github.com/segmentio/stats/v4"
 )
 
 // AppendMeasure is a formatting routine to append the dogstatsd protocol

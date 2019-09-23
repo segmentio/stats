@@ -1,4 +1,4 @@
-module github.com/segmentio/stats
+module github.com/segmentio/stats/v4
 
 require (
 	github.com/google/go-cmp v0.2.0 // indirect
@@ -8,6 +8,9 @@ require (
 	github.com/segmentio/fasthash v0.0.0-20180216231524-a72b379d632e
 	github.com/segmentio/objconv v1.0.1
 	github.com/segmentio/taskstats v0.0.0-20180727163836-237d1d6b109d
+	github.com/stretchr/testify v1.4.0
 	golang.org/x/net v0.0.0-20190206173232-65e2d4e15006 // indirect
 	golang.org/x/sys v0.0.0-20190204203706-41f3e6584952 // indirect
 )
+
+go 1.13

@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/segmentio/stats"
+	"github.com/segmentio/stats/v4"
 )
 
 // NewTransport wraps t to produce metrics on the default engine for every request

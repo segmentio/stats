@@ -3,7 +3,7 @@ package datadog
 import (
 	"fmt"
 
-	"github.com/segmentio/stats"
+	"github.com/segmentio/stats/v4"
 )
 
 // EventPriority is an enumeration providing the available datadog event

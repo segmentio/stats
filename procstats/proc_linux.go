@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/segmentio/stats/procstats/linux"
+	"github.com/segmentio/stats/v4/procstats/linux"
 )
 
 var (

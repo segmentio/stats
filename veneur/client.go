@@ -3,8 +3,8 @@ package veneur
 import (
 	"time"
 
-	"github.com/segmentio/stats"
-	"github.com/segmentio/stats/datadog"
+	"github.com/segmentio/stats/v4"
+	"github.com/segmentio/stats/v4/datadog"
 )
 
 const (

@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/segmentio/stats"
-	"github.com/segmentio/stats/procstats"
-	"github.com/segmentio/stats/statstest"
+	"github.com/segmentio/stats/v4"
+	"github.com/segmentio/stats/v4/procstats"
+	"github.com/segmentio/stats/v4/statstest"
 )
 
 func TestProcMetrics(t *testing.T) {
