@@ -35,7 +35,7 @@ func (h *handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	w := &responseWriter{
 		ResponseWriter: res,
 		eng:            h.eng,
-		req:            req,
+		req:            RequestWithTags(req),
 		metrics:        m,
 		start:          time.Now(),
 	}
@@ -118,5 +118,5 @@ func (w *responseWriter) complete() {
 	}
 
 	w.metrics.observeResponse(res, "write", w.bytes, now.Sub(w.start))
-	w.eng.ReportAt(w.start, w.metrics)
+	w.eng.ReportAt(w.start, w.metrics, RequestTags(w.req)...)
 }
