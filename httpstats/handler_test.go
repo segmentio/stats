@@ -17,6 +17,7 @@ func TestHandler(t *testing.T) {
 
 	server := httptest.NewServer(NewHandlerWith(e, http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		ioutil.ReadAll(req.Body)
+		_ = RequestWithTags(req, stats.T("foo", "bar"))
 		res.WriteHeader(http.StatusOK)
 		res.Write([]byte("Hello World"))
 	})))
@@ -37,6 +38,7 @@ func TestHandler(t *testing.T) {
 	}
 
 	for _, m := range measures {
+		tagSeen := false
 		for _, tag := range m.Tags {
 			if tag.Name == "bucket" {
 				switch tag.Value {
@@ -45,6 +47,15 @@ func TestHandler(t *testing.T) {
 					t.Errorf("invalid bucket in measure event tags: %#v\n%#v", tag, m)
 				}
 			}
+			if tag.Name == "foo" {
+				tagSeen = true
+				if tag.Value != "bar" {
+					t.Errorf("user-added tag didn't match expected. tag: %#v\n%#v", tag, m)
+				}
+			}
+		}
+		if !tagSeen {
+			t.Errorf("did not see user-added tag for wrapped request. tags: %#v\n%#v", m, m.Tags)
 		}
 	}
 

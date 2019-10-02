@@ -10,6 +10,8 @@ import (
 // include the given tags.  If the context already contains tags, then those
 // are appended to, otherwise a new context containing the tags is created and
 // attached to the new request
+// ⚠️ : Using this may blow up the cardinality of your httpstats metrics. Use
+// with care for tags with low cardinalities.
 func RequestWithTags(req *http.Request, tags ...stats.Tag) *http.Request {
 	if stats.ContextAddTags(req.Context(), tags...) {
 		return req.WithContext(req.Context())
