@@ -32,10 +32,11 @@ type handler struct {
 func (h *handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	m := &metrics{}
 
+	req = RequestWithTags(req)
 	w := &responseWriter{
 		ResponseWriter: res,
 		eng:            h.eng,
-		req:            RequestWithTags(req),
+		req:            req,
 		metrics:        m,
 		start:          time.Now(),
 	}
