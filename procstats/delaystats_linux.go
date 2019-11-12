@@ -4,7 +4,7 @@ import (
 	"errors"
 	"syscall"
 
-	"github.com/segmentio/taskstats"
+	"github.com/mdlayher/taskstats"
 )
 
 func collectDelayInfo(pid int) DelayInfo {
@@ -14,7 +14,7 @@ func collectDelayInfo(pid int) DelayInfo {
 	}
 	check(err)
 
-	stats, err := client.PID(pid)
+	stats, err := client.TGID(pid)
 	if err == syscall.EPERM {
 		err = errors.New("Failed to open Netlink socket: permission denied.  Ensure CAP_NET_RAW is enabled for this process, or run it with root privileges.")
 	}
