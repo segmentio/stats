@@ -41,6 +41,14 @@ func TestMustValueOf(t *testing.T) {
 	}
 }
 
+func TestValueOfIdentity(t *testing.T) {
+	v1 := ValueOf(3.14)
+	v2 := ValueOf(v1)
+	if !reflect.DeepEqual(v1, v2) {
+		t.Fatalf("Expected %+v to be equal to %+v", v2, v1)
+	}
+}
+
 func TestValueOf(t *testing.T) {
 	tests := []struct {
 		in  interface{}

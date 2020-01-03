@@ -21,6 +21,8 @@ func MustValueOf(v Value) Value {
 
 func ValueOf(v interface{}) Value {
 	switch x := v.(type) {
+	case Value:
+		return x
 	case nil:
 		return Value{}
 	case bool:
