@@ -5,7 +5,49 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
+
+func TestMustValueOf(t *testing.T) {
+	tests := []struct {
+		name  string
+		in    interface{}
+		out   interface{}
+		panic bool
+	}{
+		{
+			name: "should not panic",
+			in:   42,
+			out:  ValueOf(42),
+		},
+		{
+			name:  "should panic",
+			in:    struct{}{},
+			panic: true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if test.panic {
+				require.PanicsWithValue(t, "stats.MustValueOf received a value of unsupported type", func() {
+					MustValueOf(ValueOf(test.in))
+				})
+			} else {
+				out := MustValueOf(ValueOf(test.in))
+				require.EqualValues(t, test.out, out)
+			}
+		})
+	}
+}
+
+func TestValueOfIdentity(t *testing.T) {
+	v1 := ValueOf(3.14)
+	v2 := ValueOf(v1)
+	if !reflect.DeepEqual(v1, v2) {
+		t.Fatalf("Expected %+v to be equal to %+v", v2, v1)
+	}
+}
 
 func TestValueOf(t *testing.T) {
 	tests := []struct {

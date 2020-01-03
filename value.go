@@ -12,8 +12,17 @@ type Value struct {
 	bits uint64
 }
 
+func MustValueOf(v Value) Value {
+	if v.Type() == Invalid {
+		panic("stats.MustValueOf received a value of unsupported type")
+	}
+	return v
+}
+
 func ValueOf(v interface{}) Value {
 	switch x := v.(type) {
+	case Value:
+		return x
 	case nil:
 		return Value{}
 	case bool:
@@ -47,7 +56,7 @@ func ValueOf(v interface{}) Value {
 	case time.Duration:
 		return durationValue(x)
 	default:
-		panic("stats.ValueOf received a value of unsupported type")
+		return Value{typ: Invalid}
 	}
 }
 
@@ -182,6 +191,7 @@ const (
 	Uint
 	Float
 	Duration
+	Invalid
 )
 
 func (t Type) String() string {
