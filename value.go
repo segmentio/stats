@@ -12,35 +12,11 @@ type Value struct {
 	bits uint64
 }
 
-// IsValidValue returns true if the supplied value's concrete type is acceptable.
-// This is useful in situations where the client program does not know the underlying
-// type ahead of time.  A common scenario is deserializaing metrics payloads from
-// other APIs and feeding them into stats, as the deserialized metrics could be of
-// type map[string]interface{}.
-//
-// NB: these type assertions should be kept in sync with ValueOf
-func IsValidValue(v interface{}) bool {
-	switch v.(type) {
-	case nil:
-	case bool:
-	case int:
-	case int8:
-	case int16:
-	case int32:
-	case int64:
-	case uint:
-	case uint8:
-	case uint16:
-	case uint32:
-	case uint64:
-	case uintptr:
-	case float32:
-	case float64:
-	case time.Duration:
-	default:
-		return false
+func MustValueOf(v Value) Value {
+	if v.Type() == Invalid {
+		panic("stats.MustValueOf received a value of unsupported type")
 	}
-	return true
+	return v
 }
 
 func ValueOf(v interface{}) Value {
@@ -78,7 +54,7 @@ func ValueOf(v interface{}) Value {
 	case time.Duration:
 		return durationValue(x)
 	default:
-		panic("stats.ValueOf received a value of unsupported type")
+		return Value{typ: Invalid}
 	}
 }
 
@@ -213,6 +189,7 @@ const (
 	Uint
 	Float
 	Duration
+	Invalid
 )
 
 func (t Type) String() string {

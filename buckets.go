@@ -16,7 +16,7 @@ func (b HistogramBuckets) Set(key string, buckets ...interface{}) {
 	v := make([]Value, len(buckets))
 
 	for i, b := range buckets {
-		v[i] = ValueOf(b)
+		v[i] = MustValueOf(ValueOf(b))
 	}
 
 	b[makeKey(key)] = v
