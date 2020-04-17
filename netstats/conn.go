@@ -4,10 +4,12 @@ import (
 	"io"
 	"math"
 	"net"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/segmentio/stats/v4"
+	"github.com/segmentio/vpcinfo"
 )
 
 func init() {
@@ -54,18 +56,24 @@ type conn struct {
 	r struct {
 		sync.Mutex
 		metrics struct {
-			count    int    `metric:"count" type:"counter"`
-			bytes    int    `metric:"bytes" type:"histogram"`
-			protocol string `tag:"protocol"`
+			count      int    `metric:"count" type:"counter"`
+			bytes      int    `metric:"bytes" type:"histogram"`
+			protocol   string `tag:"protocol"`
+			inZone     string `tag:"in_zone"`
+			targetZone string `tag:"target_zone"`
+			sourceZone string `tag:"source_zone"`
 		} `metric:"conn.read"`
 	}
 
 	w struct {
 		sync.Mutex
 		metrics struct {
-			count    int    `metric:"count" type:"counter"`
-			bytes    int    `metric:"bytes" type:"histogram"`
-			protocol string `tag:"protocol"`
+			count      int    `metric:"count" type:"counter"`
+			bytes      int    `metric:"bytes" type:"histogram"`
+			protocol   string `tag:"protocol"`
+			inZone     string `tag:"in_zone"`
+			targetZone string `tag:"target_zone"`
+			sourceZone string `tag:"source_zone"`
 		} `metric:"conn.write"`
 	}
 }
@@ -88,9 +96,15 @@ func (c *conn) Close() (err error) {
 func (c *conn) Read(b []byte) (n int, err error) {
 	n, err = c.Conn.Read(b)
 
+	sourceZone := zoneOf(c.Conn)
+	targetZone := currentZone()
+
 	c.r.Lock()
 	c.r.metrics.count = 1
 	c.r.metrics.bytes = n
+	c.r.metrics.sourceZone = sourceZone
+	c.r.metrics.targetZone = targetZone
+	c.r.metrics.inZone = inZone(sourceZone, targetZone)
 	c.eng.Report(&c.r)
 	c.r.Unlock()
 
@@ -104,9 +118,15 @@ func (c *conn) Read(b []byte) (n int, err error) {
 func (c *conn) Write(b []byte) (n int, err error) {
 	n, err = c.Conn.Write(b)
 
+	sourceZone := currentZone()
+	targetZone := zoneOf(c.Conn)
+
 	c.w.Lock()
 	c.w.metrics.count = 1
 	c.w.metrics.bytes = n
+	c.w.metrics.sourceZone = sourceZone
+	c.w.metrics.targetZone = targetZone
+	c.w.metrics.inZone = inZone(sourceZone, targetZone)
 	c.eng.Report(&c.w)
 	c.w.Unlock()
 
@@ -164,4 +184,28 @@ searchRootError:
 		}
 	}
 	return err
+}
+
+func normalizeZone(zone string) string {
+	if zone == "" {
+		return "N/A"
+	}
+	return zone
+}
+
+func currentZone() string {
+	zone, _ := vpcinfo.LookupZone()
+	return normalizeZone(zone.String())
+}
+
+func zoneOf(conn net.Conn) string {
+	subnets, _ := vpcinfo.LookupSubnets()
+	return normalizeZone(subnets.LookupAddr(conn.RemoteAddr()).Zone)
+}
+
+func inZone(source, target string) string {
+	if source == "N/A" || target == "N/A" {
+		return "false"
+	}
+	return strconv.FormatBool(source == target)
 }
