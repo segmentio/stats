@@ -47,7 +47,12 @@ func TestConn(t *testing.T) {
 				stats.MakeField("count", 1, stats.Counter),
 				stats.MakeField("bytes", 12, stats.Histogram),
 			},
-			Tags: []stats.Tag{stats.T("protocol", "tcp")},
+			Tags: []stats.Tag{
+				stats.T("in_zone", "false"),
+				stats.T("protocol", "tcp"),
+				stats.T("source_zone", "N/A"),
+				stats.T("target_zone", "N/A"),
+			},
 		},
 		{
 			Name: "netstats.test.conn.read",
@@ -55,7 +60,12 @@ func TestConn(t *testing.T) {
 				stats.MakeField("count", 1, stats.Counter),
 				stats.MakeField("bytes", 12, stats.Histogram),
 			},
-			Tags: []stats.Tag{stats.T("protocol", "tcp")},
+			Tags: []stats.Tag{
+				stats.T("in_zone", "false"),
+				stats.T("protocol", "tcp"),
+				stats.T("source_zone", "N/A"),
+				stats.T("target_zone", "N/A"),
+			},
 		},
 		{
 			Name: "netstats.test.conn.close",
@@ -134,7 +144,10 @@ func TestConnError(t *testing.T) {
 				stats.MakeField("bytes", 0, stats.Histogram),
 			},
 			Tags: []stats.Tag{
+				stats.T("in_zone", "false"),
 				stats.T("protocol", "tcp"),
+				stats.T("source_zone", "N/A"),
+				stats.T("target_zone", "N/A"),
 			},
 		},
 		{
@@ -154,7 +167,10 @@ func TestConnError(t *testing.T) {
 				stats.MakeField("bytes", 0, stats.Histogram),
 			},
 			Tags: []stats.Tag{
+				stats.T("in_zone", "false"),
 				stats.T("protocol", "tcp"),
+				stats.T("source_zone", "N/A"),
+				stats.T("target_zone", "N/A"),
 			},
 		},
 		{
