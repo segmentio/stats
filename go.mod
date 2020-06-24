@@ -6,6 +6,7 @@ require (
 	github.com/segmentio/objconv v1.0.1
 	github.com/segmentio/vpcinfo v0.1.10
 	github.com/stretchr/testify v1.4.0
+	github.com/tylertreat/BoomFilters v0.0.0-20200520150052-42a7b4300c0c // indirect
 )
 
 go 1.13
