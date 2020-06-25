@@ -21,7 +21,7 @@ type Engine struct {
 	flushInterval time.Duration
 }
 
-func NewHandler(ctx context.Context, opts ...Opt) (*Engine, error) {
+func NewEngine(ctx context.Context, opts ...Opt) (*Engine, error) {
 	config := newTopkConfig()
 	for _, opt := range opts {
 		err := opt(&config)
