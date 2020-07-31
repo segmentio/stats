@@ -24,7 +24,7 @@ func init() {
 // GoMetrics is a metric collector that reports metrics from the Go runtime.
 type GoMetrics struct {
 	engine  *stats.Engine
-	version string `tag:"version"`
+	goVersion string `tag:"go_version"`
 
 	runtime struct {
 		// Runtime info.
