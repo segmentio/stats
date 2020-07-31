@@ -2,15 +2,13 @@
 
 A Go package for abstracting stats collection.
 
-Installation
-------------
+## Installation
 
 ```
 go get github.com/segmentio/stats
 ```
 
-Migration to v4
----------------
+## Migration to v4
 
 Version 4 of the stats package introduced a new way of producing metrics based
 on defining struct types with tags on certain fields that define how to interpret
@@ -19,6 +17,7 @@ allows the program to do quick assignments and increments of the struct fields t
 set the values to be reported, and submit them all with one call to the stats
 engine, resulting in orders of magnitude faster metrics production. Here's an
 example:
+
 ```go
 type funcMetrics struct {
     calls struct {
@@ -27,6 +26,7 @@ type funcMetrics struct {
     } `metric:"func.calls"`
 }
 ```
+
 ```go
 t := time.Now()
 f()
@@ -43,6 +43,7 @@ m.calls.time = callTime
 //
 stats.Report(m)
 ```
+
 To avoid greatly increasing the complexity of the codebase some old APIs were
 removed in favor of this new approach, other were transformed to provide more
 flexibility and leverage new features.
@@ -86,8 +87,7 @@ this package supports, potentially causing production issues.
 
 _If you find a bug or an API is not available anymore but deserves to be ported feel free to open an issue._
 
-Quick Start
------------
+## Quick Start
 
 ### Engine
 
@@ -176,10 +176,13 @@ func main() {
 }
 ```
 
-Monitoring
-----------
+## Monitoring
 
 ### Processes
+
+> 🚧 Go metrics reported with the `procstats` package were previously tagged with a
+> `version` label that reported the Go runtime version. This label was renamed to
+> `go_version` in v4.6.0.
 
 The
 [github.com/segmentio/stats/procstats](https://godoc.org/github.com/segmentio/stats/procstats)
@@ -188,6 +191,7 @@ Statistics are collected for the current process and metrics including Goroutine
 count and memory usage are reported.
 
 Here's an example of how to use the collector:
+
 ```go
 package main
 
@@ -212,7 +216,7 @@ func main() {
 ```
 
 One can also collect additional statistics on resource delays, such as
-CPU delays, block I/O delays, and paging/swapping delays.  This capability
+CPU delays, block I/O delays, and paging/swapping delays. This capability
 is currently only available on Linux, and can be optionally enabled as follows:
 
 ```
@@ -233,6 +237,7 @@ collection to a HTTP handler, reporting things like request processing time,
 error counters, header and body sizes...
 
 Here's an example of how to use the decorator:
+
 ```go
 package main
 
@@ -266,6 +271,7 @@ package exposes a decorator of `http.RoundTripper` which collects and reports
 metrics for client requests the same way it's done on the server side.
 
 Here's an example of how to use the decorator:
+
 ```go
 package main
 
@@ -294,6 +300,7 @@ func main() {
 
 You can also modify the default HTTP client to automatically get metrics for all
 packages using it, this is very convinient to get insights into dependencies.
+
 ```go
 package main
 
@@ -320,14 +327,15 @@ func main() {
 The [github.com/segmentio/stats/redisstats](https://godoc.org/github.com/segmentio/stats/redisstats)
 package exposes:
 
-* a decorator of
+- a decorator of
   [`redis.RoundTripper`](https://godoc.org/github.com/segmentio/redis-go#RoundTripper)
   which collects metrics for client requests, and
-* a decorator or
+- a decorator or
   [`redis.ServeRedis`](https://godoc.org/github.com/segmentio/redis-go#HandlerFunc.ServeRedis)
   which collects metrics for server requests.
 
 Here's an example of how to use the decorator on the client side:
+
 ```go
 package main
 
