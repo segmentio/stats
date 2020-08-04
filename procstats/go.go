@@ -23,8 +23,8 @@ func init() {
 
 // GoMetrics is a metric collector that reports metrics from the Go runtime.
 type GoMetrics struct {
-	engine  *stats.Engine
-	version string `tag:"version"`
+	engine    *stats.Engine
+	goVersion string `tag:"go_version"`
 
 	runtime struct {
 		// Runtime info.
@@ -113,8 +113,8 @@ func NewGoMetrics() *GoMetrics {
 // metrics on eng.
 func NewGoMetricsWith(eng *stats.Engine) *GoMetrics {
 	g := &GoMetrics{
-		engine:  eng,
-		version: runtime.Version(),
+		engine:    eng,
+		goVersion: runtime.Version(),
 	}
 
 	g.memstats.total.memtype = "total"

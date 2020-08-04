@@ -181,6 +181,10 @@ Monitoring
 
 ### Processes
 
+> 🚧 Go metrics reported with the `procstats` package were previously tagged with a
+> `version` label that reported the Go runtime version. This label was renamed to
+> `go_version` in v4.6.0.
+
 The
 [github.com/segmentio/stats/procstats](https://godoc.org/github.com/segmentio/stats/procstats)
 package exposes an API for creating a statistics collector on local processes.
