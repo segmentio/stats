@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestUDSReconnectWhenConnRefused(t *testing.T) {
+func TestUDSReconnectsWhenConnRefused(t *testing.T) {
 	dir, err := ioutil.TempDir("", "socket")
 	if err != nil {
 		t.Error(err)

@@ -2,12 +2,11 @@ package datadog
 
 import "net"
 
-// udsWriter is an internal class wrapping around management of UDS connection
 type udpWriter struct {
 	conn net.Conn
 }
 
-// newUDSWriter returns a pointer to a new udpWriter given a socket file path as addr.
+// newUDPWriter returns a pointer to a new newUDPWriter given a socket file path as addr.
 func newUDPWriter(addr string) (*udpWriter, error) {
 	udpAddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
@@ -21,8 +20,7 @@ func newUDPWriter(addr string) (*udpWriter, error) {
 
 }
 
-// Write data to the UDS connection with write timeout and minimal error handling:
-// create the connection if nil, and destroy it if the statsd server has disconnected
+// Write data to the UDP connection
 func (w *udpWriter) Write(data []byte) (int, error) {
 	return w.conn.Write(data)
 }

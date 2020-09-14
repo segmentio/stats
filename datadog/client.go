@@ -15,7 +15,7 @@ import (
 
 const (
 	// DefaultAddress is the default address to which the datadog client tries
-	// to connect to. By default is connects to UDP
+	// to connect to. By default it connects to UDP
 	DefaultAddress = "localhost:8125"
 
 	// DefaultBufferSize is the default size for batches of metrics sent to
@@ -101,7 +101,7 @@ func NewClientWith(config ClientConfig) *Client {
 
 	newBufSize, err := w.CalcBufferSize(config.BufferSize)
 	if err != nil {
-		log.Printf("stats/datadog: unable to calc buffer size from connn. Defaulting to a buffer of size %d - %v\n", DefaultBufferSize, err)
+		log.Printf("stats/datadog: unable to calc writer's buffer size. Defaulting to a buffer of size %d - %v\n", DefaultBufferSize, err)
 		newBufSize = DefaultBufferSize
 	}
 	c.bufferSize = newBufSize
@@ -109,7 +109,7 @@ func NewClientWith(config ClientConfig) *Client {
 
 	c.serializer.w = w
 	c.buffer.Serializer = &c.serializer
-	log.Printf("stats/datadog: sending metrics with a buffer of size %d B", c.serializer.bufferSize)
+	log.Printf("stats/datadog: sending metrics with a buffer of size %d B", newBufSize)
 	return c
 }
 
@@ -200,7 +200,7 @@ func bufSizeFromFD(f *os.File, sizehint int) (bufsize int, err error) {
 	// to accept larger datagrams, or fallback to the default socket buffer size
 	// if it failed.
 	if bufsize, err = syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_SNDBUF); err != nil {
-		return 0, err
+		return
 	}
 
 	// The kernel applies a 2x factor on the socket buffer size, only half of it
