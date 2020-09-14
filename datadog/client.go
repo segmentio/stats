@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"io"
 	"log"
-	"net"
+	"net/url"
 	"os"
+	"strings"
 	"syscall"
 	"time"
 
@@ -14,7 +15,7 @@ import (
 
 const (
 	// DefaultAddress is the default address to which the datadog client tries
-	// to connect to.
+	// to connect to. By default is connects to UDP
 	DefaultAddress = "localhost:8125"
 
 	// DefaultBufferSize is the default size for batches of metrics sent to
@@ -37,6 +38,8 @@ var (
 // The ClientConfig type is used to configure datadog clients.
 type ClientConfig struct {
 	// Address of the datadog database to send metrics to.
+	// UDP: host:port
+	// UDS: unixgram://dir/file.ext
 	Address string
 
 	// Maximum size of batch of events sent to datadog.
@@ -89,15 +92,24 @@ func NewClientWith(config ClientConfig) *Client {
 		},
 	}
 
-	conn, bufferSize, err := dial(config.Address, config.BufferSize)
+	w, err := newWriter(config.Address)
 	if err != nil {
-		log.Printf("stats/datadog: %s", err)
+		log.Printf("stats/datadog: unable to create writer %s", err)
+		c.err = err
+		w = &noopWriter{}
 	}
 
-	c.conn, c.err, c.bufferSize = conn, err, bufferSize
-	c.buffer.BufferSize = bufferSize
+	newBufSize, err := w.CalcBufferSize(config.BufferSize)
+	if err != nil {
+		log.Printf("stats/datadog: unable to calc buffer size from connn. Defaulting to a buffer of size %d - %v\n", DefaultBufferSize, err)
+		newBufSize = DefaultBufferSize
+	}
+	c.bufferSize = newBufSize
+	c.buffer.BufferSize = newBufSize
+
+	c.serializer.w = w
 	c.buffer.Serializer = &c.serializer
-	log.Printf("stats/datadog: sending metrics with a buffer of size %d B", bufferSize)
+	log.Printf("stats/datadog: sending metrics with a buffer of size %d B", c.serializer.bufferSize)
 	return c
 }
 
@@ -124,7 +136,7 @@ func (c *Client) Close() error {
 }
 
 type serializer struct {
-	conn       net.Conn
+	w          io.WriteCloser
 	bufferSize int
 	filters    map[string]struct{}
 }
@@ -137,12 +149,9 @@ func (s *serializer) AppendMeasures(b []byte, _ time.Time, measures ...stats.Mea
 }
 
 func (s *serializer) Write(b []byte) (int, error) {
-	if s.conn == nil {
-		return 0, io.ErrClosedPipe
-	}
 
 	if len(b) <= s.bufferSize {
-		return s.conn.Write(b)
+		return s.w.Write(b)
 	}
 
 	// When the serialized metrics are larger than the configured socket buffer
@@ -167,8 +176,7 @@ func (s *serializer) Write(b []byte) (int, error) {
 			}
 			splitIndex += i + 1
 		}
-
-		c, err := s.conn.Write(b[:splitIndex])
+		c, err := s.w.Write(b[:splitIndex])
 		if err != nil {
 			return n + c, err
 		}
@@ -181,33 +189,18 @@ func (s *serializer) Write(b []byte) (int, error) {
 }
 
 func (s *serializer) close() {
-	if s.conn != nil {
-		s.conn.Close()
-	}
+	s.w.Close()
 }
 
-func dial(address string, sizehint int) (conn net.Conn, bufsize int, err error) {
-	var f *os.File
-
-	if conn, err = net.Dial("udp", address); err != nil {
-		return
-	}
-
-	if f, err = conn.(*net.UDPConn).File(); err != nil {
-		conn.Close()
-		return
-	}
-	defer f.Close()
+func bufSizeFromFD(f *os.File, sizehint int) (bufsize int, err error) {
 	fd := int(f.Fd())
-
 	// The kernel refuses to send UDP datagrams that are larger than the size of
 	// the size of the socket send buffer. To maximize the number of metrics
 	// sent in one batch we attempt to attempt to adjust the kernel buffer size
 	// to accept larger datagrams, or fallback to the default socket buffer size
 	// if it failed.
 	if bufsize, err = syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_SNDBUF); err != nil {
-		conn.Close()
-		return
+		return 0, err
 	}
 
 	// The kernel applies a 2x factor on the socket buffer size, only half of it
@@ -243,4 +236,43 @@ func dial(address string, sizehint int) (conn net.Conn, bufsize int, err error) 
 	// Creating the file put the socket in blocking mode, reverting.
 	syscall.SetNonblock(fd, true)
 	return
+}
+
+type ddWriter interface {
+	io.WriteCloser
+	CalcBufferSize(desiredBufSize int) (int, error)
+}
+
+func newWriter(addr string) (ddWriter, error) {
+	if strings.HasPrefix(addr, "unixgram://") ||
+		strings.HasPrefix(addr, "udp://") {
+		u, err := url.Parse(addr)
+		if err != nil {
+			return nil, err
+		}
+		switch u.Scheme {
+		case "unixgram":
+			return newUDSWriter(u.Path)
+		case "udp":
+			return newUDPWriter(u.Path)
+		}
+	}
+	// default assume addr host:port to use UDP
+	return newUDPWriter(addr)
+}
+
+// noopWriter is a writer that does not do anything
+type noopWriter struct{}
+
+// Write writes nothing
+func (w *noopWriter) Write(data []byte) (int, error) {
+	return 0, nil
+}
+
+func (w *noopWriter) Close() error {
+	return nil
+}
+
+func (w *noopWriter) CalcBufferSize(sizehint int) (int, error) {
+	return sizehint, nil
 }

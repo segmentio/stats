@@ -2,7 +2,10 @@ package datadog
 
 import (
 	"io"
+	"io/ioutil"
 	"net"
+	"os"
+	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -17,7 +20,7 @@ func TestServer(t *testing.T) {
 	b := uint32(0)
 	c := uint32(0)
 
-	addr, closer := startTestServer(t, HandlerFunc(func(m Metric, _ net.Addr) {
+	addr, closer := startUDPTestServer(t, HandlerFunc(func(m Metric, _ net.Addr) {
 		switch m.Name {
 		case "datadog.test.A":
 			atomic.AddUint32(&a, uint32(m.Value))
@@ -68,7 +71,7 @@ func TestServer(t *testing.T) {
 	}
 }
 
-func startTestServer(t *testing.T, handler Handler) (addr string, closer io.Closer) {
+func startUDPTestServer(t *testing.T, handler Handler) (addr string, closer io.Closer) {
 	conn, err := net.ListenPacket("udp", "127.0.0.1:0")
 
 	if err != nil {
@@ -79,4 +82,67 @@ func startTestServer(t *testing.T, handler Handler) (addr string, closer io.Clos
 	go Serve(conn, handler)
 
 	return conn.LocalAddr().String(), conn
+}
+
+// startUDSTestServerWithSocketFile starts a UDS server with a given socket file
+func startUDSTestServerWithSocketFile(t *testing.T, socketPath string, handler Handler) (closer io.Closer) {
+	udsAddr, err := net.ResolveUnixAddr("unixgram", socketPath)
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+
+	conn, err := net.ListenUnixgram("unixgram", udsAddr)
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+
+	go Serve(conn, handler)
+
+	return &testUnixgramServer{
+		UnixConn:     conn,
+		pathToDelete: socketPath,
+	}
+}
+
+// startUDSTestServer starts a Unix domain socket server with a random tmp file for the socket file
+func startUDSTestServer(t *testing.T, handler Handler) (socketPath string, closer io.Closer) {
+	dir, err := ioutil.TempDir("", "socket")
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+
+	socketPath = filepath.Join(dir, "dsd.socket")
+
+	udsAddr, err := net.ResolveUnixAddr("unixgram", socketPath)
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+
+	conn, err := net.ListenUnixgram("unixgram", udsAddr)
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+
+	ts := testUnixgramServer{
+		UnixConn:     conn,
+		pathToDelete: dir, // so we delete any tmp dir we created
+	}
+
+	go Serve(conn, handler)
+	return socketPath, &ts
+}
+
+type testUnixgramServer struct {
+	*net.UnixConn
+	pathToDelete string
+}
+
+func (ts *testUnixgramServer) Close() error {
+	os.RemoveAll(ts.pathToDelete) // clean up
+	return ts.UnixConn.Close()
 }
