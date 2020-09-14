@@ -31,7 +31,7 @@ func newUDSWriter(addr string) (*udsWriter, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Defer connection to first Write
+	// Defer connection to first read/write
 	writer := &udsWriter{addr: udsAddr, conn: nil, writeTimeout: defaultUDSTimeout}
 	return writer, nil
 }

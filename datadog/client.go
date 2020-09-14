@@ -15,7 +15,7 @@ import (
 
 const (
 	// DefaultAddress is the default address to which the datadog client tries
-	// to connect to. By default it connects to UDP
+	// to connect to.
 	DefaultAddress = "localhost:8125"
 
 	// DefaultBufferSize is the default size for batches of metrics sent to
@@ -38,7 +38,7 @@ var (
 // The ClientConfig type is used to configure datadog clients.
 type ClientConfig struct {
 	// Address of the datadog database to send metrics to.
-	// UDP: host:port
+	// UDP: host:port (default)
 	// UDS: unixgram://dir/file.ext
 	Address string
 
@@ -269,10 +269,12 @@ func (w *noopWriter) Write(data []byte) (int, error) {
 	return 0, nil
 }
 
+// Close is a noop close
 func (w *noopWriter) Close() error {
 	return nil
 }
 
+// CalcBufferSize returns the sizehint
 func (w *noopWriter) CalcBufferSize(sizehint int) (int, error) {
 	return sizehint, nil
 }
