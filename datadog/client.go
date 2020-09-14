@@ -261,7 +261,7 @@ func newWriter(addr string) (ddWriter, error) {
 	return newUDPWriter(addr)
 }
 
-// noopWriter is a writer that does not do anything
+// noopWriter is a writer that does nothing
 type noopWriter struct{}
 
 // Write writes nothing

@@ -106,7 +106,7 @@ func startUDSTestServerWithSocketFile(t *testing.T, socketPath string, handler H
 	}
 }
 
-// startUDSTestServer starts a Unix domain socket server with a random socket file
+// startUDSTestServer starts a UDS server with server with a random socket file internally generated
 func startUDSTestServer(t *testing.T, handler Handler) (socketPath string, closer io.Closer) {
 	dir, err := ioutil.TempDir("", "socket")
 	if err != nil {

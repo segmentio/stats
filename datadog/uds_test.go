@@ -4,7 +4,6 @@ import (
 	"io/ioutil"
 	"net"
 	"path/filepath"
-	"sync/atomic"
 	"testing"
 )
 
@@ -15,15 +14,13 @@ func TestUDSReconnectsWhenConnRefused(t *testing.T) {
 		t.FailNow()
 	}
 	socketPath := filepath.Join(dir, "dsd.socket")
-	count := int32(0)
-	closerServer1 := startUDSTestServerWithSocketFile(t, socketPath, HandlerFunc(func(m Metric, _ net.Addr) {
-		atomic.AddInt32(&count, 1)
-	}))
+
+	closerServer1 := startUDSTestServerWithSocketFile(t, socketPath, HandlerFunc(func(m Metric, _ net.Addr) {}))
 	defer closerServer1.Close()
 
 	client := NewClientWith(ClientConfig{
 		Address:    "unixgram://" + socketPath,
-		BufferSize: 1, // small buffer to force write to unix socket for each measure
+		BufferSize: 1, // small buffer to force write to unix socket for each measure written
 	})
 
 	measure := `main.http.error.count:0|c|#http_req_content_charset:,http_req_content_endoing:,http_req_content_type:,http_req_host:localhost:3011,http_req_method:GET,http_req_protocol:HTTP/1.1,http_req_transfer_encoding:identity
@@ -38,13 +35,10 @@ func TestUDSReconnectsWhenConnRefused(t *testing.T) {
 
 	_, err = client.Write([]byte(measure))
 	if err == nil {
-		t.Errorf("invalid error expected none, got %v", err)
+		t.Errorf("got no error but expected one as the connection should be refused as we closed the server")
 	}
 	// restart UDS server with same socket file
-	closerServer2 := startUDSTestServerWithSocketFile(t, socketPath, HandlerFunc(func(m Metric, _ net.Addr) {
-		atomic.AddInt32(&count, 1)
-	}))
-
+	closerServer2 := startUDSTestServerWithSocketFile(t, socketPath, HandlerFunc(func(m Metric, _ net.Addr) {}))
 	defer closerServer2.Close()
 
 	_, err = client.Write([]byte(measure))
