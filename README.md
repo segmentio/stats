@@ -6,7 +6,7 @@ Installation
 ------------
 
 ```
-go get github.com/segmentio/stats
+go get github.com/segmentio/stats/v4
 ```
 
 Migration to v4
