@@ -100,7 +100,9 @@ func (b *tagsBuffer) reset() {
 }
 
 func (b *tagsBuffer) sort() {
-	sort.Sort(&b.tags)
+	if !TagsAreSorted(b.tags) {
+		SortTags(b.tags)
+	}
 }
 
 func (b *tagsBuffer) append(tags ...Tag) {
