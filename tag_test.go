@@ -220,3 +220,51 @@ func BenchmarkSortTagsMany(b *testing.B) {
 		SortTags(t1)
 	}
 }
+
+func BenchmarkTagsBufferSortSorted(b *testing.B) {
+	tags := []Tag{
+		{"A", ""},
+		{"B", ""},
+		{"C", ""},
+		{"answer", "42"},
+		{"answer", "42"},
+		{"hello", "world"},
+		{"hello", "world"},
+		{"some long tag name", "!"},
+		{"some long tag name", "!"},
+		{"some longer tag name", "1234"},
+	}
+
+	buf := tagsBuffer{
+		tags: make([]Tag, len(tags)),
+	}
+
+	for i := 0; i < b.N; i++ {
+		copy(buf.tags, tags)
+		buf.sort()
+	}
+}
+
+func BenchmarkTagsBufferSortUnsorted(b *testing.B) {
+	tags := []Tag{
+		{"some long tag name", "!"},
+		{"some longer tag name", "1234"},
+		{"hello", "world"},
+		{"C", ""},
+		{"answer", "42"},
+		{"hello", "world"},
+		{"B", ""},
+		{"answer", "42"},
+		{"some long tag name", "!"},
+		{"A", ""},
+	}
+
+	buf := tagsBuffer{
+		tags: make([]Tag, len(tags)),
+	}
+
+	for i := 0; i < b.N; i++ {
+		copy(buf.tags, tags)
+		buf.sort()
+	}
+}
