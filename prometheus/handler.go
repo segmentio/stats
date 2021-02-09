@@ -45,8 +45,14 @@ type Handler struct {
 	// If nil, stats.Buckets is used instead.
 	Buckets stats.HistogramBuckets
 
-	opcount uint64
-	metrics metricStore
+	opcount       uint64
+	metrics       metricStore
+	ignoredLabels []string
+}
+
+// IgnoreLabels will specify which labels are to be removed from the observation
+func (h *Handler) IgnoreLabels(labelNames []string) {
+	h.ignoredLabels = labelNames
 }
 
 // HandleMetric satisfies the stats.Handler interface.
@@ -146,6 +152,7 @@ func (h *Handler) WriteStats(w io.Writer) {
 	sort.Sort(byNameAndLabels(metrics))
 
 	for i, m := range metrics {
+		m.labels = m.labels.ignoreNamed(h.ignoredLabels)
 		b = b[:0]
 		name := m.rootName()
 
