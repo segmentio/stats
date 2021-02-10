@@ -5,7 +5,7 @@ import "fmt"
 // ProcState represents the underlying OS state of a process.
 type ProcState rune
 
-// Const exported enumerated ProcStates.
+// Enumerated ProcStates.
 const (
 	Running                         ProcState = 'R'
 	Sleeping                        ProcState = 'S'

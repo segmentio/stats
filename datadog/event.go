@@ -10,7 +10,7 @@ import (
 // priority levels.
 type EventPriority string
 
-// Const exported Event Priorities.
+// Event Priorities.
 const (
 	EventPriorityNormal EventPriority = "normal"
 	EventPriorityLow    EventPriority = "low"
@@ -20,7 +20,7 @@ const (
 // allert types.
 type EventAlertType string
 
-// Const exported Alert Types.
+// Event Alert Types.
 const (
 	EventAlertTypeError   EventAlertType = "error"
 	EventAlertTypeWarning EventAlertType = "warning"
