@@ -101,7 +101,7 @@ func NewClientWith(config ClientConfig) *Client {
 	return c
 }
 
-// HandleMetric satisfies the stats.Handler interface.
+// HandleMeasures satisfies the stats.Handler interface.
 func (c *Client) HandleMeasures(time time.Time, measures ...stats.Measure) {
 	c.buffer.HandleMeasures(time, measures...)
 }

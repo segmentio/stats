@@ -100,7 +100,7 @@ type procThreads struct {
 	} `metric:"switch"`
 }
 
-// NewProdMetrics collects metrics on the current process and reports them to
+// NewProcMetrics collects metrics on the current process and reports them to
 // the default stats engine.
 func NewProcMetrics() *ProcMetrics {
 	return NewProcMetricsWith(stats.DefaultEngine, os.Getpid())
@@ -180,6 +180,8 @@ func (p *ProcMetrics) Collect() {
 	}
 }
 
+
+// ProcInfo contains types which hold statistics for various resources
 type ProcInfo struct {
 	CPU     CPUInfo
 	Memory  MemoryInfo
@@ -187,10 +189,12 @@ type ProcInfo struct {
 	Threads ThreadInfo
 }
 
+// CollectProcInfo return a ProcInfo and error (if any) for a given PID
 func CollectProcInfo(pid int) (ProcInfo, error) {
 	return collectProcInfo(pid)
 }
 
+// CPUInfo holds statistics and configuration details for a process.
 type CPUInfo struct {
 	User time.Duration // user cpu time used by the process
 	Sys  time.Duration // system cpu time used by the process
@@ -207,8 +211,9 @@ type CPUInfo struct {
 	Shares int64         // 1024 scaled value representing the CPU shares
 }
 
+// MemoryInfo holds statistics and configuration about Memory usage for a process.
 type MemoryInfo struct {
-	Available uint64 // amound of RAM available to the process
+	Available uint64 // amount of RAM available to the process
 	Size      uint64 // total program memory (including virtual mappings)
 	Resident  uint64 // resident set size
 	Shared    uint64 // shared pages (i.e., backed by a file)
@@ -219,11 +224,12 @@ type MemoryInfo struct {
 	MinorPageFaults uint64
 }
 
+// FileInfo holds statistics about open and max file handles for a process.
 type FileInfo struct {
 	Open uint64 // fds opened by the process
 	Max  uint64 // max number of fds the process can open
 }
-
+// ThreadInfo holds statistics about number of threads and context switches for a process.
 type ThreadInfo struct {
 	Num                        uint64
 	VoluntaryContextSwitches   uint64

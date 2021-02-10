@@ -67,6 +67,7 @@ func (t FieldType) String() string {
 	return ""
 }
 
+// GoString return a string representation of the FieldType.
 func (t FieldType) GoString() string {
 	switch t {
 	case Counter:

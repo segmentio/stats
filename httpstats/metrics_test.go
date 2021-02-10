@@ -88,11 +88,11 @@ func TestHeaderLength(t *testing.T) {
 	}
 
 	tests := []http.Header{
-		http.Header{},
-		http.Header{"Cookie": {}},
-		http.Header{"Content-Type": {"application/json"}},
-		http.Header{"Accept-Encoding": {"gzip", "deflate"}},
-		http.Header{"Host": {"localhost"}, "Accept": {"text/html", "text/plan"}},
+		{},
+		{"Cookie": {}},
+		{"Content-Type": {"application/json"}},
+		{"Accept-Encoding": {"gzip", "deflate"}},
+		{"Host": {"localhost"}, "Accept": {"text/html", "text/plan"}},
 	}
 
 	for _, test := range tests {
@@ -127,7 +127,7 @@ func TestRequestLength(t *testing.T) {
 	}
 
 	tests := []*http.Request{
-		&http.Request{
+		{
 			Method:        "GET",
 			Proto:         "HTTP/1.1",
 			ProtoMajor:    1,
@@ -173,7 +173,7 @@ func TestResponseLength(t *testing.T) {
 	}
 
 	tests := []*http.Response{
-		&http.Response{
+		{
 			Proto:         "HTTP/1.1",
 			StatusCode:    http.StatusOK,
 			ProtoMajor:    1,

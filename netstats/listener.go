@@ -7,10 +7,12 @@ import (
 	"github.com/segmentio/stats/v4"
 )
 
+// NewListener returns a new net.Listener which uses the stats.DefaultEngine.
 func NewListener(lstn net.Listener) net.Listener {
 	return NewListenerWith(stats.DefaultEngine, lstn)
 }
 
+// NewListenerWith returns a new net.Listener with the provided *stats.Engine.
 func NewListenerWith(eng *stats.Engine, lstn net.Listener) net.Listener {
 	return &listener{
 		lstn: lstn,

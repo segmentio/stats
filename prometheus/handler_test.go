@@ -56,7 +56,7 @@ func TestServeHTTP(t *testing.T) {
 
 	handler := &Handler{
 		Buckets: map[stats.Key][]stats.Value{
-			stats.Key{Field: "C"}: []stats.Value{
+			{Field: "C"}: {
 				stats.ValueOf(0.25),
 				stats.ValueOf(0.5),
 				stats.ValueOf(0.75),
@@ -122,7 +122,7 @@ func BenchmarkHandleMetric(b *testing.B) {
 	now := time.Now()
 
 	buckets := map[stats.Key][]stats.Value{
-		stats.Key{Field: "C"}: []stats.Value{
+		{Field: "C"}: {
 			stats.ValueOf(0.25),
 			stats.ValueOf(0.5),
 			stats.ValueOf(0.75),

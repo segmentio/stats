@@ -48,7 +48,7 @@ type Table struct {
 	Rows    [][]interface{}
 }
 
-// WriteRows satisfies the grafana.TableWriter interface.
+// WriteRow satisfies the grafana.TableWriter interface.
 func (t *Table) WriteRow(values ...interface{}) {
 	t.Rows = append(t.Rows,
 		append(make([]interface{}, 0, len(values)), values...),

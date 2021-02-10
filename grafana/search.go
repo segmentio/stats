@@ -41,7 +41,7 @@ type SearchResponse interface {
 	WriteTargetValue(target string, value interface{})
 }
 
-// SearhRequest represents a request received on the /search endpoint.
+// SearchRequest represents a request received on the /search endpoint.
 type SearchRequest struct {
 	Target string
 }

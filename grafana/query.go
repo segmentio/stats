@@ -62,6 +62,7 @@ type Target struct {
 // Grafana.
 type TargetType string
 
+// Const exported TargetTypes.
 const (
 	Timeserie TargetType = "timeserie"
 	Table     TargetType = "table"
@@ -108,6 +109,7 @@ func DescCol(text string, colType ColumnType) Column {
 // Grafana.
 type ColumnType string
 
+// Const exported ColumnTypes
 const (
 	Untyped ColumnType = ""
 	String  ColumnType = "string"

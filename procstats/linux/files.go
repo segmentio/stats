@@ -2,6 +2,9 @@ package linux
 
 import "os"
 
+// ReadOpenFileCount takes an int representing a PID and
+// returns a uint64 representing the open file descriptor count
+// for this process and an error, if any.
 func ReadOpenFileCount(pid int) (n uint64, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
 	n = readOpenFileCount(pid)

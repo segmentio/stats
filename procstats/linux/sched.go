@@ -2,6 +2,7 @@ package linux
 
 import "strconv"
 
+// ProcSched contains statistics about process scheduling, utilization, and switches.
 type ProcSched struct {
 	NRSwitches            uint64 // nr_switches
 	NRVoluntarySwitches   uint64 // nr_voluntary_switches
@@ -11,13 +12,13 @@ type ProcSched struct {
 	SEAvgLoadAvg          uint64 // se.avg.load_avg
 	SEAvgUtilAvg          uint64 // se.avg.util_avg
 }
-
+// ReadProcSched returns a ProcSched and error, if any, for a PID.
 func ReadProcSched(pid int) (proc ProcSched, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
 	proc = parseProcSched(readProcFile(pid, "sched"))
 	return
 }
-
+//ParseProcSched processes system process scheduling data and returns a ProcSched and error, if any.
 func ParseProcSched(s string) (proc ProcSched, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
 	proc = parseProcSched(s)

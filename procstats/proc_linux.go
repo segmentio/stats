@@ -115,7 +115,7 @@ func collectProcInfo(pid int) (info ProcInfo, err error) {
 		// can use the cpu period, quota, and shares of the calling process.
 		//
 		// We do this instead of looking directly into the cgroup directory
-		// because we don't have any garantees that the path is exposed to the
+		// because we don't have any guarantees that the path is exposed to the
 		// current process (but it should always have access to its own cgroup).
 		if selfCPU.Path == procCPU.Path {
 			cpuPeriod, _ = linux.ReadCPUPeriod("")
@@ -156,7 +156,7 @@ func collectProcInfo(pid int) (info ProcInfo, err error) {
 		},
 
 		Threads: ThreadInfo{
-			Num: uint64(stat.NumThreads),
+			Num:                        uint64(stat.NumThreads),
 			VoluntaryContextSwitches:   sched.NRVoluntarySwitches,
 			InvoluntaryContextSwitches: sched.NRInvoluntarySwitches,
 		},

@@ -49,7 +49,7 @@ type Handler struct {
 	metrics metricStore
 }
 
-// HandleMetric satisfies the stats.Handler interface.
+// HandleMeasures satisfies the stats.Handler interface.
 func (h *Handler) HandleMeasures(mtime time.Time, measures ...stats.Measure) {
 	cache := handleMetricPool.Get().(*handleMetricCache)
 
