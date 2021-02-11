@@ -7,19 +7,24 @@ import (
 	"time"
 )
 
+// Collector is an interface that wraps the Collect() method.
 type Collector interface {
 	Collect()
 }
 
+// CollectorFunc is a type alias for func().
 type CollectorFunc func()
 
+// Collect calls the underling CollectorFunc func().
 func (f CollectorFunc) Collect() { f() }
 
+// Config contains a Collector and a time.Duration called CollectInterval.
 type Config struct {
 	Collector       Collector
 	CollectInterval time.Duration
 }
-
+// MultiCollector coalesces a variadic number of Collectors
+// and returns a single Collector.
 func MultiCollector(collectors ...Collector) Collector {
 	return CollectorFunc(func() {
 		for _, c := range collectors {
@@ -28,10 +33,11 @@ func MultiCollector(collectors ...Collector) Collector {
 	})
 }
 
+// StartCollector starts a Collector with a default Config.
 func StartCollector(collector Collector) io.Closer {
 	return StartCollectorWith(Config{Collector: collector})
 }
-
+// StartCollectorWith starts a Collector with the provided Config.
 func StartCollectorWith(config Config) io.Closer {
 	config = setConfigDefaults(config)
 

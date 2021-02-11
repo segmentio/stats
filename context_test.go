@@ -17,7 +17,7 @@ func TestContextTags(t *testing.T) {
 	assert.Equal(t, 0, len(ContextTags(x)), "Original context should have no tags (because no context with key)")
 
 	// create a child context which creates a child context
-	z := context.WithValue(y, "not", "important")
+	z := context.WithValue(y, interface{}("not"), "important")
 	assert.Equal(t, 1, len(ContextTags(z)), "We should still be able to see original tags")
 
 	// Add tags to the child context's reference to the original tag slice

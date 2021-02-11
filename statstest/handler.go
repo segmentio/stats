@@ -18,6 +18,7 @@ type Handler struct {
 	flush    int32
 }
 
+// HandleMeasures process a variadic list of stats.Measure.
 func (h *Handler) HandleMeasures(time time.Time, measures ...stats.Measure) {
 	h.Lock()
 	for _, m := range measures {
@@ -35,6 +36,7 @@ func (h *Handler) Measures() []stats.Measure {
 	return m
 }
 
+// Flush Increments Flush counter.
 func (h *Handler) Flush() {
 	atomic.AddInt32(&h.flush, 1)
 }
@@ -44,6 +46,7 @@ func (h *Handler) FlushCalls() int {
 	return int(atomic.LoadInt32(&h.flush))
 }
 
+// Clear removes all measures held by Handler.
 func (h *Handler) Clear() {
 	h.Lock()
 	h.measures = h.measures[:0]

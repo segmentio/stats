@@ -7,6 +7,7 @@ import (
 	"github.com/segmentio/stats/v4/datadog"
 )
 
+// Const Sink Configuration types
 const (
 	GlobalOnly = "veneurglobalonly"
 	LocalOnly  = "veneurlocalonly"
@@ -17,6 +18,7 @@ const (
 	KafkaSink    = "kafka"
 )
 
+// SinkOnly tags
 var (
 	TagSignalfxOnly = stats.Tag{Name: SinkOnly, Value: SignalfxSink}
 	TagDatadogOnly  = stats.Tag{Name: SinkOnly, Value: DatadogSink}
@@ -85,7 +87,7 @@ func NewClientWith(config ClientConfig) *Client {
 	}
 }
 
-// HandleMetric satisfies the stats.Handler interface.
+// HandleMeasures satisfies the stats.Handler interface.
 func (c *Client) HandleMeasures(time time.Time, measures ...stats.Measure) {
 
 	// If there are no tags to add, call HandleMeasures with measures directly
@@ -95,7 +97,7 @@ func (c *Client) HandleMeasures(time time.Time, measures ...stats.Measure) {
 	}
 
 	finalMeasures := make([]stats.Measure, len(measures))
-	for i, _ := range measures {
+	for i := range measures {
 		finalMeasures[i] = measures[i].Clone()
 		finalMeasures[i].Tags = append(measures[i].Tags, c.tags...)
 	}

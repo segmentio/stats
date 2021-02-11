@@ -21,8 +21,8 @@ func TestConvertPanicToError(t *testing.T) {
 			e: io.EOF,
 		},
 		{
-			v: "Hello World!",
-			e: errors.New("Hello World!"),
+			v: "hello world",
+			e: errors.New("hello world"),
 		},
 	}
 

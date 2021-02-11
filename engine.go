@@ -84,7 +84,7 @@ func (eng *Engine) Incr(name string, tags ...Tag) {
 	eng.Add(name, 1, tags...)
 }
 
-// Incr increments by one the counter identified by name and tags.
+// IncrAt increments by one the counter identified by name and tags.
 func (eng *Engine) IncrAt(time time.Time, name string, tags ...Tag) {
 	eng.AddAt(time, name, 1, tags...)
 }
@@ -94,7 +94,7 @@ func (eng *Engine) Add(name string, value interface{}, tags ...Tag) {
 	eng.measure(time.Now(), name, value, Counter, tags...)
 }
 
-// Add increments by value the counter identified by name and tags.
+// AddAt increments by value the counter identified by name and tags.
 func (eng *Engine) AddAt(t time.Time, name string, value interface{}, tags ...Tag) {
 	eng.measure(t, name, value, Counter, tags...)
 }
@@ -104,7 +104,7 @@ func (eng *Engine) Set(name string, value interface{}, tags ...Tag) {
 	eng.measure(time.Now(), name, value, Gauge, tags...)
 }
 
-// Set sets to value the gauge identified by name and tags.
+// SetAt sets to value the gauge identified by name and tags.
 func (eng *Engine) SetAt(t time.Time, name string, value interface{}, tags ...Tag) {
 	eng.measure(t, name, value, Gauge, tags...)
 }
@@ -114,7 +114,7 @@ func (eng *Engine) Observe(name string, value interface{}, tags ...Tag) {
 	eng.measure(time.Now(), name, value, Histogram, tags...)
 }
 
-// Observe reports value for the histogram identified by name and tags.
+// ObserveAt reports value for the histogram identified by name and tags.
 func (eng *Engine) ObserveAt(t time.Time, name string, value interface{}, tags ...Tag) {
 	eng.measure(t, name, value, Histogram, tags...)
 }
