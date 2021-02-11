@@ -68,12 +68,12 @@ func TestMetricEntryCleanup(t *testing.T) {
 		name:  "A",
 		states: metricStateMap{
 			0: []*metricState{
-				&metricState{value: 42, time: now},
-				&metricState{value: 1, time: now.Add(-time.Minute)},
-				&metricState{value: 2, time: now.Add(-(500 * time.Millisecond))},
+				{value: 42, time: now},
+				{value: 1, time: now.Add(-time.Minute)},
+				{value: 2, time: now.Add(-(500 * time.Millisecond))},
 			},
 			1: []*metricState{
-				&metricState{value: 123, time: now.Add(10 * time.Millisecond)},
+				{value: 123, time: now.Add(10 * time.Millisecond)},
 			},
 			2: []*metricState{},
 		},
@@ -90,11 +90,11 @@ func TestMetricEntryCleanup(t *testing.T) {
 
 	if !reflect.DeepEqual(entry.states, metricStateMap{
 		0: []*metricState{
-			&metricState{value: 42, time: now},
-			&metricState{value: 2, time: now.Add(-(500 * time.Millisecond))},
+			{value: 42, time: now},
+			{value: 2, time: now.Add(-(500 * time.Millisecond))},
 		},
 		1: []*metricState{
-			&metricState{value: 123, time: now.Add(10 * time.Millisecond)},
+			{value: 123, time: now.Add(10 * time.Millisecond)},
 		},
 	}) {
 		t.Errorf("bad entry states: %#v", entry.states)
@@ -110,7 +110,7 @@ func TestMetricEntryCleanup(t *testing.T) {
 
 	if !reflect.DeepEqual(entry.states, metricStateMap{
 		1: []*metricState{
-			&metricState{value: 123, time: now.Add(10 * time.Millisecond)},
+			{value: 123, time: now.Add(10 * time.Millisecond)},
 		},
 	}) {
 		t.Errorf("bad entry states: %#v", entry.states)

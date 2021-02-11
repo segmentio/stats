@@ -91,9 +91,8 @@ func newEncoder(res http.ResponseWriter, req *http.Request) *objconv.StreamEncod
 	q := req.URL.Query()
 	if _, ok := q["pretty"]; ok {
 		return json.NewPrettyStreamEncoder(res)
-	} else {
-		return json.NewStreamEncoder(res)
 	}
+	return json.NewStreamEncoder(res)
 }
 
 func newDecoder(r io.Reader) *objconv.Decoder {

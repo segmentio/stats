@@ -18,13 +18,13 @@ type DelayMetrics struct {
 	FreePagesDelay time.Duration `metric:"freepages.delay.seconds" type:"counter"`
 }
 
-// NewDelayStats collects metrics on the current process and reports them to
+// NewDelayMetrics collects metrics on the current process and reports them to
 // the default stats engine.
 func NewDelayMetrics() *DelayMetrics {
 	return NewDelayMetricsWith(stats.DefaultEngine, os.Getpid())
 }
 
-// NewDelayStatsWith collects metrics on the process identified by pid and
+// NewDelayMetricsWith collects metrics on the process identified by pid and
 // reports them to eng.
 func NewDelayMetricsWith(eng *stats.Engine, pid int) *DelayMetrics {
 	return &DelayMetrics{engine: eng, pid: pid}
@@ -41,6 +41,8 @@ func (d *DelayMetrics) Collect() {
 	}
 }
 
+
+// DelayInfo stores delay Durations for various resources.
 type DelayInfo struct {
 	CPUDelay       time.Duration
 	BlockIODelay   time.Duration
@@ -48,6 +50,7 @@ type DelayInfo struct {
 	FreePagesDelay time.Duration
 }
 
+// CollectDelayInfo returns DelayInfo for a pid and an error, if any.
 func CollectDelayInfo(pid int) (info DelayInfo, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
 	info = collectDelayInfo(pid)

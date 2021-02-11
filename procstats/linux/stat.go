@@ -2,8 +2,10 @@ package linux
 
 import "fmt"
 
+// ProcState represents the underlying OS state of a process.
 type ProcState rune
 
+// Enumerated ProcStates.
 const (
 	Running                         ProcState = 'R'
 	Sleeping                        ProcState = 'S'
@@ -17,7 +19,7 @@ const (
 	Wakekill                        ProcState = 'W'
 	Parked                          ProcState = 'P'
 )
-
+// Scan updates the ProcState for a process.
 func (ps *ProcState) Scan(s fmt.ScanState, _ rune) (err error) {
 	var c rune
 	s.SkipSpace()
@@ -28,7 +30,7 @@ func (ps *ProcState) Scan(s fmt.ScanState, _ rune) (err error) {
 
 	return
 }
-
+// ProcStat contains statistics associated with a process.
 type ProcStat struct {
 	Pid                 int32     // (1) pid
 	Comm                string    // (2) comm
@@ -84,11 +86,13 @@ type ProcStat struct {
 	ExitCode            int32     // (52) exit_code
 }
 
+// ReadProcStat returns a ProcStat and error, if any, for a PID.
 func ReadProcStat(pid int) (proc ProcStat, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
 	return ParseProcStat(readProcFile(pid, "stat"))
 }
 
+// ParseProcStat parses system process statistics and returns a ProcStat and error, if any.
 func ParseProcStat(s string) (proc ProcStat, err error) {
 	_, err = fmt.Sscan(s,
 		&proc.Pid,

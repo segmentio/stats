@@ -36,7 +36,7 @@ func NewConn(c net.Conn) net.Conn {
 	return NewConnWith(stats.DefaultEngine, c)
 }
 
-// NewConn returns a net.Conn object that wraps c and produces metrics on eng.
+// NewConnWith returns a net.Conn object that wraps c and produces metrics on eng.
 func NewConnWith(eng *stats.Engine, c net.Conn) net.Conn {
 	nc := &conn{Conn: c, eng: eng}
 

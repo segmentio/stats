@@ -11,6 +11,7 @@ import (
 // metric types upported by datadog.
 type MetricType string
 
+// Metric Types.
 const (
 	Counter   MetricType = "c"
 	Gauge     MetricType = "g"

@@ -27,7 +27,7 @@ func flush(h Handler) {
 	}
 }
 
-// HandleFunc is a type alias making it possible to use simple functions as
+// HandlerFunc is a type alias making it possible to use simple functions as
 // measure handlers.
 type HandlerFunc func(time.Time, ...Measure)
 
