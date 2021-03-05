@@ -6,6 +6,8 @@ import "time"
 //
 // Clocks are useful to measure the duration taken by sequential execution steps
 // and therefore aren't safe to be used concurrently by multiple goroutines.
+//
+// Note: Clock times are reported to datadog in seconds. See `stats/datadog/measure.go`.
 type Clock struct {
 	name  string
 	first time.Time
