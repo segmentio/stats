@@ -3,3 +3,9 @@ influxdb:
   ports:
     - 8086:8086
 
+localstack:
+  image: localstack/localstack
+  environment:
+    SERVICES: s3
+  ports:
+    - 4566:4566
