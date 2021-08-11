@@ -35,6 +35,29 @@ func TestClient(t *testing.T) {
 	}
 }
 
+func TestClientWithDistributionPrefixes(t *testing.T) {
+	client := NewClientWith(ClientConfig{
+		Address:              DefaultAddress,
+		DistributionPrefixes: []string{"dist_"},
+	})
+
+	client.HandleMeasures(time.Time{}, stats.Measure{
+		Name: "request",
+		Fields: []stats.Field{
+			{Name: "count", Value: stats.ValueOf(5)},
+			stats.MakeField("dist_rtt", stats.ValueOf(100*time.Millisecond), stats.Histogram),
+		},
+		Tags: []stats.Tag{
+			stats.T("answer", "42"),
+			stats.T("hello", "world"),
+		},
+	})
+
+	if err := client.Close(); err != nil {
+		t.Error(err)
+	}
+}
+
 func TestClientWriteLargeMetrics(t *testing.T) {
 	const data = `main.http.error.count:0|c|#http_req_content_charset:,http_req_content_endoing:,http_req_content_type:,http_req_host:localhost:3011,http_req_method:GET,http_req_protocol:HTTP/1.1,http_req_transfer_encoding:identity
 main.http.message.count:1|c|#http_req_content_charset:,http_req_content_endoing:,http_req_content_type:,http_req_host:localhost:3011,http_req_method:GET,http_req_protocol:HTTP/1.1,http_req_transfer_encoding:identity,operation:read,type:request
