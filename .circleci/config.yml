@@ -4,7 +4,7 @@ jobs:
     working_directory: /go/src/github.com/segmentio/stats
     docker:
       - image: circleci/golang
-      - image: influxdb:alpine
+      - image: influxdb:1.8.9-alpine
         ports: ['8086:8086']
     steps:
       - checkout
