@@ -51,6 +51,25 @@ func TestClient_UDS(t *testing.T) {
 			},
 		})
 	}
+}
+
+func TestClientWithDistributionPrefixes(t *testing.T) {
+	client := NewClientWith(ClientConfig{
+		Address:              DefaultAddress,
+		DistributionPrefixes: []string{"dist_"},
+	})
+
+	client.HandleMeasures(time.Time{}, stats.Measure{
+		Name: "request",
+		Fields: []stats.Field{
+			{Name: "count", Value: stats.ValueOf(5)},
+			stats.MakeField("dist_rtt", stats.ValueOf(100*time.Millisecond), stats.Histogram),
+		},
+		Tags: []stats.Tag{
+			stats.T("answer", "42"),
+			stats.T("hello", "world"),
+		},
+	})
 
 	if err := client.Close(); err != nil {
 		t.Error(err)

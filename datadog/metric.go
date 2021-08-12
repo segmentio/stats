@@ -8,15 +8,16 @@ import (
 )
 
 // MetricType is an enumeration providing symbols to represent the different
-// metric types upported by datadog.
+// metric types supported by datadog.
 type MetricType string
 
 // Metric Types.
 const (
-	Counter   MetricType = "c"
-	Gauge     MetricType = "g"
-	Histogram MetricType = "h"
-	Unknown   MetricType = "?"
+	Counter      MetricType = "c"
+	Gauge        MetricType = "g"
+	Histogram    MetricType = "h"
+	Distribution MetricType = "d"
+	Unknown      MetricType = "?"
 )
 
 // The Metric type is a representation of the metrics supported by datadog.
