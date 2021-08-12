@@ -25,13 +25,17 @@ const (
 	MaxBufferSize = 65507
 )
 
-// DefaultFilter is the default tag to filter before sending to
-// datadog. Using the request path as a tag can overwhelm datadog's
-// servers if there are too many unique routes due to unique IDs being a
-// part of the path. Only change the default filter if there is a static
-// number of routes.
 var (
+	// DefaultFilters are the default tags to filter before sending to
+	// datadog. Using the request path as a tag can overwhelm datadog's
+	// servers if there are too many unique routes due to unique IDs being a
+	// part of the path. Only change the default filters if there are a static
+	// number of routes.
 	DefaultFilters = []string{"http_req_path"}
+
+	// DefaultDistributionPrefixes is the default set of name prefixes for
+	// metrics to be sent as distributions instead of as histograms.
+	DefaultDistributionPrefixes = []string{}
 )
 
 // The ClientConfig type is used to configure datadog clients.
@@ -44,6 +48,10 @@ type ClientConfig struct {
 
 	// List of tags to filter. If left nil is set to DefaultFilters.
 	Filters []string
+
+	// Set of name prefixes for metrics to be sent as distributions instead of
+	// as histograms.
+	DistributionPrefixes []string
 }
 
 // Client represents an datadog client that implements the stats.Handler
@@ -77,6 +85,10 @@ func NewClientWith(config ClientConfig) *Client {
 		config.Filters = DefaultFilters
 	}
 
+	if config.DistributionPrefixes == nil {
+		config.DistributionPrefixes = DefaultDistributionPrefixes
+	}
+
 	// transform filters from array to map
 	filterMap := make(map[string]struct{})
 	for _, f := range config.Filters {
@@ -85,7 +97,8 @@ func NewClientWith(config ClientConfig) *Client {
 
 	c := &Client{
 		serializer: serializer{
-			filters: filterMap,
+			filters:      filterMap,
+			distPrefixes: config.DistributionPrefixes,
 		},
 	}
 
@@ -124,14 +137,15 @@ func (c *Client) Close() error {
 }
 
 type serializer struct {
-	conn       net.Conn
-	bufferSize int
-	filters    map[string]struct{}
+	conn         net.Conn
+	bufferSize   int
+	filters      map[string]struct{}
+	distPrefixes []string
 }
 
 func (s *serializer) AppendMeasures(b []byte, _ time.Time, measures ...stats.Measure) []byte {
 	for _, m := range measures {
-		b = AppendMeasureFiltered(b, m, s.filters)
+		b = AppendMeasureFiltered(b, m, s.filters, s.distPrefixes)
 	}
 	return b
 }

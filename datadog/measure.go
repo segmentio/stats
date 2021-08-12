@@ -3,20 +3,24 @@ package datadog
 import (
 	"math"
 	"strconv"
+	"strings"
 
 	"github.com/segmentio/stats/v4"
 )
 
+// Datagram format: https://docs.datadoghq.com/developers/dogstatsd/datagram_shell
+
 // AppendMeasure is a formatting routine to append the dogstatsd protocol
 // representation of a measure to a memory buffer.
 func AppendMeasure(b []byte, m stats.Measure) []byte {
-	return AppendMeasureFiltered(b, m, nil)
+	return AppendMeasureFiltered(b, m, nil, []string{})
 }
 
 // AppendMeasureFiltered is a formatting routine to append the dogstatsd protocol
 // representation of a measure to a memory buffer. Tags listed in the filters map
 // are removed. (some tags may not be suitable for submission to DataDog)
-func AppendMeasureFiltered(b []byte, m stats.Measure, filters map[string]struct{}) []byte {
+func AppendMeasureFiltered(b []byte, m stats.Measure, filters map[string]struct{},
+	distPrefixes []string) []byte {
 	for _, field := range m.Fields {
 		b = append(b, m.Name...)
 		if len(field.Name) != 0 {
@@ -50,7 +54,11 @@ func AppendMeasureFiltered(b []byte, m stats.Measure, filters map[string]struct{
 		case stats.Gauge:
 			b = append(b, '|', 'g')
 		default:
-			b = append(b, '|', 'h')
+			if sendDist(field.Name, distPrefixes) {
+				b = append(b, '|', 'd')
+			} else {
+				b = append(b, '|', 'h')
+			}
 		}
 
 		if n := len(m.Tags); n != 0 {
@@ -85,4 +93,16 @@ func normalizeFloat(f float64) float64 {
 	default:
 		return f
 	}
+}
+
+func sendDist(name string, distPrefixes []string) bool {
+	if distPrefixes == nil {
+		return false
+	}
+	for _, prefix := range distPrefixes {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return false
 }
