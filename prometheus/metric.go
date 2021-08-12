@@ -402,10 +402,15 @@ func le(buckets []stats.Value) string {
 		b = appendFloat(b, valueOf(v))
 	}
 
-	return *(*string)(unsafe.Pointer(&reflect.StringHeader{
-		Data: uintptr(unsafe.Pointer(&b[0])),
-		Len:  len(b),
-	}))
+	// This code block converts the byte array to a string without additional
+	// memory allocation.
+	// Source: https://stackoverflow.com/a/66865482 (license: CC BY-SA 4.0)
+	sliceHeader := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+	var s string
+	sh := (*reflect.StringHeader)(unsafe.Pointer(&s))
+	sh.Data = sliceHeader.Data
+	sh.Len = sliceHeader.Len
+	return s
 }
 
 func nextLe(s string) (head string, tail string) {
