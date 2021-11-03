@@ -1,6 +1,7 @@
 package datadog
 
 import (
+	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -63,6 +64,8 @@ func AppendMeasureFiltered(b []byte, m stats.Measure, filters map[string]struct{
 
 		if n := len(m.Tags); n != 0 {
 			b = append(b, '|', '#')
+
+			fmt.Println("Outputting tags", m.Tags)
 
 			for i, t := range m.Tags {
 				if _, ok := filters[t.Name]; !ok {
