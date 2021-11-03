@@ -1,0 +1,28 @@
+# github.com/davecgh/go-spew v1.1.0
+github.com/davecgh/go-spew/spew
+# github.com/mdlayher/genetlink v0.0.0-20190313224034-60417448a851
+github.com/mdlayher/genetlink
+# github.com/mdlayher/netlink v0.0.0-20190313131330-258ea9dff42c
+github.com/mdlayher/netlink
+github.com/mdlayher/netlink/nlenc
+# github.com/mdlayher/taskstats v0.0.0-20190313225729-7cbba52ee072
+github.com/mdlayher/taskstats
+# github.com/pmezard/go-difflib v1.0.0
+github.com/pmezard/go-difflib/difflib
+# github.com/segmentio/fasthash v0.0.0-20180216231524-a72b379d632e
+github.com/segmentio/fasthash/jody
+# github.com/segmentio/objconv v1.0.1
+github.com/segmentio/objconv
+github.com/segmentio/objconv/json
+github.com/segmentio/objconv/objutil
+# github.com/segmentio/vpcinfo v0.1.10
+github.com/segmentio/vpcinfo
+# github.com/stretchr/testify v1.4.0
+github.com/stretchr/testify/assert
+github.com/stretchr/testify/require
+# golang.org/x/net v0.0.0-20190313220215-9f648a60d977
+golang.org/x/net/bpf
+# golang.org/x/sys v0.0.0-20190312061237-fead79001313
+golang.org/x/sys/unix
+# gopkg.in/yaml.v2 v2.2.2
+gopkg.in/yaml.v2

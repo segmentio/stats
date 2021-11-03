@@ -1,6 +1,7 @@
 package httpstats
 
 import (
+	"fmt"
 	"io"
 	"math"
 	"net/http"
@@ -205,6 +206,8 @@ func (m *metrics) observeRequest(req *http.Request, op string, bodyLen int) {
 		path = "/" + path
 	}
 	m.http.path = path
+
+	fmt.Println("Path: ", m.http.path)
 }
 
 func (m *metrics) observeResponse(res *http.Response, op string, bodyLen int, rtt time.Duration) {
