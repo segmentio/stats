@@ -121,7 +121,7 @@ func (w *responseWriter) complete() {
 
 	w.metrics.observeResponse(res, "write", w.bytes, now.Sub(w.start))
 
-	fmt.Println("Reporting stats with tags", RequestTags(w.req), "and metrics", w.metrics)
+	fmt.Printf(">>>> Reporting stats with tags %+v and metrics %+v", RequestTags(w.req), w.metrics)
 
 	w.eng.ReportAt(w.start, w.metrics, RequestTags(w.req)...)
 }
