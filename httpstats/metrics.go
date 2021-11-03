@@ -1,7 +1,6 @@
 package httpstats
 
 import (
-	"fmt"
 	"io"
 	"math"
 	"net/http"
@@ -205,9 +204,7 @@ func (m *metrics) observeRequest(req *http.Request, op string, bodyLen int) {
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
 	}
-	m.http.path = path
-
-	fmt.Println("Path: ", m.http.path)
+	m.http.path = "q" + path
 }
 
 func (m *metrics) observeResponse(res *http.Response, op string, bodyLen int, rtt time.Duration) {
