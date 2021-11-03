@@ -2,6 +2,7 @@ package httpstats
 
 import (
 	"bufio"
+	"fmt"
 	"net"
 	"net/http"
 	"time"
@@ -119,5 +120,8 @@ func (w *responseWriter) complete() {
 	}
 
 	w.metrics.observeResponse(res, "write", w.bytes, now.Sub(w.start))
+
+	fmt.Println("Reporting stats with tags", RequestTags(w.req))
+
 	w.eng.ReportAt(w.start, w.metrics, RequestTags(w.req)...)
 }
