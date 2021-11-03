@@ -1,6 +1,7 @@
 package httpstats
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/segmentio/stats/v4"
@@ -13,6 +14,10 @@ import (
 // ⚠️ : Using this may blow up the cardinality of your httpstats metrics. Use
 // with care for tags with low cardinalities.
 func RequestWithTags(req *http.Request, tags ...stats.Tag) *http.Request {
+	for _, tag := range tags {
+		log.Println(tag)
+	}
+
 	if stats.ContextAddTags(req.Context(), tags...) {
 		return req.WithContext(req.Context())
 	}
