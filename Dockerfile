@@ -1,4 +1,4 @@
-FROM golang:alpine
+FROM 528451384384.dkr.ecr.us-west-2.amazonaws.com/segment-golang:1.17.3
 
 COPY . /go/src/github.com/segmentio/stats
 
