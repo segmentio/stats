@@ -4,6 +4,7 @@ import (
 	"io"
 	"math"
 	"net"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -160,6 +161,12 @@ func (c *conn) SetWriteDeadline(t time.Time) (err error) {
 
 func (c *conn) error(op string, err error) {
 	switch err = rootError(err); err {
+	case os.ErrDeadlineExceeded:
+		c.eng.Incr("conn.error.count",
+			stats.T("operation", op),
+			stats.T("protocol", c.w.metrics.protocol),
+			stats.T("error", "deadline_exceeded"),
+		)
 	case io.EOF, io.ErrClosedPipe, io.ErrUnexpectedEOF:
 		// this is expected to happen when connections are closed
 	default:
