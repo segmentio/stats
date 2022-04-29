@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"hash/maphash"
+	"log"
 	"sync"
 	"time"
 
@@ -23,11 +24,11 @@ const (
 	DefaultFlushInterval = 10 * time.Second
 )
 
-// Handler implement stats.Handler to be used to forward metrics to an
+// Handler implements stats.Handler to be used to forward metrics to an
 // OpenTelemetry destination. Usually an OpenTelemetry Collector.
 //
 // With the current implementation this Handler is targeting a Prometheus
-// based backend or any backend expecting cumulative value.
+// based backend or any backend expecting cumulative values.
 //
 // This Handler leverages a double linked list with a map to implement
 // a ring buffer with a lookup to ensure a low memory usage.
@@ -39,6 +40,7 @@ type Handler struct {
 
 	once sync.Once
 
+	mu      sync.RWMutex
 	ordered list.List
 	metrics map[uint64]*list.Element
 }
@@ -71,6 +73,8 @@ func (h *Handler) HandlerMeasure(t time.Time, measures ...stats.Measure) {
 }
 
 func (h *Handler) start(ctx context.Context) {
+	defer h.flush()
+
 	t := time.NewTicker(h.FlushInterval)
 
 	for {
@@ -78,8 +82,7 @@ func (h *Handler) start(ctx context.Context) {
 		case <-t.C:
 			h.flush()
 		case <-ctx.Done():
-			h.flush()
-			return
+			break
 		}
 	}
 }
@@ -122,13 +125,21 @@ func (h *Handler) handleMeasures(t time.Time, measures ...stats.Measure) {
 			})
 
 			if known == nil {
-				h.push(sign, &m)
+				n := h.push(sign, &m)
+				if n > h.MaxMetrics {
+					if err := h.flush(); err != nil {
+						log.Printf("stats/otlp: %s", err)
+					}
+				}
 			}
 		}
 	}
 }
 
 func (h *Handler) flush() error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
 	metrics := []*metricpb.Metric{}
 
 	for e := h.ordered.Front(); e != nil; e = e.Next() {
@@ -144,7 +155,7 @@ func (h *Handler) flush() error {
 		return nil
 	}
 
-	//FIXME how big a metrics service requests can be ? need pagination ?
+	//FIXME how big can a metrics service request be ? need pagination ?
 	request := &colmetricpb.ExportMetricsServiceRequest{
 		ResourceMetrics: []*metricpb.ResourceMetrics{
 			{
@@ -163,6 +174,9 @@ func (h *Handler) flush() error {
 }
 
 func (h *Handler) lookup(signature uint64, update func(*metric) *metric) *metric {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
 	if m := h.metrics[signature]; m != nil {
 		h.ordered.MoveToFront(m)
 		m.Value = update(m.Value.(*metric))
@@ -172,7 +186,10 @@ func (h *Handler) lookup(signature uint64, update func(*metric) *metric) *metric
 	return nil
 }
 
-func (h *Handler) push(sign uint64, m *metric) {
+func (h *Handler) push(sign uint64, m *metric) int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
 	if h.metrics == nil {
 		h.metrics = map[uint64]*list.Element{}
 	}
@@ -185,4 +202,6 @@ func (h *Handler) push(sign uint64, m *metric) {
 		h.ordered.Remove(last)
 		delete(h.metrics, last.Value.(*metric).sign)
 	}
+
+	return len(h.metrics)
 }

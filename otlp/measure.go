@@ -1,8 +1,6 @@
 package otlp
 
 import (
-	"fmt"
-
 	"github.com/segmentio/stats/v4"
 	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
 	metricpb "go.opentelemetry.io/proto/otlp/metrics/v1"
@@ -15,7 +13,7 @@ func convertMetrics(metrics ...metric) []*metricpb.Metric {
 		attributes := tagsToAttributes(metric.tags...)
 
 		m := &metricpb.Metric{
-			Name: fmt.Sprintf("%s.%s", metric.measureName, metric.fieldName),
+			Name: metric.measureName + "." + metric.fieldName,
 		}
 
 		switch metric.fieldType {
