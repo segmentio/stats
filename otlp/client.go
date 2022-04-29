@@ -35,13 +35,12 @@ func NewHTTPClient(endpoint string) *HTTPClient {
 }
 
 func (c *HTTPClient) Handle(ctx context.Context, request *colmetricpb.ExportMetricsServiceRequest) error {
-	println(request)
 	rawReq, err := proto.Marshal(request)
 	if err != nil {
 		return fmt.Errorf("failed to marshal request: %s", err)
 	}
 
-	httpReq, err := newRequest(c.endpoint, rawReq)
+	httpReq, err := newRequest(ctx, c.endpoint, rawReq)
 	if err != nil {
 		return fmt.Errorf("failed to create HTTP request: %s", err)
 	}
@@ -73,13 +72,13 @@ func (c *HTTPClient) do(req *http.Request) error {
 	return nil
 }
 
-func newRequest(endpoint string, data []byte) (*http.Request, error) {
+func newRequest(ctx context.Context, endpoint string, data []byte) (*http.Request, error) {
 	u, err := url.Parse(endpoint)
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, u.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u.String(), nil)
 	if err != nil {
 		return nil, err
 	}
