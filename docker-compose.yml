@@ -1,5 +1,18 @@
-influxdb:
-  image: influxdb:alpine
-  ports:
-    - 8086:8086
-
+services:
+  influxdb:
+    image: influxdb:alpine
+    ports:
+      - 8086:8086
+  
+  otel-collector:
+    image: otel/opentelemetry-collector:0.48.0
+    command:
+      - "/otelcol"
+      - "--config=/etc/otel-config.yaml"
+    ports:
+      - 4317:4317
+      - 4318:4318
+      - 4319:4319
+      - 8888:8888
+    volumes:
+      - "./.otel/config.yaml:/etc/otel-config.yaml"
