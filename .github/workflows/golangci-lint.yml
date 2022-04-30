@@ -8,11 +8,6 @@ on:
       - '**.go'
       - .golangci.yml
       - .github/workflows/golangci-lint.yml
-  pull_request:
-    paths:
-      - '**.go'
-      - .golangci.yml
-      - .github/workflows/golangci-lint.yml
 
 jobs:
   lint:
