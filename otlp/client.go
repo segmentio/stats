@@ -84,6 +84,7 @@ func newRequest(ctx context.Context, endpoint string, data []byte) (*http.Reques
 	}
 
 	req.Header.Set("Content-Type", "application/x-protobuf")
+	req.Header.Set("User-Agent", "segmentio/stats")
 
 	req.Body = ioutil.NopCloser(bytes.NewReader(data))
 	return req, nil
