@@ -21,6 +21,9 @@ const (
 
 	// DefaultFlushInterval is the default interval to flush the metrics
 	// to the OpenTelemetry destination.
+	//
+	// Metrics will be flushed to the destination when DefaultFlushInterval or
+	// DefaultMaxMetrics are reach. Whichever comes first.
 	DefaultFlushInterval = 10 * time.Second
 )
 
@@ -80,7 +83,9 @@ func (h *Handler) start(ctx context.Context) {
 	for {
 		select {
 		case <-t.C:
-			h.flush()
+			if err := h.flush(); err != nil {
+				log.Printf("stats/otlp: %s", err)
+			}
 		case <-ctx.Done():
 			break
 		}
