@@ -23,7 +23,7 @@ const (
 	// to the OpenTelemetry destination.
 	//
 	// Metrics will be flushed to the destination when DefaultFlushInterval or
-	// DefaultMaxMetrics are reach. Whichever comes first.
+	// DefaultMaxMetrics are reached, whichever comes first.
 	DefaultFlushInterval = 10 * time.Second
 )
 
@@ -33,7 +33,7 @@ const (
 // With the current implementation this Handler is targeting a Prometheus
 // based backend or any backend expecting cumulative values.
 //
-// This Handler leverages a double linked list with a map to implement
+// This Handler leverages a doubly linked list with a map to implement
 // a ring buffer with a lookup to ensure a low memory usage.
 type Handler struct {
 	Client        Client
