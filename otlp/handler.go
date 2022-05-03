@@ -27,6 +27,9 @@ const (
 	DefaultFlushInterval = 10 * time.Second
 )
 
+// Status: Alpha. This Handler is still in heavy development phase.
+//         Do not use in production.
+//
 // Handler implements stats.Handler to be used to forward metrics to an
 // OpenTelemetry destination. Usually an OpenTelemetry Collector.
 //
