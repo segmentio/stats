@@ -54,6 +54,9 @@ type ClientConfig struct {
 	// Set of name prefixes for metrics to be sent as distributions instead of
 	// as histograms.
 	DistributionPrefixes []string
+
+	// Flag indicating whether to send histograms as `d` type or `h` type
+	UseDistributions bool
 }
 
 // Client represents an datadog client that implements the stats.Handler
@@ -99,8 +102,9 @@ func NewClientWith(config ClientConfig) *Client {
 
 	c := &Client{
 		serializer: serializer{
-			filters:      filterMap,
-			distPrefixes: config.DistributionPrefixes,
+			filters:          filterMap,
+			distPrefixes:     config.DistributionPrefixes,
+			useDistributions: config.UseDistributions,
 		},
 	}
 

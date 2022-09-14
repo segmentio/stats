@@ -2,6 +2,7 @@ package datadog
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/segmentio/stats/v4"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestClient_UDP(t *testing.T) {
@@ -77,6 +79,46 @@ func TestClientWithDistributionPrefixes(t *testing.T) {
 }
 
 func TestClientWriteLargeMetrics_UDP(t *testing.T) {
+	// Start a go routine listening for packets and giving them back on packets chan
+	packets := make(chan []byte)
+	addr, closer := startUDPListener(t, packets)
+	defer closer.Close()
+
+	client := NewClientWith(ClientConfig{
+		Address:          addr,
+		UseDistributions: true,
+	})
+
+	testMeassure := stats.Measure{
+		Name: "request",
+		Fields: []stats.Field{
+			{Name: "count", Value: stats.ValueOf(5)},
+			stats.MakeField("dist_rtt", stats.ValueOf(100*time.Millisecond), stats.Histogram),
+		},
+		Tags: []stats.Tag{
+			stats.T("answer", "42"),
+			stats.T("hello", "world"),
+		},
+	}
+	client.HandleMeasures(time.Time{}, testMeassure)
+	client.Flush()
+
+	expectedPacket1 := "request.count:5|c|#answer:42,hello:world\nrequest.dist_rtt:0.1|d|#answer:42,hello:world\n"
+	assert.EqualValues(t, expectedPacket1, string(<-packets))
+
+	client.useDistributions = false
+	client.HandleMeasures(time.Time{}, testMeassure)
+	client.Flush()
+
+	expectedPacket2 := "request.count:5|c|#answer:42,hello:world\nrequest.dist_rtt:0.1|h|#answer:42,hello:world\n"
+	assert.EqualValues(t, expectedPacket2, string(<-packets))
+
+	if err := client.Close(); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestClientWriteLargeMetrics(t *testing.T) {
 	const data = `main.http.error.count:0|c|#http_req_content_charset:,http_req_content_endoing:,http_req_content_type:,http_req_host:localhost:3011,http_req_method:GET,http_req_protocol:HTTP/1.1,http_req_transfer_encoding:identity
 main.http.message.count:1|c|#http_req_content_charset:,http_req_content_endoing:,http_req_content_type:,http_req_host:localhost:3011,http_req_method:GET,http_req_protocol:HTTP/1.1,http_req_transfer_encoding:identity,operation:read,type:request
 main.http.message.header.size:2|h|#http_req_content_charset:,http_req_content_endoing:,http_req_content_type:,http_req_host:localhost:3011,http_req_method:GET,http_req_protocol:HTTP/1.1,http_req_transfer_encoding:identity,operation:read,type:request
@@ -176,4 +218,30 @@ func BenchmarkClient(b *testing.B) {
 			})
 		})
 	}
+}
+
+// startUDPListener starts a go routine listening for UDP packets on 127.0.0.1 and an available port.
+// The address listened to is returned as `addr`. The payloads of packets received are copied to `packets`
+func startUDPListener(t *testing.T, packets chan []byte) (addr string, closer io.Closer) {
+	conn, err := net.ListenPacket("udp", "127.0.0.1:0") // :0 chooses an available port
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	go func() {
+		for {
+			packetBytes := make([]byte, 1024)
+			n, _, err := conn.ReadFrom(packetBytes)
+			if n > 0 {
+				packets <- packetBytes[:n]
+			}
+
+			if err != nil {
+				t.Log(err)
+				return
+			}
+		}
+	}()
+
+	return conn.LocalAddr().String(), conn
 }

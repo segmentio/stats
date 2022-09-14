@@ -13,10 +13,11 @@ import (
 )
 
 type serializer struct {
-	w            io.WriteCloser
-	bufferSize   int
-	filters      map[string]struct{}
-	distPrefixes []string
+	w                io.WriteCloser
+	bufferSize       int
+	filters          map[string]struct{}
+	distPrefixes     []string
+	useDistributions bool
 }
 
 func (s *serializer) Write(b []byte) (int, error) {
@@ -142,7 +143,15 @@ func (s *serializer) AppendMeasure(b []byte, m stats.Measure) []byte {
 	return b
 }
 
+// sendDist determines whether to send a metric to datadog as histogram `h` type or
+// distribution `d` type. It's a confusing setup because useDistributions and distPrefixes
+// are independent implementations of a control mechanism for sending distributions that
+// aren't elegantly coordinated
 func (s *serializer) sendDist(name string) bool {
+	if s.useDistributions {
+		return true
+	}
+
 	if s.distPrefixes == nil {
 		return false
 	}
