@@ -1,16 +1,15 @@
 package datadog
 
 import (
-	"bytes"
 	"io"
 	"log"
 	"net/url"
 	"os"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/segmentio/stats/v4"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -148,64 +147,6 @@ func (c *Client) Close() error {
 	return c.err
 }
 
-type serializer struct {
-	w            io.WriteCloser
-	bufferSize   int
-	filters      map[string]struct{}
-	distPrefixes []string
-}
-
-func (s *serializer) AppendMeasures(b []byte, _ time.Time, measures ...stats.Measure) []byte {
-	for _, m := range measures {
-		b = s.AppendMeasure(b, m)
-	}
-	return b
-}
-
-func (s *serializer) Write(b []byte) (int, error) {
-
-	if len(b) <= s.bufferSize {
-		return s.w.Write(b)
-	}
-
-	// When the serialized metrics are larger than the configured socket buffer
-	// size we split them on '\n' characters.
-	var n int
-
-	for len(b) != 0 {
-		var splitIndex int
-
-		for splitIndex != len(b) {
-			i := bytes.IndexByte(b[splitIndex:], '\n')
-			if i < 0 {
-				panic("stats/datadog: metrics are not formatted for the dogstatsd protocol")
-			}
-			if (i + splitIndex) >= s.bufferSize {
-				if splitIndex == 0 {
-					log.Printf("stats/datadog: metric of length %d B doesn't fit in the socket buffer of size %d B: %s", i+1, s.bufferSize, string(b))
-					b = b[i+1:]
-					continue
-				}
-				break
-			}
-			splitIndex += i + 1
-		}
-		c, err := s.w.Write(b[:splitIndex])
-		if err != nil {
-			return n + c, err
-		}
-
-		n += c
-		b = b[splitIndex:]
-	}
-
-	return n, nil
-}
-
-func (s *serializer) close() {
-	s.w.Close()
-}
-
 func bufSizeFromFD(f *os.File, sizehint int) (bufsize int, err error) {
 	fd := int(f.Fd())
 	// The kernel refuses to send UDP datagrams that are larger than the size of
@@ -213,7 +154,7 @@ func bufSizeFromFD(f *os.File, sizehint int) (bufsize int, err error) {
 	// sent in one batch we attempt to attempt to adjust the kernel buffer size
 	// to accept larger datagrams, or fallback to the default socket buffer size
 	// if it failed.
-	if bufsize, err = syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_SNDBUF); err != nil {
+	if bufsize, err = unix.GetsockoptInt(fd, unix.SOL_SOCKET, unix.SO_SNDBUF); err != nil {
 		return
 	}
 
@@ -223,7 +164,7 @@ func bufSizeFromFD(f *os.File, sizehint int) (bufsize int, err error) {
 	bufsize /= 2
 
 	for sizehint > bufsize && sizehint > 0 {
-		if err := syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_SNDBUF, sizehint); err == nil {
+		if err := unix.SetsockoptInt(fd, unix.SOL_SOCKET, unix.SO_SNDBUF, sizehint); err == nil {
 			bufsize = sizehint
 			break
 		}
@@ -248,7 +189,7 @@ func bufSizeFromFD(f *os.File, sizehint int) (bufsize int, err error) {
 	}
 
 	// Creating the file put the socket in blocking mode, reverting.
-	syscall.SetNonblock(fd, true)
+	unix.SetNonblock(fd, true)
 	return
 }
 
