@@ -12,15 +12,9 @@ import (
 
 // AppendMeasure is a formatting routine to append the dogstatsd protocol
 // representation of a measure to a memory buffer.
-func AppendMeasure(b []byte, m stats.Measure) []byte {
-	return AppendMeasureFiltered(b, m, nil, []string{})
-}
-
-// AppendMeasureFiltered is a formatting routine to append the dogstatsd protocol
-// representation of a measure to a memory buffer. Tags listed in the filters map
-// are removed. (some tags may not be suitable for submission to DataDog)
-func AppendMeasureFiltered(b []byte, m stats.Measure, filters map[string]struct{},
-	distPrefixes []string) []byte {
+// Tags listed in the s.filters are removed. (some tags may not be suitable for submission to DataDog)
+// Histogram metrics will be sent as distribution type if the metric name matches s.distPrefixes
+func (s *serializer) AppendMeasure(b []byte, m stats.Measure) []byte {
 	for _, field := range m.Fields {
 		b = append(b, m.Name...)
 		if len(field.Name) != 0 {
@@ -54,7 +48,7 @@ func AppendMeasureFiltered(b []byte, m stats.Measure, filters map[string]struct{
 		case stats.Gauge:
 			b = append(b, '|', 'g')
 		default:
-			if sendDist(field.Name, distPrefixes) {
+			if s.sendDist(field.Name) {
 				b = append(b, '|', 'd')
 			} else {
 				b = append(b, '|', 'h')
@@ -65,7 +59,7 @@ func AppendMeasureFiltered(b []byte, m stats.Measure, filters map[string]struct{
 			b = append(b, '|', '#')
 
 			for i, t := range m.Tags {
-				if _, ok := filters[t.Name]; !ok {
+				if _, ok := s.filters[t.Name]; !ok {
 					if i != 0 {
 						b = append(b, ',')
 					}
@@ -95,11 +89,11 @@ func normalizeFloat(f float64) float64 {
 	}
 }
 
-func sendDist(name string, distPrefixes []string) bool {
-	if distPrefixes == nil {
+func (s *serializer) sendDist(name string) bool {
+	if s.distPrefixes == nil {
 		return false
 	}
-	for _, prefix := range distPrefixes {
+	for _, prefix := range s.distPrefixes {
 		if strings.HasPrefix(name, prefix) {
 			return true
 		}

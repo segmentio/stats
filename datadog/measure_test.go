@@ -62,9 +62,11 @@ request.rtt:0.1|h|#answer:42,hello:world
 )
 
 func TestAppendMeasure(t *testing.T) {
+	client := NewClient(DefaultAddress)
 	for _, test := range testMeasures {
 		t.Run(test.s, func(t *testing.T) {
-			if s := string(AppendMeasureFiltered(nil, test.m, nil, test.dp)); s != test.s {
+			client.distPrefixes = test.dp
+			if s := string(client.AppendMeasure(nil, test.m)); s != test.s {
 				t.Error("bad metric representation:")
 				t.Log("expected:", test.s)
 				t.Log("found:   ", s)
@@ -99,9 +101,10 @@ var (
 )
 
 func TestSendDist(t *testing.T) {
+	client := NewClientWith(ClientConfig{DistributionPrefixes: distPrefixes})
 	for _, test := range testDistNames {
 		t.Run(test.n, func(t *testing.T) {
-			a := sendDist(test.n, distPrefixes)
+			a := client.sendDist(test.n)
 			if a != test.d {
 				t.Error("distribution name detection incorrect:")
 				t.Log("expected:", test.d)
