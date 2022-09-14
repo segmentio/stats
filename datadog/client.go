@@ -157,7 +157,7 @@ type serializer struct {
 
 func (s *serializer) AppendMeasures(b []byte, _ time.Time, measures ...stats.Measure) []byte {
 	for _, m := range measures {
-		b = AppendMeasureFiltered(b, m, s.filters, s.distPrefixes)
+		b = s.AppendMeasure(b, m)
 	}
 	return b
 }
