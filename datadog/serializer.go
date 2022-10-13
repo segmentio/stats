@@ -81,6 +81,7 @@ func (s *serializer) AppendMeasures(b []byte, _ time.Time, measures ...stats.Mea
 // representation of a measure to a memory buffer.
 // Tags listed in the s.filters are removed. (some tags may not be suitable for submission to DataDog)
 // Histogram metrics will be sent as distribution type if the metric name matches s.distPrefixes
+// DogStatsd Protocol Docs: https://docs.datadoghq.com/developers/dogstatsd/datagram_shell?tab=metrics#the-dogstatsd-protocol
 func (s *serializer) AppendMeasure(b []byte, m stats.Measure) []byte {
 	for _, field := range m.Fields {
 		b = append(b, m.Name...)
