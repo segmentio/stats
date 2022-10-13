@@ -62,7 +62,7 @@ func TestClientWithDistributionPrefixes(t *testing.T) {
 
 func TestClientWithUseDistributions(t *testing.T) {
 
-	// Start a go routine listening for packets and giving them back on packets chan
+	// Start a goroutine listening for packets and giving them back on packets chan
 	packets := make(chan []byte)
 	addr, closer := startUDPListener(t, packets)
 	defer closer.Close()
@@ -169,7 +169,7 @@ func BenchmarkClient(b *testing.B) {
 	}
 }
 
-// startUDPListener starts a go routine listening for UDP packets on 127.0.0.1 and an available port.
+// startUDPListener starts a goroutine listening for UDP packets on 127.0.0.1 and an available port.
 // The address listened to is returned as `addr`. The payloads of packets received are copied to `packets`
 func startUDPListener(t *testing.T, packets chan []byte) (addr string, closer io.Closer) {
 	conn, err := net.ListenPacket("udp", "127.0.0.1:0") // :0 chooses an available port
