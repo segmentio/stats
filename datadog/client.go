@@ -55,7 +55,8 @@ type ClientConfig struct {
 	// as histograms.
 	DistributionPrefixes []string
 
-	// Flag indicating whether to send histograms as `d` type or `h` type
+	// UseDistributions True indicates to send histograms with `d` type instead of `h` type
+	// https://docs.datadoghq.com/developers/dogstatsd/datagram_shell?tab=metrics#the-dogstatsd-protocol
 	UseDistributions bool
 }
 
