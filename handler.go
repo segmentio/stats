@@ -74,6 +74,24 @@ func (m *multiHandler) Flush() {
 	}
 }
 
+// FilteredHandler constructs a Handler that processes Measures with `filter` before forwarding to `h`
+func FilteredHandler(h Handler, filter func([]Measure) []Measure) Handler {
+	return &filteredHandler{handler: h, filter: filter}
+}
+
+type filteredHandler struct {
+	handler Handler
+	filter  func([]Measure) []Measure
+}
+
+func (h *filteredHandler) HandleMeasures(time time.Time, measures ...Measure) {
+	h.handler.HandleMeasures(time, h.filter(measures)...)
+}
+
+func (h *filteredHandler) Flush() {
+	flush(h.handler)
+}
+
 // Discard is a handler that doesn't do anything with the measures it receives.
 var Discard = &discard{}
 

@@ -1,8 +1,6 @@
 package datadog
 
 import (
-	"bytes"
-	"io"
 	"log"
 	"net"
 	"os"
@@ -52,6 +50,10 @@ type ClientConfig struct {
 	// Set of name prefixes for metrics to be sent as distributions instead of
 	// as histograms.
 	DistributionPrefixes []string
+
+	// UseDistributions True indicates to send histograms with `d` type instead of `h` type
+	// https://docs.datadoghq.com/developers/dogstatsd/datagram_shell?tab=metrics#the-dogstatsd-protocol
+	UseDistributions bool
 }
 
 // Client represents an datadog client that implements the stats.Handler
@@ -97,8 +99,9 @@ func NewClientWith(config ClientConfig) *Client {
 
 	c := &Client{
 		serializer: serializer{
-			filters:      filterMap,
-			distPrefixes: config.DistributionPrefixes,
+			filters:          filterMap,
+			distPrefixes:     config.DistributionPrefixes,
+			useDistributions: config.UseDistributions,
 		},
 	}
 
@@ -134,70 +137,6 @@ func (c *Client) Close() error {
 	c.Flush()
 	c.close()
 	return c.err
-}
-
-type serializer struct {
-	conn         net.Conn
-	bufferSize   int
-	filters      map[string]struct{}
-	distPrefixes []string
-}
-
-func (s *serializer) AppendMeasures(b []byte, _ time.Time, measures ...stats.Measure) []byte {
-	for _, m := range measures {
-		b = AppendMeasureFiltered(b, m, s.filters, s.distPrefixes)
-	}
-	return b
-}
-
-func (s *serializer) Write(b []byte) (int, error) {
-	if s.conn == nil {
-		return 0, io.ErrClosedPipe
-	}
-
-	if len(b) <= s.bufferSize {
-		return s.conn.Write(b)
-	}
-
-	// When the serialized metrics are larger than the configured socket buffer
-	// size we split them on '\n' characters.
-	var n int
-
-	for len(b) != 0 {
-		var splitIndex int
-
-		for splitIndex != len(b) {
-			i := bytes.IndexByte(b[splitIndex:], '\n')
-			if i < 0 {
-				panic("stats/datadog: metrics are not formatted for the dogstatsd protocol")
-			}
-			if (i + splitIndex) >= s.bufferSize {
-				if splitIndex == 0 {
-					log.Printf("stats/datadog: metric of length %d B doesn't fit in the socket buffer of size %d B: %s", i+1, s.bufferSize, string(b))
-					b = b[i+1:]
-					continue
-				}
-				break
-			}
-			splitIndex += i + 1
-		}
-
-		c, err := s.conn.Write(b[:splitIndex])
-		if err != nil {
-			return n + c, err
-		}
-
-		n += c
-		b = b[splitIndex:]
-	}
-
-	return n, nil
-}
-
-func (s *serializer) close() {
-	if s.conn != nil {
-		s.conn.Close()
-	}
 }
 
 func dial(address string, sizehint int) (conn net.Conn, bufsize int, err error) {

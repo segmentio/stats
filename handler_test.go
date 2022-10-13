@@ -6,6 +6,8 @@ import (
 
 	"github.com/segmentio/stats/v4"
 	"github.com/segmentio/stats/v4/statstest"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMultiHandler(t *testing.T) {
@@ -46,4 +48,71 @@ func flush(h stats.Handler) {
 	if f, ok := h.(stats.Flusher); ok {
 		f.Flush()
 	}
+}
+
+func TestFilteredHandler(t *testing.T) {
+	t.Run("calling HandleMeasures on a filteredHandler processes the measures with the filter", func(t *testing.T) {
+		handler := &statstest.Handler{}
+		filter := func(ms []stats.Measure) []stats.Measure {
+			measures := make([]stats.Measure, 0, len(ms))
+			for _, m := range ms {
+				fields := make([]stats.Field, 0, len(m.Fields))
+				for _, f := range m.Fields {
+					if f.Name == "a" {
+						fields = append(fields, f)
+					}
+				}
+				if len(fields) > 0 {
+					measures = append(measures, stats.Measure{Name: m.Name, Fields: fields, Tags: m.Tags})
+				}
+			}
+			return measures
+		}
+		fh := stats.FilteredHandler(handler, filter)
+		stats.Register(fh)
+
+		stats.Observe("b", 1.23)
+		assert.Equal(t, []stats.Measure{}, handler.Measures())
+
+		stats.Observe("a", 1.23)
+		assert.Equal(t, []stats.Measure{
+			{
+				Name:   "stats.test",
+				Fields: []stats.Field{stats.MakeField("a", 1.23, stats.Histogram)},
+				Tags:   nil,
+			},
+		}, handler.Measures())
+
+		stats.Incr("b")
+		assert.Equal(t, []stats.Measure{
+			{
+				Name:   "stats.test",
+				Fields: []stats.Field{stats.MakeField("a", 1.23, stats.Histogram)},
+				Tags:   nil,
+			},
+		}, handler.Measures())
+
+		stats.Incr("a")
+		assert.Equal(t, []stats.Measure{
+			{
+				Name:   "stats.test",
+				Fields: []stats.Field{stats.MakeField("a", 1.23, stats.Histogram)},
+				Tags:   nil,
+			},
+			{
+				Name:   "stats.test",
+				Fields: []stats.Field{stats.MakeField("a", 1, stats.Counter)},
+				Tags:   nil,
+			},
+		}, handler.Measures())
+	})
+
+	t.Run("calling Flush on a FilteredHandler flushes the underlying handler", func(t *testing.T) {
+		h := &statstest.Handler{}
+
+		m := stats.FilteredHandler(h, func(ms []stats.Measure) []stats.Measure { return ms })
+		flush(m)
+
+		assert.EqualValues(t, 1, h.FlushCalls(), "Flush should be called once")
+	})
 }
