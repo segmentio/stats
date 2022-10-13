@@ -85,13 +85,7 @@ type filteredHandler struct {
 }
 
 func (h *filteredHandler) HandleMeasures(time time.Time, measures ...Measure) {
-	filteredMeasures := h.filter(measures)
-
-	if len(filteredMeasures) == 0 {
-		return
-	}
-
-	h.handler.HandleMeasures(time, filteredMeasures...)
+	h.handler.HandleMeasures(time, h.filter(measures)...)
 }
 
 func (h *filteredHandler) Flush() {
