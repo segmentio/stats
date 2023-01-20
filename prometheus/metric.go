@@ -113,21 +113,15 @@ func (store *metricStore) collect(metrics []metric) []metric {
 }
 
 func (store *metricStore) cleanup(exp time.Time) {
-	store.mutex.RLock()
+	store.mutex.Lock()
 
 	for name, entry := range store.entries {
-		store.mutex.RUnlock()
-
 		entry.cleanup(exp, func() {
-			store.mutex.Lock()
 			delete(store.entries, name)
-			store.mutex.Unlock()
 		})
-
-		store.mutex.RLock()
 	}
 
-	store.mutex.RUnlock()
+	store.mutex.Unlock()
 }
 
 type metricEntry struct {
