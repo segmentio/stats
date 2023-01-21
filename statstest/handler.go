@@ -5,7 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/segmentio/stats/v4"
+	"github.com/vertoforce/stats"
 )
 
 var _ stats.Handler = (*Handler)(nil)

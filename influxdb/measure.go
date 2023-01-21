@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/segmentio/stats/v4"
+	"github.com/vertoforce/stats"
 )
 
 // AppendMeasure is a formatting routine to append the InflxDB line protocol

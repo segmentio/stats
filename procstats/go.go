@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/segmentio/stats/v4"
+	"github.com/vertoforce/stats"
 )
 
 func init() {

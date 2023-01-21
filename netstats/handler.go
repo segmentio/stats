@@ -4,7 +4,7 @@ import (
 	"context"
 	"net"
 
-	"github.com/segmentio/stats/v4"
+	"github.com/vertoforce/stats"
 )
 
 // Handler is an interface that can be implemented by types that serve network

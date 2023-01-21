@@ -3,7 +3,7 @@ package httpstats
 import (
 	"net/http"
 
-	"github.com/segmentio/stats/v4"
+	"github.com/vertoforce/stats"
 )
 
 // RequestWithTags returns a shallow copy of req with its context updated to

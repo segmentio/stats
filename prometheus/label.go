@@ -2,7 +2,7 @@ package prometheus
 
 import (
 	"github.com/segmentio/fasthash/jody"
-	"github.com/segmentio/stats/v4"
+	"github.com/vertoforce/stats"
 )
 
 type label struct {

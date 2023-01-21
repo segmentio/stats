@@ -1,4 +1,4 @@
-module github.com/segmentio/stats/v4
+module github.com/vertoforce/stats
 
 require (
 	github.com/mdlayher/taskstats v0.0.0-20190313225729-7cbba52ee072

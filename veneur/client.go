@@ -3,8 +3,8 @@ package veneur
 import (
 	"time"
 
-	"github.com/segmentio/stats/v4"
-	"github.com/segmentio/stats/v4/datadog"
+	"github.com/vertoforce/stats"
+	"github.com/vertoforce/stats/datadog"
 )
 
 // Const Sink Configuration types

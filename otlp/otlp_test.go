@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/segmentio/stats/v4"
+	"github.com/vertoforce/stats"
 	colmetricpb "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
 	metricpb "go.opentelemetry.io/proto/otlp/metrics/v1"
 )

@@ -1,5 +1,5 @@
 package grafanatest
 
-import "github.com/segmentio/stats/v4/grafana"
+import "github.com/vertoforce/stats/grafana"
 
 var _ grafana.QueryResponse = (*QueryResponse)(nil)

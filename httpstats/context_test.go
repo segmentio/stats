@@ -6,8 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/segmentio/stats/v4"
 	"github.com/stretchr/testify/assert"
+	"github.com/vertoforce/stats"
 )
 
 // TestRequestContextTagPropegation verifies that the root ancestor tags are

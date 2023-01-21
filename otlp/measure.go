@@ -1,7 +1,7 @@
 package otlp
 
 import (
-	"github.com/segmentio/stats/v4"
+	"github.com/vertoforce/stats"
 	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
 	metricpb "go.opentelemetry.io/proto/otlp/metrics/v1"
 )

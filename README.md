@@ -6,7 +6,7 @@ Installation
 ------------
 
 ```
-go get github.com/segmentio/stats/v4
+go get github.com/vertoforce/stats
 ```
 
 Migration to v4
@@ -101,8 +101,8 @@ collection platforms.
 package main
 
 import (
-    "github.com/segmentio/stats/v4"
-    "github.com/segmentio/stats/v4/datadog"
+    "github.com/vertoforce/stats"
+    "github.com/vertoforce/stats/datadog"
 )
 
 func main() {
@@ -132,8 +132,8 @@ func main() {
 package main
 
 import (
-    "github.com/segmentio/stats/v4"
-    "github.com/segmentio/stats/v4/datadog"
+    "github.com/vertoforce/stats"
+    "github.com/vertoforce/stats/datadog"
 )
 
 func main() {
@@ -196,8 +196,8 @@ Here's an example of how to use the collector:
 package main
 
 import (
-    "github.com/segmentio/stats/v4/datadog"
-    "github.com/segmentio/stats/v4/procstats"
+    "github.com/vertoforce/stats/datadog"
+    "github.com/vertoforce/stats/procstats"
 )
 
 
@@ -243,8 +243,8 @@ package main
 import (
     "net/http"
 
-    "github.com/segmentio/stats/v4/datadog"
-    "github.com/segmentio/stats/v4/httpstats"
+    "github.com/vertoforce/stats/datadog"
+    "github.com/vertoforce/stats/httpstats"
 )
 
 func main() {
@@ -276,8 +276,8 @@ package main
 import (
     "net/http"
 
-    "github.com/segmentio/stats/v4/datadog"
-    "github.com/segmentio/stats/v4/httpstats"
+    "github.com/vertoforce/stats/datadog"
+    "github.com/vertoforce/stats/httpstats"
 )
 
 func main() {
@@ -304,8 +304,8 @@ package main
 import (
     "net/http"
 
-    "github.com/segmentio/stats/v4/datadog"
-    "github.com/segmentio/stats/v4/httpstats"
+    "github.com/vertoforce/stats/datadog"
+    "github.com/vertoforce/stats/httpstats"
 )
 
 func main() {
@@ -337,7 +337,7 @@ package main
 
 import (
     "github.com/segmentio/redis-go"
-    "github.com/segmentio/stats/v4/redisstats"
+    "github.com/vertoforce/stats/redisstats"
 )
 
 func main() {
@@ -360,7 +360,7 @@ package main
 
 import (
     "github.com/segmentio/redis-go"
-    "github.com/segmentio/stats/v4/redisstats"
+    "github.com/vertoforce/stats/redisstats"
 )
 
 func main() {

@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/segmentio/stats/v4"
-	"github.com/segmentio/stats/v4/statstest"
+	"github.com/vertoforce/stats"
+	"github.com/vertoforce/stats/statstest"
 )
 
 func TestProcMetrics(t *testing.T) {

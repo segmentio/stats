@@ -4,7 +4,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/segmentio/stats/v4"
+	"github.com/vertoforce/stats"
 )
 
 // DelayMetrics is a metric collector that reports resource delays on processes.
@@ -40,7 +40,6 @@ func (d *DelayMetrics) Collect() {
 		d.engine.Report(d)
 	}
 }
-
 
 // DelayInfo stores delay Durations for various resources.
 type DelayInfo struct {

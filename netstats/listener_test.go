@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/segmentio/stats/v4"
-	"github.com/segmentio/stats/v4/statstest"
+	"github.com/vertoforce/stats"
+	"github.com/vertoforce/stats/statstest"
 )
 
 func TestListener(t *testing.T) {

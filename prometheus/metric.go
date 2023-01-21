@@ -8,7 +8,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/segmentio/stats/v4"
+	"github.com/vertoforce/stats"
 )
 
 type metricType int

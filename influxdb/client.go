@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/segmentio/objconv/json"
-	"github.com/segmentio/stats/v4"
+	"github.com/vertoforce/stats"
 )
 
 const (

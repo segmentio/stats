@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/segmentio/stats/v4"
+	"github.com/vertoforce/stats"
 )
 
 // MetricType is an enumeration providing symbols to represent the different
