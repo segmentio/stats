@@ -7,7 +7,9 @@ import (
 	"testing"
 )
 
-func TestCopyTags(t *testing.T) {
+func Test_copyTags(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		t1 []Tag
 		t2 []Tag
@@ -35,7 +37,9 @@ func TestCopyTags(t *testing.T) {
 	}
 }
 
-func TestConcatTags(t *testing.T) {
+func Test_mergeTags(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		t1 []Tag
 		t2 []Tag
@@ -78,6 +82,8 @@ func TestConcatTags(t *testing.T) {
 }
 
 func TestTagsAreSorted(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		tags   []Tag
 		sorted bool
@@ -101,7 +107,7 @@ func TestTagsAreSorted(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(fmt.Sprintf("%v", test.tags), func(t *testing.T) {
+		t.Run(fmt.Sprint(test.tags), func(t *testing.T) {
 			if sorted := TagsAreSorted(test.tags); sorted != test.sorted {
 				t.Error(sorted)
 			}
@@ -110,6 +116,8 @@ func TestTagsAreSorted(t *testing.T) {
 }
 
 func TestM(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		input    map[string]string
 		expected []Tag
@@ -154,6 +162,9 @@ func BenchmarkTagsOrder(b *testing.B) {
 }
 
 func benchmarkTagsOrder(b *testing.B, isSorted func([]Tag) bool) {
+	b.Helper()
+	b.ReportAllocs()
+
 	tags := []Tag{
 		{"A", ""},
 		{"B", ""},
@@ -169,7 +180,7 @@ func benchmarkTagsOrder(b *testing.B, isSorted func([]Tag) bool) {
 	}
 }
 
-func BenchmarkSortTags(b *testing.B) {
+func BenchmarkSortTags_few(b *testing.B) {
 	t0 := []Tag{
 		{"hello", "world"},
 		{"answer", "42"},
@@ -188,7 +199,7 @@ func BenchmarkSortTags(b *testing.B) {
 	}
 }
 
-func BenchmarkSortTagsMany(b *testing.B) {
+func BenchmarkSortTags_many(b *testing.B) {
 	t0 := []Tag{
 		{"hello", "world"},
 		{"answer", "42"},
@@ -221,7 +232,9 @@ func BenchmarkSortTagsMany(b *testing.B) {
 	}
 }
 
-func BenchmarkTagsBufferSortSorted(b *testing.B) {
+func Benchmark_tagsBuffer_sort_sorted(b *testing.B) {
+	b.ReportAllocs()
+
 	tags := []Tag{
 		{"A", ""},
 		{"B", ""},
@@ -245,7 +258,9 @@ func BenchmarkTagsBufferSortSorted(b *testing.B) {
 	}
 }
 
-func BenchmarkTagsBufferSortUnsorted(b *testing.B) {
+func Benchmark_tagsBuffer_sort_unsorted(b *testing.B) {
+	b.ReportAllocs()
+
 	tags := []Tag{
 		{"some long tag name", "!"},
 		{"some longer tag name", "1234"},
