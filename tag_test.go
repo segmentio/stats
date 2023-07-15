@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"sort"
 	"testing"
+
+	"golang.org/x/exp/slices"
 )
 
 func Test_copyTags(t *testing.T) {
@@ -156,9 +158,22 @@ func BenchmarkTagsOrder(b *testing.B) {
 	b.Run("TagsAreSorted", func(b *testing.B) {
 		benchmarkTagsOrder(b, TagsAreSorted)
 	})
-	b.Run("sort.IsSorted(tags)", func(b *testing.B) {
-		benchmarkTagsOrder(b, func(tags []Tag) bool { return sort.IsSorted(tagsByName(tags)) })
+	b.Run("slices.IsSortedFunc", func(b *testing.B) {
+		benchmarkTagsOrder(b, func(tags []Tag) bool {
+			return slices.IsSortedFunc(tags, tagIsLess)
+		})
 	})
+	b.Run("sort.SliceIsSorted", func(b *testing.B) {
+		benchmarkTagsOrder(b, func(tags []Tag) bool {
+			return sort.SliceIsSorted(tags, tagIsLessByIndex(tags))
+		})
+	})
+}
+
+func tagIsLessByIndex(tags []Tag) func(int, int) bool {
+	return func(i, j int) bool {
+		return tagIsLess(tags[i], tags[j])
+	}
 }
 
 func benchmarkTagsOrder(b *testing.B, isSorted func([]Tag) bool) {
@@ -191,12 +206,7 @@ func BenchmarkSortTags_few(b *testing.B) {
 		{"C", ""},
 	}
 
-	t1 := make([]Tag, len(t0))
-
-	for i := 0; i != b.N; i++ {
-		copy(t1, t0)
-		SortTags(t1)
-	}
+	benchmark_SortTags(b, t0)
 }
 
 func BenchmarkSortTags_many(b *testing.B) {
@@ -224,11 +234,47 @@ func BenchmarkSortTags_many(b *testing.B) {
 		{"C", ""},
 	}
 
+	benchmark_SortTags(b, t0)
+}
+
+func benchmark_SortTags(b *testing.B, t0 []Tag) {
+	b.Helper()
+
+	b.Run("SortTags", func(b *testing.B) {
+		fn := func(tags []Tag) { SortTags(tags) }
+		benchmark_SortTags_func(b, t0, fn)
+	})
+
+	b.Run("slices.SortFunc", func(b *testing.B) {
+		fn := func(tags []Tag) { slices.SortFunc(tags, tagIsLess) }
+		benchmark_SortTags_func(b, t0, fn)
+	})
+
+	b.Run("slices.SortStableFunc", func(b *testing.B) {
+		fn := func(tags []Tag) { slices.SortStableFunc(tags, tagIsLess) }
+		benchmark_SortTags_func(b, t0, fn)
+	})
+
+	b.Run("sort.Slice", func(b *testing.B) {
+		fn := func(tags []Tag) { sort.Slice(tags, tagIsLessByIndex(tags)) }
+		benchmark_SortTags_func(b, t0, fn)
+	})
+
+	b.Run("sort.SliceStable", func(b *testing.B) {
+		fn := func(tags []Tag) { sort.SliceStable(tags, tagIsLessByIndex(tags)) }
+		benchmark_SortTags_func(b, t0, fn)
+	})
+}
+
+func benchmark_SortTags_func(b *testing.B, t0 []Tag, fn func([]Tag)) {
+	b.Helper()
+	b.ReportAllocs()
+
 	t1 := make([]Tag, len(t0))
 
 	for i := 0; i != b.N; i++ {
 		copy(t1, t0)
-		SortTags(t1)
+		fn(t1)
 	}
 }
 
