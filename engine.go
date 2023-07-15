@@ -68,7 +68,7 @@ func (eng *Engine) WithPrefix(prefix string, tags ...Tag) *Engine {
 	return &Engine{
 		Handler: eng.Handler,
 		Prefix:  eng.makeName(prefix),
-		Tags:    eng.makeTags(tags),
+		Tags:    mergeTags(eng.Tags, tags),
 	}
 }
 
@@ -168,10 +168,6 @@ func (eng *Engine) measure(t time.Time, name string, value interface{}, ftype Fi
 
 func (eng *Engine) makeName(name string) string {
 	return concat(eng.Prefix, name)
-}
-
-func (eng *Engine) makeTags(tags []Tag) []Tag {
-	return SortTags(concatTags(eng.Tags, tags))
 }
 
 var measureArrayPool = sync.Pool{

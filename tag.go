@@ -47,21 +47,54 @@ func SortTags(tags []Tag) []Tag {
 	// For 20 or fewer tags, this is as fast as an unstable sort.
 	slices.SortStableFunc(tags, tagIsLess)
 
-	return tags
+	return deduplicateTags(tags)
 }
 
 func tagIsLess(a, b Tag) bool { return a.Name < b.Name }
 
+func deduplicateTags(tags []Tag) []Tag {
+	var prev string
+	out := tags[:0]
 
-func concatTags(t1 []Tag, t2 []Tag) []Tag {
+	for _, tag := range tags {
+		switch {
+		case tag.Name == "":
+			// Ignore unnamed tags.
+			continue
+
+		case tag.Name != prev:
+			// Non-duplicate tag: keep.
+			prev = tag.Name
+			out = append(out, tag)
+
+		default:
+			// Duplicate tag: replace previous, same-named tag.
+			i := len(out) - 1
+			out[i] = tag
+		}
+	}
+
+	if len(out) == 0 {
+		// No input tags had non-empty names:
+		// return nil to be consistent for ease of testing.
+		return nil
+	}
+
+	return out
+}
+
+// mergeTags returns the sorted, deduplicated-by-name union of t1 and t2.
+func mergeTags(t1, t2 []Tag) []Tag {
 	n := len(t1) + len(t2)
 	if n == 0 {
 		return nil
 	}
-	t3 := make([]Tag, 0, n)
-	t3 = append(t3, t1...)
-	t3 = append(t3, t2...)
-	return t3
+
+	out := make([]Tag, 0, n)
+	out = append(out, t1...)
+	out = append(out, t2...)
+
+	return SortTags(out)
 }
 
 func copyTags(tags []Tag) []Tag {
