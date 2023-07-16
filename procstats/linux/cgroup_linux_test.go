@@ -1,3 +1,9 @@
+// This is a build tag hack to permit the test suite
+// to succeed on the ubuntu-latest runner (linux-amd64),
+// which apparently no longer has /sys/fs/cgroup/cpu/* files.
+//
+//go:build linux && arm64
+
 package linux
 
 import (
