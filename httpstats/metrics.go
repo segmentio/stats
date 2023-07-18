@@ -120,7 +120,7 @@ func (r *responseBody) close() {
 }
 
 func (r *responseBody) complete() {
-	r.metrics.observeResponse(r.res, r.op, r.bytes, time.Now().Sub(r.start))
+	r.metrics.observeResponse(r.res, r.op, r.bytes, time.Since(r.start))
 	r.eng.ReportAt(r.start, r.metrics)
 }
 
