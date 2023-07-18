@@ -40,7 +40,8 @@ func TagsAreSorted(tags []Tag) bool {
 
 // SortTags sorts and deduplicates tags in-place,
 // favoring later elements whenever a tag name duplicate occurs.
-// The returned slice may be shorter than the input due to duplicates.
+// The returned slice may be shorter than the input
+// due to the elimination of duplicates.
 func SortTags(tags []Tag) []Tag {
 	// Stable sort ensures that we have deterministic
 	// "latest wins" deduplication.
@@ -84,6 +85,11 @@ func deduplicateTags(tags []Tag) []Tag {
 }
 
 // mergeTags returns the sorted, deduplicated-by-name union of t1 and t2.
+// When duplicate tag names are encountered,
+// the latest Tag with that name is the name-value pair that is retained:
+// for each tag name in t2, the same tag names in t1 will be ignored,
+// though this will also have the effect of deduplicating tag
+// that may have even existed within a single tag slice.
 func mergeTags(t1, t2 []Tag) []Tag {
 	n := len(t1) + len(t2)
 	if n == 0 {
