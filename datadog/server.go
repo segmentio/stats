@@ -7,6 +7,8 @@ import (
 	"net"
 	"runtime"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 )
 
 // Handler defines the interface that types must satisfy to process metrics
@@ -58,56 +60,51 @@ func Serve(conn net.PacketConn, handler Handler) error {
 		concurrency = 1
 	}
 
-	done := make(chan error, concurrency)
 	err := conn.SetDeadline(time.Time{})
 	if err != nil {
 		return err
 	}
 
-	for i := 0; i < concurrency; i++ {
-		go serve(conn, handler, done)
-	}
-
-	var lastErr error
+	var errgrp errgroup.Group
 
 	for i := 0; i < concurrency; i++ {
-		err = <-done
-		switch {
-		case err == nil:
-		case errors.Is(err, io.EOF):
-		case errors.Is(err, io.ErrClosedPipe):
-		case errors.Is(err, io.ErrUnexpectedEOF):
-		default:
-			lastErr = err
-		}
-
-		conn.Close()
+		errgrp.Go(func() error {
+			return serve(conn, handler)
+		})
 	}
 
-	return lastErr
+	err = errgrp.Wait()
+	switch {
+	default:
+		return err
+	case err == nil:
+	case errors.Is(err, io.EOF):
+	case errors.Is(err, io.ErrClosedPipe):
+	case errors.Is(err, io.ErrUnexpectedEOF):
+	}
+
+	return nil
 }
 
-func serve(conn net.PacketConn, handler Handler, done chan<- error) {
+func serve(conn net.PacketConn, handler Handler) error {
 	b := make([]byte, 65536)
 
 	for {
 		n, a, err := conn.ReadFrom(b)
 		if err != nil {
-			done <- err
-			return
+			return err
 		}
 
 		for s := b[:n]; len(s) != 0; {
-			var ln []byte
-			var off int
-
-			if off = bytes.IndexByte(s, '\n'); off < 0 {
+			off := bytes.IndexByte(s, '\n')
+			if off < 0 {
 				off = len(s)
 			} else {
 				off++
 			}
 
-			ln, s = s[:off], s[off:]
+			ln := s[:off]
+			s = s[off:]
 
 			if bytes.HasPrefix(ln, []byte("_e")) {
 				e, err := parseEvent(string(ln))
@@ -116,14 +113,15 @@ func serve(conn net.PacketConn, handler Handler, done chan<- error) {
 				}
 
 				handler.HandleEvent(e, a)
-			} else {
-				m, err := parseMetric(string(ln))
-				if err != nil {
-					continue
-				}
-
-				handler.HandleMetric(m, a)
+				continue
 			}
+
+			m, err := parseMetric(string(ln))
+			if err != nil {
+				continue
+			}
+
+			handler.HandleMetric(m, a)
 		}
 	}
 }
