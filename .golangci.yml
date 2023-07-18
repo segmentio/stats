@@ -8,8 +8,10 @@ output:
   sort-results: true
 
 linters:
+  disable:
+    - depguard  # this linter is broken in golangci-lint as of 2023-07-18.
+
   enable:
-    - depguard
     - godot
     - gofumpt
     - goimports
