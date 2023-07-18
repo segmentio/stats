@@ -1,8 +1,9 @@
 package stats
 
 import (
-	"sort"
 	"sync"
+
+	"golang.org/x/exp/slices"
 )
 
 // A Tag is a pair of a string key and value set on measures to define the
@@ -34,49 +35,72 @@ func M(m map[string]string) []Tag {
 // TagsAreSorted returns true if the given list of tags is sorted by tag name,
 // false otherwise.
 func TagsAreSorted(tags []Tag) bool {
-	if len(tags) > 1 {
-		min := tags[0].Name
-		for _, tag := range tags[1:] {
-			if tag.Name < min {
-				return false
-			}
-			min = tag.Name
-		}
-	}
-	return true
+	return slices.IsSortedFunc(tags, tagIsLess)
 }
 
-// SortTags sorts the slice of tags.
+// SortTags sorts and deduplicates tags in-place,
+// favoring later elements whenever a tag name duplicate occurs.
+// The returned slice may be shorter than the input
+// due to the elimination of duplicates.
 func SortTags(tags []Tag) []Tag {
-	// Insertion sort since these arrays are very small and allocation is the
-	// primary enemy of performance here.
-	if len(tags) >= 20 {
-		sort.Sort(tagsByName(tags))
-	} else {
-		for i := 0; i < len(tags); i++ {
-			for j := i; j > 0 && tags[j-1].Name > tags[j].Name; j-- {
-				tags[j], tags[j-1] = tags[j-1], tags[j]
-			}
-		}
-	}
-	return tags
+	// Stable sort ensures that we have deterministic
+	// "latest wins" deduplication.
+	// For 20 or fewer tags, this is as fast as an unstable sort.
+	slices.SortStableFunc(tags, tagIsLess)
+
+	return deduplicateTags(tags)
 }
 
-type tagsByName []Tag
+func tagIsLess(a, b Tag) bool { return a.Name < b.Name }
 
-func (t tagsByName) Len() int               { return len(t) }
-func (t tagsByName) Less(i int, j int) bool { return t[i].Name < t[j].Name }
-func (t tagsByName) Swap(i int, j int)      { t[i], t[j] = t[j], t[i] }
+func deduplicateTags(tags []Tag) []Tag {
+	var prev string
+	out := tags[:0]
 
-func concatTags(t1 []Tag, t2 []Tag) []Tag {
+	for _, tag := range tags {
+		switch {
+		case tag.Name == "":
+			// Ignore unnamed tags.
+			continue
+
+		case tag.Name != prev:
+			// Non-duplicate tag: keep.
+			prev = tag.Name
+			out = append(out, tag)
+
+		default:
+			// Duplicate tag: replace previous, same-named tag.
+			i := len(out) - 1
+			out[i] = tag
+		}
+	}
+
+	if len(out) == 0 {
+		// No input tags had non-empty names:
+		// return nil to be consistent for ease of testing.
+		return nil
+	}
+
+	return out
+}
+
+// mergeTags returns the sorted, deduplicated-by-name union of t1 and t2.
+// When duplicate tag names are encountered,
+// the latest Tag with that name is the name-value pair that is retained:
+// for each tag name in t2, the same tag names in t1 will be ignored,
+// though this will also have the effect of deduplicating tag
+// that may have even existed within a single tag slice.
+func mergeTags(t1, t2 []Tag) []Tag {
 	n := len(t1) + len(t2)
 	if n == 0 {
 		return nil
 	}
-	t3 := make([]Tag, 0, n)
-	t3 = append(t3, t1...)
-	t3 = append(t3, t2...)
-	return t3
+
+	out := make([]Tag, 0, n)
+	out = append(out, t1...)
+	out = append(out, t2...)
+
+	return SortTags(out)
 }
 
 func copyTags(tags []Tag) []Tag {
@@ -89,7 +113,7 @@ func copyTags(tags []Tag) []Tag {
 }
 
 type tagsBuffer struct {
-	tags tagsByName
+	tags []Tag
 }
 
 func (b *tagsBuffer) reset() {
@@ -100,9 +124,7 @@ func (b *tagsBuffer) reset() {
 }
 
 func (b *tagsBuffer) sort() {
-	if !TagsAreSorted(b.tags) {
-		SortTags(b.tags)
-	}
+	SortTags(b.tags)
 }
 
 func (b *tagsBuffer) append(tags ...Tag) {
@@ -110,5 +132,5 @@ func (b *tagsBuffer) append(tags ...Tag) {
 }
 
 var tagsPool = sync.Pool{
-	New: func() interface{} { return &tagsBuffer{tags: make([]Tag, 0, 8)} },
+	New: func() any { return &tagsBuffer{tags: make([]Tag, 0, 8)} },
 }

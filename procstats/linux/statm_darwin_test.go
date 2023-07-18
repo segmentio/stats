@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-func TestGetProcStatm(t *testing.T) {
-	if _, err := GetProcStatm(os.Getpid()); err == nil {
-		t.Error("GetProcStatm should have failed on Darwin")
+func TestReadProcStatm(t *testing.T) {
+	if _, err := ReadProcStatm(os.Getpid()); err == nil {
+		t.Error("ReadProcStatm should have failed on Darwin")
 	}
 }

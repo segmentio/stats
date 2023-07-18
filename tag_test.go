@@ -5,9 +5,13 @@ import (
 	"reflect"
 	"sort"
 	"testing"
+
+	"golang.org/x/exp/slices"
 )
 
-func TestCopyTags(t *testing.T) {
+func Test_copyTags(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		t1 []Tag
 		t2 []Tag
@@ -28,56 +32,78 @@ func TestCopyTags(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run("", func(t *testing.T) {
-			if tags := copyTags(test.t1); !reflect.DeepEqual(tags, test.t2) {
+			tags := copyTags(test.t1)
+			if !reflect.DeepEqual(tags, test.t2) {
 				t.Errorf("copyTags => %#v != %#v", tags, test.t2)
 			}
 		})
 	}
 }
 
-func TestConcatTags(t *testing.T) {
+func Test_mergeTags(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
-		t1 []Tag
-		t2 []Tag
-		t3 []Tag
+		name       string
+		t1, t2, t3 []Tag
 	}{
 		{
-			t1: nil,
-			t2: nil,
-			t3: nil,
+			name: "nil_inputs",
+			t1:   nil,
+			t2:   nil,
+			t3:   nil,
 		},
 		{
-			t1: []Tag{},
-			t2: []Tag{},
-			t3: nil,
+			name: "empty_inputs",
+			t1:   []Tag{},
+			t2:   []Tag{},
+			t3:   nil,
 		},
 		{
-			t1: []Tag{{"A", "1"}},
-			t2: nil,
-			t3: []Tag{{"A", "1"}},
+			name: "second_empty_input",
+			t1:   []Tag{{"A", "1"}},
+			t2:   nil,
+			t3:   []Tag{{"A", "1"}},
 		},
 		{
-			t1: nil,
-			t2: []Tag{{"B", "2"}},
-			t3: []Tag{{"B", "2"}},
+			name: "first_empty_input",
+			t1:   nil,
+			t2:   []Tag{{"B", "2"}},
+			t3:   []Tag{{"B", "2"}},
 		},
 		{
-			t1: []Tag{{"A", "1"}},
-			t2: []Tag{{"B", "2"}},
-			t3: []Tag{{"A", "1"}, {"B", "2"}},
+			name: "non_duplicated_inputs",
+			t1:   []Tag{{"A", "1"}},
+			t2:   []Tag{{"B", "2"}},
+			t3:   []Tag{{"A", "1"}, {"B", "2"}},
+		},
+		{
+			name: "cross_duplicated_inputs",
+			t1:   []Tag{{"A", "1"}},
+			t2:   []Tag{{"A", "2"}},
+			t3:   []Tag{{"A", "2"}},
+		},
+		{
+			name: "self_duplicated_input",
+			t1:   []Tag{{"A", "2"}, {"A", "1"}},
+			t2:   nil,
+			t3:   []Tag{{"A", "1"}},
 		},
 	}
 
 	for _, test := range tests {
-		t.Run("", func(t *testing.T) {
-			if tags := concatTags(test.t1, test.t2); !reflect.DeepEqual(tags, test.t3) {
-				t.Errorf("concatTags => %#v != %#v", tags, test.t3)
+		t.Run(test.name, func(t *testing.T) {
+			tags := mergeTags(test.t1, test.t2)
+			if !reflect.DeepEqual(tags, test.t3) {
+				t.Errorf("mergeTags => %v != %v", tags, test.t3)
 			}
 		})
 	}
 }
 
 func TestTagsAreSorted(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		tags   []Tag
 		sorted bool
@@ -101,7 +127,7 @@ func TestTagsAreSorted(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(fmt.Sprintf("%v", test.tags), func(t *testing.T) {
+		t.Run(fmt.Sprint(test.tags), func(t *testing.T) {
 			if sorted := TagsAreSorted(test.tags); sorted != test.sorted {
 				t.Error(sorted)
 			}
@@ -110,6 +136,8 @@ func TestTagsAreSorted(t *testing.T) {
 }
 
 func TestM(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		input    map[string]string
 		expected []Tag
@@ -148,12 +176,28 @@ func BenchmarkTagsOrder(b *testing.B) {
 	b.Run("TagsAreSorted", func(b *testing.B) {
 		benchmarkTagsOrder(b, TagsAreSorted)
 	})
-	b.Run("sort.IsSorted(tags)", func(b *testing.B) {
-		benchmarkTagsOrder(b, func(tags []Tag) bool { return sort.IsSorted(tagsByName(tags)) })
+	b.Run("slices.IsSortedFunc", func(b *testing.B) {
+		benchmarkTagsOrder(b, func(tags []Tag) bool {
+			return slices.IsSortedFunc(tags, tagIsLess)
+		})
+	})
+	b.Run("sort.SliceIsSorted", func(b *testing.B) {
+		benchmarkTagsOrder(b, func(tags []Tag) bool {
+			return sort.SliceIsSorted(tags, tagIsLessByIndex(tags))
+		})
 	})
 }
 
+func tagIsLessByIndex(tags []Tag) func(int, int) bool {
+	return func(i, j int) bool {
+		return tagIsLess(tags[i], tags[j])
+	}
+}
+
 func benchmarkTagsOrder(b *testing.B, isSorted func([]Tag) bool) {
+	b.Helper()
+	b.ReportAllocs()
+
 	tags := []Tag{
 		{"A", ""},
 		{"B", ""},
@@ -169,7 +213,7 @@ func benchmarkTagsOrder(b *testing.B, isSorted func([]Tag) bool) {
 	}
 }
 
-func BenchmarkSortTags(b *testing.B) {
+func BenchmarkSortTags_few(b *testing.B) {
 	t0 := []Tag{
 		{"hello", "world"},
 		{"answer", "42"},
@@ -180,15 +224,10 @@ func BenchmarkSortTags(b *testing.B) {
 		{"C", ""},
 	}
 
-	t1 := make([]Tag, len(t0))
-
-	for i := 0; i != b.N; i++ {
-		copy(t1, t0)
-		SortTags(t1)
-	}
+	benchmark_SortTags(b, t0)
 }
 
-func BenchmarkSortTagsMany(b *testing.B) {
+func BenchmarkSortTags_many(b *testing.B) {
 	t0 := []Tag{
 		{"hello", "world"},
 		{"answer", "42"},
@@ -213,15 +252,53 @@ func BenchmarkSortTagsMany(b *testing.B) {
 		{"C", ""},
 	}
 
+	benchmark_SortTags(b, t0)
+}
+
+func benchmark_SortTags(b *testing.B, t0 []Tag) {
+	b.Helper()
+
+	b.Run("SortTags", func(b *testing.B) {
+		fn := func(tags []Tag) { SortTags(tags) }
+		benchmark_SortTags_func(b, t0, fn)
+	})
+
+	b.Run("slices.SortFunc", func(b *testing.B) {
+		fn := func(tags []Tag) { slices.SortFunc(tags, tagIsLess) }
+		benchmark_SortTags_func(b, t0, fn)
+	})
+
+	b.Run("slices.SortStableFunc", func(b *testing.B) {
+		fn := func(tags []Tag) { slices.SortStableFunc(tags, tagIsLess) }
+		benchmark_SortTags_func(b, t0, fn)
+	})
+
+	b.Run("sort.Slice", func(b *testing.B) {
+		fn := func(tags []Tag) { sort.Slice(tags, tagIsLessByIndex(tags)) }
+		benchmark_SortTags_func(b, t0, fn)
+	})
+
+	b.Run("sort.SliceStable", func(b *testing.B) {
+		fn := func(tags []Tag) { sort.SliceStable(tags, tagIsLessByIndex(tags)) }
+		benchmark_SortTags_func(b, t0, fn)
+	})
+}
+
+func benchmark_SortTags_func(b *testing.B, t0 []Tag, fn func([]Tag)) {
+	b.Helper()
+	b.ReportAllocs()
+
 	t1 := make([]Tag, len(t0))
 
 	for i := 0; i != b.N; i++ {
 		copy(t1, t0)
-		SortTags(t1)
+		fn(t1)
 	}
 }
 
-func BenchmarkTagsBufferSortSorted(b *testing.B) {
+func Benchmark_tagsBuffer_sort_sorted(b *testing.B) {
+	b.ReportAllocs()
+
 	tags := []Tag{
 		{"A", ""},
 		{"B", ""},
@@ -245,7 +322,9 @@ func BenchmarkTagsBufferSortSorted(b *testing.B) {
 	}
 }
 
-func BenchmarkTagsBufferSortUnsorted(b *testing.B) {
+func Benchmark_tagsBuffer_sort_unsorted(b *testing.B) {
+	b.ReportAllocs()
+
 	tags := []Tag{
 		{"some long tag name", "!"},
 		{"some longer tag name", "1234"},
@@ -266,5 +345,46 @@ func BenchmarkTagsBufferSortUnsorted(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		copy(buf.tags, tags)
 		buf.sort()
+	}
+}
+
+func Benchmark_mergeTags(b *testing.B) {
+	b.ReportAllocs()
+
+	origT1 := []Tag{
+		{"hello", "world"},
+		{"answer", "42"},
+		{"some long tag name", "!"},
+		{"some longer tag name", "1234"},
+		{"A", ""},
+		{"B", ""},
+		{"C", ""},
+		{"hello", "world"},
+		{"answer", "42"},
+		{"some long tag name", "!"},
+	}
+
+	origT2 := []Tag{
+		{"some longer tag name", "1234"},
+		{"A", ""},
+		{"B", ""},
+		{"C", ""},
+		{"hello", "world"},
+		{"answer", "42"},
+		{"some long tag name", "!"},
+		{"some longer tag name", "1234"},
+		{"A", ""},
+		{"B", ""},
+		{"C", ""},
+	}
+
+	t1 := make([]Tag, len(origT1))
+	t2 := make([]Tag, len(origT2))
+
+	for i := 0; i < b.N; i++ {
+		copy(t1, origT1)
+		copy(t2, origT2)
+
+		_ = mergeTags(t1, t2)
 	}
 }

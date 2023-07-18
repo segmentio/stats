@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-func TestGetProcCGroup(t *testing.T) {
-	if _, err := GetProcCGroup(os.Getpid()); err == nil {
-		t.Error("GetProcCGroup should have failed on Darwin")
+func TestReadProcCGroup(t *testing.T) {
+	if _, err := ReadProcCGroup(os.Getpid()); err == nil {
+		t.Error("ReadProcCGroup should have failed on Darwin")
 	}
 }
