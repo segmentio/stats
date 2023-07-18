@@ -4,7 +4,7 @@ name: golangci-lint
   push:
     tags:
       - v*
-    branches: [master]
+    branches: [main]
     paths:
       - '**.go'
       - .golangci.yml
