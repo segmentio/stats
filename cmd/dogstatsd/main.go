@@ -48,7 +48,7 @@ commands:
 }
 
 func client(cmd string, args ...string) {
-	var fset = flag.NewFlagSet("dogstatsd "+cmd+" [options...] metric value [-- args...]", flag.ExitOnError)
+	fset := flag.NewFlagSet("dogstatsd "+cmd+" [options...] metric value [-- args...]", flag.ExitOnError)
 	var extra []string
 	var tags tags
 	var addr string
@@ -106,7 +106,7 @@ func client(cmd string, args ...string) {
 }
 
 func server(args ...string) {
-	var fset = flag.NewFlagSet("dogstatsd agent [options...]", flag.ExitOnError)
+	fset := flag.NewFlagSet("dogstatsd agent [options...]", flag.ExitOnError)
 	var bind string
 
 	fset.StringVar(&bind, "bind", ":8125", "The network address to listen on for incoming UDP datagrams")
@@ -146,7 +146,7 @@ func errorf(msg string, args ...interface{}) {
 	os.Exit(1)
 }
 
-func split(args []string, sep string) (head []string, tail []string) {
+func split(args []string, sep string) (head, tail []string) {
 	if i := indexOf(args, sep); i < 0 {
 		head = args
 	} else {

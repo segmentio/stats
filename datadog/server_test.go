@@ -73,7 +73,6 @@ func TestServer(t *testing.T) {
 
 func startUDPTestServer(t *testing.T, handler Handler) (addr string, closer io.Closer) {
 	conn, err := net.ListenPacket("udp", "127.0.0.1:0")
-
 	if err != nil {
 		t.Error(err)
 		t.FailNow()

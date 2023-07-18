@@ -13,7 +13,7 @@ import (
 )
 
 func TestTransport(t *testing.T) {
-	newRequest := func(method string, path string, body io.Reader) *http.Request {
+	newRequest := func(method, path string, body io.Reader) *http.Request {
 		req, _ := http.NewRequest(method, path, body)
 		return req
 	}

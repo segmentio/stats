@@ -14,7 +14,7 @@ type Tag struct {
 }
 
 // T is shorthand for `stats.Tag{Name: "blah", Value: "foo"}`  It returns
-// the tag for Name k and Value v
+// the tag for Name k and Value v.
 func T(k, v string) Tag {
 	return Tag{Name: k, Value: v}
 }

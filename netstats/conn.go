@@ -8,8 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/segmentio/stats/v4"
 	"github.com/segmentio/vpcinfo"
+
+	"github.com/segmentio/stats/v4"
 )
 
 func init() {

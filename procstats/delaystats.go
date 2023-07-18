@@ -41,7 +41,6 @@ func (d *DelayMetrics) Collect() {
 	}
 }
 
-
 // DelayInfo stores delay Durations for various resources.
 type DelayInfo struct {
 	CPUDelay       time.Duration

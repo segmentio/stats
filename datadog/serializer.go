@@ -147,7 +147,7 @@ func (s *serializer) AppendMeasure(b []byte, m stats.Measure) []byte {
 // sendDist determines whether to send a metric to datadog as histogram `h` type or
 // distribution `d` type. It's a confusing setup because useDistributions and distPrefixes
 // are independent implementations of a control mechanism for sending distributions that
-// aren't elegantly coordinated
+// aren't elegantly coordinated.
 func (s *serializer) sendDist(name string) bool {
 	if s.useDistributions {
 		return true

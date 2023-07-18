@@ -2,18 +2,19 @@ package linux
 
 import "strconv"
 
-// Represents Linux's unlimited for resource limits
+// Represents Linux's unlimited for resource limits.
 const (
 	Unlimited uint64 = 1<<64 - 1
 )
 
-// Limits holds configuration for resource limits
+// Limits holds configuration for resource limits.
 type Limits struct {
 	Name string
 	Soft uint64
 	Hard uint64
 	Unit string
 }
+
 // ProcLimits holds Limits for processes.
 type ProcLimits struct {
 	CPUTime          Limits // seconds
@@ -33,12 +34,14 @@ type ProcLimits struct {
 	RealtimePriority Limits
 	RealtimeTimeout  Limits
 }
+
 // ReadProcLimits returns the ProcLimits and an error, if any, for a PID.
 func ReadProcLimits(pid int) (proc ProcLimits, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
 	proc = parseProcLimits(readProcFile(pid, "limits"))
 	return
 }
+
 // ParseProcLimits parses system process limits and returns a ProcLimits and error, if any.
 func ParseProcLimits(s string) (proc ProcLimits, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
@@ -68,12 +71,11 @@ func parseProcLimits(s string) (proc ProcLimits) {
 
 	columns := make([]string, 0, 4)
 	forEachLineExceptFirst(s, func(line string) {
-
 		columns = columns[:0]
 		forEachColumn(line, func(col string) { columns = append(columns, col) })
 
 		var limits Limits
-		var length = len(columns)
+		length := len(columns)
 
 		if length > 0 {
 			limits.Name = columns[0]

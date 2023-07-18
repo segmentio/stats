@@ -10,7 +10,7 @@ import (
 
 // Adapted from https://github.com/DataDog/datadog-agent/blob/6789e98a1e41e98700fa1783df62238bb23cb454/pkg/dogstatsd/parser.go#L141
 func parseEvent(s string) (e Event, err error) {
-	var next = strings.TrimSpace(s)
+	next := strings.TrimSpace(s)
 	var header string
 	var rawTitleLen string
 	var rawTextLen string
@@ -109,8 +109,9 @@ func parseEvent(s string) (e Event, err error) {
 
 	return
 }
+
 func parseMetric(s string) (m Metric, err error) {
-	var next = strings.TrimSpace(s)
+	next := strings.TrimSpace(s)
 	var name string
 	var val string
 	var typ string
@@ -201,7 +202,7 @@ func parseMetric(s string) (m Metric, err error) {
 	return
 }
 
-func nextToken(s string, b byte) (token string, next string) {
+func nextToken(s string, b byte) (token, next string) {
 	if off := strings.IndexByte(s, b); off >= 0 {
 		token, next = s[:off], s[off+1:]
 	} else {
@@ -210,7 +211,7 @@ func nextToken(s string, b byte) (token string, next string) {
 	return
 }
 
-func split(s string, b byte) (head string, tail string) {
+func split(s string, b byte) (head, tail string) {
 	if off := strings.LastIndexByte(s, b); off >= 0 {
 		head, tail = s[:off], s[off+1:]
 	} else {
