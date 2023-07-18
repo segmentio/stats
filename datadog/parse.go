@@ -222,12 +222,14 @@ func split(s string, b byte) (head, tail string) {
 
 func count(s string, b byte) (n int) {
 	for {
-		if off := strings.IndexByte(s, b); off < 0 {
+		off := strings.IndexByte(s, b)
+		if off < 0 {
 			break
-		} else {
-			n++
-			s = s[off+1:]
 		}
+
+		n++
+		s = s[off+1:]
 	}
+
 	return
 }

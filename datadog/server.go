@@ -2,6 +2,7 @@ package datadog
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"net"
 	"runtime"
@@ -30,7 +31,7 @@ func (f HandlerFunc) HandleMetric(m Metric, a net.Addr) {
 }
 
 // HandleEvent is a no-op for backwards compatibility.
-func (f HandlerFunc) HandleEvent(e Event, a net.Addr) {
+func (f HandlerFunc) HandleEvent(Event, net.Addr) {
 	return
 }
 
@@ -49,7 +50,7 @@ func ListenAndServe(addr string, handler Handler) (err error) {
 
 // Serve runs a dogstatsd server, listening for datagrams on conn and forwarding
 // the metrics to handler.
-func Serve(conn net.PacketConn, handler Handler) (err error) {
+func Serve(conn net.PacketConn, handler Handler) error {
 	defer conn.Close()
 
 	concurrency := runtime.GOMAXPROCS(-1)
@@ -58,22 +59,32 @@ func Serve(conn net.PacketConn, handler Handler) (err error) {
 	}
 
 	done := make(chan error, concurrency)
-	conn.SetDeadline(time.Time{})
+	err := conn.SetDeadline(time.Time{})
+	if err != nil {
+		return err
+	}
 
-	for i := 0; i != concurrency; i++ {
+	for i := 0; i < concurrency; i++ {
 		go serve(conn, handler, done)
 	}
 
-	for i := 0; i != concurrency; i++ {
-		switch e := <-done; e {
-		case nil, io.EOF, io.ErrClosedPipe, io.ErrUnexpectedEOF:
+	var lastErr error
+
+	for i := 0; i < concurrency; i++ {
+		err = <-done
+		switch {
+		case err == nil:
+		case errors.Is(err, io.EOF):
+		case errors.Is(err, io.ErrClosedPipe):
+		case errors.Is(err, io.ErrUnexpectedEOF):
 		default:
-			err = e
+			lastErr = err
 		}
+
 		conn.Close()
 	}
 
-	return
+	return lastErr
 }
 
 func serve(conn net.PacketConn, handler Handler, done chan<- error) {

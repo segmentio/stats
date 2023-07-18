@@ -101,7 +101,7 @@ func client(cmd string, args ...string) {
 	case "time":
 		start := time.Now()
 		run(extra...)
-		stats.Observe(name, time.Now().Sub(start), tags...)
+		stats.Observe(name, time.Since(start), tags...)
 	}
 }
 
