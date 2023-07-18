@@ -21,8 +21,9 @@ func MustValueOf(v Value) Value {
 	}
 	return v
 }
+
 // ValueOf inspects v's underlying type and returns a Value which encapsulates this type.
-// If the underlying type of v is not supported by Value's encapsulation its Type() will return stats.Invalid
+// If the underlying type of v is not supported by Value's encapsulation its Type() will return stats.Invalid.
 func ValueOf(v interface{}) Value {
 	switch x := v.(type) {
 	case Value:
@@ -123,30 +124,37 @@ func float64Value(v float64) Value {
 func durationValue(v time.Duration) Value {
 	return Value{typ: Duration, bits: uint64(v)}
 }
+
 // Type returns the Type of this value.
 func (v Value) Type() Type {
 	return v.typ
 }
+
 // Bool returns a bool if the underlying data for this value is zero.
 func (v Value) Bool() bool {
 	return v.bits != 0
 }
+
 // Int returns an new int64 representation of this Value.
 func (v Value) Int() int64 {
 	return int64(v.bits)
 }
+
 // Uint returns a uint64 representation of this Value.
 func (v Value) Uint() uint64 {
 	return v.bits
 }
+
 // Float returns a new float64 representation of this Value.
 func (v Value) Float() float64 {
 	return math.Float64frombits(v.bits)
 }
+
 // Duration returns a new time.Duration representation of this Value.
 func (v Value) Duration() time.Duration {
 	return time.Duration(v.bits)
 }
+
 // Interface returns an new interface{} representation of this value.
 // However, if the underlying Type is unsupported it panics.
 func (v Value) Interface() interface{} {
@@ -167,6 +175,7 @@ func (v Value) Interface() interface{} {
 		panic("unknown type found in a stats.Value")
 	}
 }
+
 // String returns a string representation of the underling value.
 func (v Value) String() string {
 	switch v.Type() {
@@ -186,6 +195,7 @@ func (v Value) String() string {
 		return "<unknown>"
 	}
 }
+
 // Type is an int32 type alias used to denote a values underlying type.
 type Type int32
 
@@ -199,6 +209,7 @@ const (
 	Duration
 	Invalid
 )
+
 // String returns the string representation of a type.
 func (t Type) String() string {
 	switch t {
@@ -218,6 +229,7 @@ func (t Type) String() string {
 		return "<unknown>"
 	}
 }
+
 // GoString implements the GoStringer interface.
 func (t Type) GoString() string {
 	switch t {

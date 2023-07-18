@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/segmentio/objconv/json"
+
 	"github.com/segmentio/stats/v4"
 )
 
@@ -184,7 +185,7 @@ func (s *serializer) Write(b []byte) (n int, err error) {
 	return
 }
 
-func makeURL(address string, database string) *url.URL {
+func makeURL(address, database string) *url.URL {
 	if !strings.Contains(address, "://") {
 		address = "http://" + address
 	}

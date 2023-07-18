@@ -12,13 +12,15 @@ type ProcSched struct {
 	SEAvgLoadAvg          uint64 // se.avg.load_avg
 	SEAvgUtilAvg          uint64 // se.avg.util_avg
 }
+
 // ReadProcSched returns a ProcSched and error, if any, for a PID.
 func ReadProcSched(pid int) (proc ProcSched, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
 	proc = parseProcSched(readProcFile(pid, "sched"))
 	return
 }
-//ParseProcSched processes system process scheduling data and returns a ProcSched and error, if any.
+
+// ParseProcSched processes system process scheduling data and returns a ProcSched and error, if any.
 func ParseProcSched(s string) (proc ProcSched, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
 	proc = parseProcSched(s)
@@ -39,7 +41,7 @@ func parseProcSched(s string) (proc ProcSched) {
 	s = skipLine(s) // <progname> (<pid>, #threads: 1)
 	s = skipLine(s) // -------------------------------
 
-	forEachProperty(s, func(key string, val string) {
+	forEachProperty(s, func(key, val string) {
 		if field := intFields[key]; field != nil {
 			v, e := strconv.ParseUint(val, 10, 64)
 			check(e)

@@ -26,7 +26,6 @@ clock-delta                                  :                   41
 `
 
 	proc, err := ParseProcSched(text)
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -43,5 +42,4 @@ clock-delta                                  :                   41
 	}) {
 		t.Error(proc)
 	}
-
 }

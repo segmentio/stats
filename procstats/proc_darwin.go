@@ -21,6 +21,7 @@ static mach_port_t mach_task_self() { return mach_task_self_; }
 #endif
 */
 import "C"
+
 import (
 	"errors"
 	"fmt"
@@ -76,7 +77,7 @@ func memoryAvailable() uint64 {
 	return uint64(mem)
 }
 
-func taskInfo(task C.mach_port_name_t) (virtual uint64, resident uint64, suspend uint64) {
+func taskInfo(task C.mach_port_name_t) (virtual, resident, suspend uint64) {
 	info := C.mach_task_basic_info_data_t{}
 	count := C.mach_msg_type_number_t(C.MACH_TASK_BASIC_INFO_COUNT)
 

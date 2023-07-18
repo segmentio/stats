@@ -74,7 +74,7 @@ func (m *multiHandler) Flush() {
 	}
 }
 
-// FilteredHandler constructs a Handler that processes Measures with `filter` before forwarding to `h`
+// FilteredHandler constructs a Handler that processes Measures with `filter` before forwarding to `h`.
 func FilteredHandler(h Handler, filter func([]Measure) []Measure) Handler {
 	return &filteredHandler{handler: h, filter: filter}
 }
