@@ -57,11 +57,11 @@ func forEachProperty(text string, call func(string, string)) {
 	forEachLine(text, func(line string) { call(splitProperty(line)) })
 }
 
-func splitProperty(text string) (key string, val string) {
+func splitProperty(text string) (key, val string) {
 	return split(text, ':')
 }
 
-func split(text string, sep byte) (head string, tail string) {
+func split(text string, sep byte) (head, tail string) {
 	if i := strings.IndexByte(text, sep); i >= 0 {
 		head, tail = text[:i], text[i+1:]
 	} else {

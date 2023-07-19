@@ -7,59 +7,57 @@ import (
 	"github.com/segmentio/stats/v4"
 )
 
-var (
-	testMeasures = []struct {
-		m  stats.Measure
-		s  string
-		dp []string
-	}{
-		{
-			m: stats.Measure{
-				Name: "request",
-				Fields: []stats.Field{
-					stats.MakeField("count", 5, stats.Counter),
-				},
+var testMeasures = []struct {
+	m  stats.Measure
+	s  string
+	dp []string
+}{
+	{
+		m: stats.Measure{
+			Name: "request",
+			Fields: []stats.Field{
+				stats.MakeField("count", 5, stats.Counter),
 			},
-			s: `request.count:5|c
-`,
-			dp: []string{},
 		},
+		s: `request.count:5|c
+`,
+		dp: []string{},
+	},
 
-		{
-			m: stats.Measure{
-				Name: "request",
-				Fields: []stats.Field{
-					stats.MakeField("count", 5, stats.Counter),
-					stats.MakeField("rtt", 100*time.Millisecond, stats.Histogram),
-				},
-				Tags: []stats.Tag{
-					stats.T("answer", "42"),
-					stats.T("hello", "world"),
-				},
+	{
+		m: stats.Measure{
+			Name: "request",
+			Fields: []stats.Field{
+				stats.MakeField("count", 5, stats.Counter),
+				stats.MakeField("rtt", 100*time.Millisecond, stats.Histogram),
 			},
-			s: `request.count:5|c|#answer:42,hello:world
+			Tags: []stats.Tag{
+				stats.T("answer", "42"),
+				stats.T("hello", "world"),
+			},
+		},
+		s: `request.count:5|c|#answer:42,hello:world
 request.rtt:0.1|h|#answer:42,hello:world
 `,
-			dp: []string{},
-		},
+		dp: []string{},
+	},
 
-		{
-			m: stats.Measure{
-				Name: "request",
-				Fields: []stats.Field{
-					stats.MakeField("dist_rtt", 100*time.Millisecond, stats.Histogram),
-				},
-				Tags: []stats.Tag{
-					stats.T("answer", "42"),
-					stats.T("hello", "world"),
-				},
+	{
+		m: stats.Measure{
+			Name: "request",
+			Fields: []stats.Field{
+				stats.MakeField("dist_rtt", 100*time.Millisecond, stats.Histogram),
 			},
-			s: `request.dist_rtt:0.1|d|#answer:42,hello:world
-`,
-			dp: []string{"dist_"},
+			Tags: []stats.Tag{
+				stats.T("answer", "42"),
+				stats.T("hello", "world"),
+			},
 		},
-	}
-)
+		s: `request.dist_rtt:0.1|d|#answer:42,hello:world
+`,
+		dp: []string{"dist_"},
+	},
+}
 
 func TestAppendMeasure(t *testing.T) {
 	client := NewClient(DefaultAddress)

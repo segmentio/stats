@@ -81,7 +81,7 @@ func TestForEachProperty(t *testing.T) {
 
 	for _, test := range tests {
 		kv := []KV{}
-		forEachProperty(test.text, func(k string, v string) { kv = append(kv, KV{k, v}) })
+		forEachProperty(test.text, func(k, v string) { kv = append(kv, KV{k, v}) })
 
 		if !reflect.DeepEqual(kv, test.kv) {
 			t.Error(kv)

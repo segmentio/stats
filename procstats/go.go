@@ -228,7 +228,7 @@ func makeGCPauses(memstats *runtime.MemStats, lastNumGC uint32) (pauses []time.D
 	return makePauses(memstats.PauseNs[i:j], nil)
 }
 
-func makePauses(head []uint64, tail []uint64) (pauses []time.Duration) {
+func makePauses(head, tail []uint64) (pauses []time.Duration) {
 	pauses = make([]time.Duration, 0, len(head)+len(tail))
 	pauses = appendPauses(pauses, head)
 	pauses = appendPauses(pauses, tail)

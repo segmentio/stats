@@ -23,6 +23,7 @@ type Config struct {
 	Collector       Collector
 	CollectInterval time.Duration
 }
+
 // MultiCollector coalesces a variadic number of Collectors
 // and returns a single Collector.
 func MultiCollector(collectors ...Collector) Collector {
@@ -37,6 +38,7 @@ func MultiCollector(collectors ...Collector) Collector {
 func StartCollector(collector Collector) io.Closer {
 	return StartCollectorWith(Config{Collector: collector})
 }
+
 // StartCollectorWith starts a Collector with the provided Config.
 func StartCollectorWith(config Config) io.Closer {
 	config = setConfigDefaults(config)

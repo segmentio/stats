@@ -12,7 +12,7 @@ func appendMetricName(b []byte, s string) []byte {
 	return b
 }
 
-func appendMetricScopedName(b []byte, scope string, name string) []byte {
+func appendMetricScopedName(b []byte, scope, name string) []byte {
 	if len(scope) != 0 {
 		b = appendMetricName(b, scope)
 		b = append(b, '_')
@@ -44,7 +44,7 @@ func appendMetric(b []byte, metric metric) []byte {
 	return append(b, '\n')
 }
 
-func appendMetricHelp(b []byte, scope string, name string, help string) []byte {
+func appendMetricHelp(b []byte, scope, name, help string) []byte {
 	b = append(b, "# HELP "...)
 	b = appendMetricScopedName(b, scope, name)
 	b = append(b, ' ')
@@ -52,7 +52,7 @@ func appendMetricHelp(b []byte, scope string, name string, help string) []byte {
 	return append(b, '\n')
 }
 
-func appendMetricType(b []byte, scope string, name string, mtype string) []byte {
+func appendMetricType(b []byte, scope, name, mtype string) []byte {
 	b = append(b, "# TYPE "...)
 	b = appendMetricScopedName(b, scope, name)
 	b = append(b, ' ')

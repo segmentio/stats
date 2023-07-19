@@ -30,7 +30,7 @@ type funcMetrics struct {
 ```go
 t := time.Now()
 f()
-callTime := time.Now().Sub(t)
+callTime := time.Since(t)
 
 m := &funcMetrics{}
 m.calls.count = 1

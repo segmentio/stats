@@ -63,18 +63,17 @@ func stringTags(tags []Tag) []string {
 // The rules for converting values to measure are:
 //
 //  1. All fields exposing a 'metric' tag are expected to be of type bool, int,
-//  int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, uintptr,
-//  float32, float64, or time.Duration, and represent fields of the measures.
-//  The struct fields may also define a 'type' tag with a value of "counter",
-//  "gauge" or "histogram" to tune the behavior of the measure handlers.
+//     int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, uintptr,
+//     float32, float64, or time.Duration, and represent fields of the measures.
+//     The struct fields may also define a 'type' tag with a value of "counter",
+//     "gauge" or "histogram" to tune the behavior of the measure handlers.
 //
 //  2. All fields exposing a 'tag' tag are expected to be of type string and
-//  represent tags of the measures.
+//     represent tags of the measures.
 //
 //  3. All struct fields are searched recursively for fields matching rule (1)
-//  and (2). Tags found within a struct are inherited by measures generated from
-//  sub-fields, they may also be overwritten.
-//
+//     and (2). Tags found within a struct are inherited by measures generated from
+//     sub-fields, they may also be overwritten.
 func MakeMeasures(prefix string, value interface{}, tags ...Tag) []Measure {
 	if !TagsAreSorted(tags) {
 		SortTags(tags)
@@ -111,8 +110,8 @@ func appendMeasures(m []Measure, cache *measureCache, prefix string, v reflect.V
 		return m
 	}
 
-	var ptr = unsafe.Pointer(p.Pointer())
-	var typ = v.Type()
+	ptr := unsafe.Pointer(p.Pointer())
+	typ := v.Type()
 	var mf []measureFuncs
 	var ok bool
 
@@ -447,11 +446,11 @@ func makeTagFunc(sf structField, name string) func(unsafe.Pointer) Tag {
 
 type tagFuncByName []namedTagFunc
 
-func (t tagFuncByName) Len() int               { return len(t) }
-func (t tagFuncByName) Less(i int, j int) bool { return t[i].name < t[j].name }
-func (t tagFuncByName) Swap(i int, j int)      { t[i], t[j] = t[j], t[i] }
+func (t tagFuncByName) Len() int           { return len(t) }
+func (t tagFuncByName) Less(i, j int) bool { return t[i].name < t[j].name }
+func (t tagFuncByName) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }
 
-func concat(prefix string, suffix string) string {
+func concat(prefix, suffix string) string {
 	if len(prefix) == 0 {
 		return suffix
 	}
@@ -505,7 +504,7 @@ func (c *measureCache) load() *map[reflect.Type][]measureFuncs {
 	return (*map[reflect.Type][]measureFuncs)(atomic.LoadPointer(&c.cache))
 }
 
-func (c *measureCache) compareAndSwap(old *map[reflect.Type][]measureFuncs, new *map[reflect.Type][]measureFuncs) bool {
+func (c *measureCache) compareAndSwap(old, new *map[reflect.Type][]measureFuncs) bool {
 	return atomic.CompareAndSwapPointer(&c.cache,
 		unsafe.Pointer(old),
 		unsafe.Pointer(new),

@@ -29,6 +29,7 @@ func (pcg ProcCGroup) Lookup(name string) (cgroup CGroup, ok bool) {
 	})
 	return
 }
+
 // ReadProcCGroup takes an int argument representing a PID
 // and returns a ProcCGroup and error, if any is encountered.
 func ReadProcCGroup(pid int) (proc ProcCGroup, err error) {
@@ -36,6 +37,7 @@ func ReadProcCGroup(pid int) (proc ProcCGroup, err error) {
 	proc = parseProcCGroup(readProcFile(pid, "cgroup"))
 	return
 }
+
 // ParseProcCGroup parses Linux system cgroup data and returns a ProcCGroup and error, if any is encountered.
 func ParseProcCGroup(s string) (proc ProcCGroup, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
@@ -62,6 +64,7 @@ func parseProcCGroup(s string) (proc ProcCGroup) {
 	})
 	return
 }
+
 // ReadCPUPeriod takes a string representing a Linux cgroup and returns
 // the period as a time.Duration that is applied for this cgroup and an error, if any.
 func ReadCPUPeriod(cgroup string) (period time.Duration, err error) {
@@ -69,6 +72,7 @@ func ReadCPUPeriod(cgroup string) (period time.Duration, err error) {
 	period = readCPUPeriod(cgroup)
 	return
 }
+
 // ReadCPUQuota takes a string representing a Linux cgroup and returns
 // the quota as a time.Duration that is applied for this cgroup and an error, if any.
 func ReadCPUQuota(cgroup string) (quota time.Duration, err error) {

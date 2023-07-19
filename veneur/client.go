@@ -7,7 +7,7 @@ import (
 	"github.com/segmentio/stats/v4/datadog"
 )
 
-// Const Sink Configuration types
+// Const Sink Configuration types.
 const (
 	GlobalOnly = "veneurglobalonly"
 	LocalOnly  = "veneurlocalonly"
@@ -18,7 +18,7 @@ const (
 	KafkaSink    = "kafka"
 )
 
-// SinkOnly tags
+// SinkOnly tags.
 var (
 	TagSignalfxOnly = stats.Tag{Name: SinkOnly, Value: SignalfxSink}
 	TagDatadogOnly  = stats.Tag{Name: SinkOnly, Value: DatadogSink}
@@ -27,7 +27,7 @@ var (
 
 // The ClientConfig type is used to configure veneur clients.
 // It inherits the datadog config since the veneur client reuses
-// the logic in the datadog client to emit metrics
+// the logic in the datadog client to emit metrics.
 type ClientConfig struct {
 	datadog.ClientConfig
 
@@ -57,7 +57,7 @@ func NewClient(addr string) *Client {
 	return NewClientWith(ClientConfig{ClientConfig: datadog.ClientConfig{Address: addr}})
 }
 
-// NewClientGlobal creates a client that sends all metrics to the Global Veneur Aggregator
+// NewClientGlobal creates a client that sends all metrics to the Global Veneur Aggregator.
 func NewClientGlobal(addr string) *Client {
 	return NewClientWith(ClientConfig{ClientConfig: datadog.ClientConfig{Address: addr}, GlobalOnly: true})
 }
@@ -65,7 +65,6 @@ func NewClientGlobal(addr string) *Client {
 // NewClientWith creates and returns a new veneur client configured with the
 // given config.
 func NewClientWith(config ClientConfig) *Client {
-
 	// Construct Veneur-specific Tags we will append to measures
 	tags := []stats.Tag{}
 	if config.GlobalOnly {
@@ -89,7 +88,6 @@ func NewClientWith(config ClientConfig) *Client {
 
 // HandleMeasures satisfies the stats.Handler interface.
 func (c *Client) HandleMeasures(time time.Time, measures ...stats.Measure) {
-
 	// If there are no tags to add, call HandleMeasures with measures directly
 	if len(c.tags) == 0 {
 		c.Client.HandleMeasures(time, measures...)

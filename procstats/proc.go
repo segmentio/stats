@@ -154,7 +154,6 @@ func (p *ProcMetrics) Collect() {
 
 			p.cpu.total.time = (m.CPU.User + m.CPU.Sys) - (p.last.CPU.User + p.last.CPU.Sys)
 			p.cpu.total.percent = 100 * float64(p.cpu.total.time) / interval
-
 		}
 
 		p.memory.available = m.Memory.Available
@@ -180,8 +179,7 @@ func (p *ProcMetrics) Collect() {
 	}
 }
 
-
-// ProcInfo contains types which hold statistics for various resources
+// ProcInfo contains types which hold statistics for various resources.
 type ProcInfo struct {
 	CPU     CPUInfo
 	Memory  MemoryInfo
@@ -189,7 +187,7 @@ type ProcInfo struct {
 	Threads ThreadInfo
 }
 
-// CollectProcInfo return a ProcInfo and error (if any) for a given PID
+// CollectProcInfo return a ProcInfo and error (if any) for a given PID.
 func CollectProcInfo(pid int) (ProcInfo, error) {
 	return collectProcInfo(pid)
 }
@@ -229,6 +227,7 @@ type FileInfo struct {
 	Open uint64 // fds opened by the process
 	Max  uint64 // max number of fds the process can open
 }
+
 // ThreadInfo holds statistics about number of threads and context switches for a process.
 type ThreadInfo struct {
 	Num                        uint64

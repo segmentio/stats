@@ -142,7 +142,7 @@ type metricEntry struct {
 	states metricStateMap
 }
 
-func newMetricEntry(mtype metricType, scope string, name string, help string) *metricEntry {
+func newMetricEntry(mtype metricType, scope, name, help string) *metricEntry {
 	entry := &metricEntry{
 		mtype:  mtype,
 		scope:  scope,
@@ -406,7 +406,7 @@ func le(buckets []stats.Value) string {
 
 // This function converts the byte array to a string without additional
 // memory allocation.
-// Source: https://stackoverflow.com/a/66865482 (license: CC BY-SA 4.0)
+// Source: https://stackoverflow.com/a/66865482 (license: CC BY-SA 4.0).
 func unsafeByteSliceToString(b []byte) string {
 	sliceHeader := (*reflect.SliceHeader)(unsafe.Pointer(&b))
 	var s string
@@ -416,7 +416,7 @@ func unsafeByteSliceToString(b []byte) string {
 	return s
 }
 
-func nextLe(s string) (head string, tail string) {
+func nextLe(s string) (head, tail string) {
 	if i := strings.IndexByte(s, ':'); i >= 0 {
 		head, tail = s[:i], s[i+1:]
 	} else {
@@ -435,11 +435,11 @@ func (metrics byNameAndLabels) Len() int {
 	return len(metrics)
 }
 
-func (metrics byNameAndLabels) Swap(i int, j int) {
+func (metrics byNameAndLabels) Swap(i, j int) {
 	metrics[i], metrics[j] = metrics[j], metrics[i]
 }
 
-func (metrics byNameAndLabels) Less(i int, j int) bool {
+func (metrics byNameAndLabels) Less(i, j int) bool {
 	m1 := &metrics[i]
 	m2 := &metrics[j]
 	return m1.name < m2.name || (m1.name == m2.name && m1.labels.less(m2.labels))
