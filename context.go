@@ -62,7 +62,7 @@ type tagSlice struct {
 // for defining context keys was copied from Go 1.7's new use of context in net/http.
 type tagsKey struct{}
 
-// String is Stringer implementation.
+// String implements the fmt.Stringer interface.
 func (k tagsKey) String() string {
 	return "stats_tags_context_key"
 }
