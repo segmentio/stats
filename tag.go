@@ -51,7 +51,15 @@ func SortTags(tags []Tag) []Tag {
 	return deduplicateTags(tags)
 }
 
-func tagIsLess(a, b Tag) bool { return a.Name < b.Name }
+func tagIsLess(a, b Tag) int {
+	if a.Name < b.Name {
+		return -1
+	} else if a.Name > b.Name {
+		return 1
+	}
+
+	return 0
+}
 
 func deduplicateTags(tags []Tag) []Tag {
 	var prev string
