@@ -19,6 +19,7 @@ const (
 	Wakekill                        ProcState = 'W'
 	Parked                          ProcState = 'P'
 )
+
 // Scan updates the ProcState for a process.
 func (ps *ProcState) Scan(s fmt.ScanState, _ rune) (err error) {
 	var c rune
@@ -30,6 +31,7 @@ func (ps *ProcState) Scan(s fmt.ScanState, _ rune) (err error) {
 
 	return
 }
+
 // ProcStat contains statistics associated with a process.
 type ProcStat struct {
 	Pid                 int32     // (1) pid

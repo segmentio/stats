@@ -27,7 +27,7 @@ type transport struct {
 	eng       *stats.Engine
 }
 
-// RoundTrip implements http.RoundTripper
+// RoundTrip implements http.RoundTripper.
 func (t *transport) RoundTrip(req *http.Request) (res *http.Response, err error) {
 	start := time.Now()
 	rtrip := t.transport
@@ -60,17 +60,18 @@ func (t *transport) RoundTrip(req *http.Request) (res *http.Response, err error)
 	req.Body.Close() // nolint
 
 	if err != nil {
-		m.observeError(time.Now().Sub(start))
+		m.observeError(time.Since(start))
 		eng.ReportAt(start, m)
-	} else {
-		res.Body = &responseBody{
-			eng:     eng,
-			res:     res,
-			metrics: m,
-			body:    res.Body,
-			op:      "read",
-			start:   start,
-		}
+		return
+	}
+
+	res.Body = &responseBody{
+		eng:     eng,
+		res:     res,
+		metrics: m,
+		body:    res.Body,
+		op:      "read",
+		start:   start,
 	}
 
 	return

@@ -8,8 +8,10 @@ import (
 	"github.com/segmentio/stats/v4"
 )
 
-var _ stats.Handler = (*Handler)(nil)
-var _ stats.Flusher = (*Handler)(nil)
+var (
+	_ stats.Handler = (*Handler)(nil)
+	_ stats.Flusher = (*Handler)(nil)
+)
 
 // Handler is a stats handler that can record measures for inspection.
 type Handler struct {

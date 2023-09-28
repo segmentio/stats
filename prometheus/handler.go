@@ -61,7 +61,7 @@ func (h *Handler) HandleMeasures(mtime time.Time, measures ...stats.Measure) {
 
 		for _, f := range m.Fields {
 			var buckets []stats.Value
-			var mtype = typeOf(f.Type())
+			mtype := typeOf(f.Type())
 
 			if mtype == histogram {
 				k := stats.Key{Measure: m.Name, Field: f.Name}
@@ -137,7 +137,7 @@ func (h *Handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 
 // WriteStats accepts a writer and pushes metrics (one at a time) to it.
 // An example could be if you just want to print all the metrics on to Stdout
-// It will not call flush. Make sure the Close and Flush are handled at the caller
+// It will not call flush. Make sure the Close and Flush are handled at the caller.
 func (h *Handler) WriteStats(w io.Writer) {
 	b := make([]byte, 1024)
 
@@ -164,7 +164,7 @@ func (h *Handler) WriteStats(w io.Writer) {
 	}
 }
 
-func acceptEncoding(accept string, check string) bool {
+func acceptEncoding(accept, check string) bool {
 	for _, coding := range strings.Split(accept, ",") {
 		if coding = strings.TrimSpace(coding); strings.HasPrefix(coding, check) {
 			return true
@@ -187,11 +187,11 @@ func (cache *handleMetricCache) Len() int {
 	return len(cache.labels)
 }
 
-func (cache *handleMetricCache) Swap(i int, j int) {
+func (cache *handleMetricCache) Swap(i, j int) {
 	cache.labels[i], cache.labels[j] = cache.labels[j], cache.labels[i]
 }
 
-func (cache *handleMetricCache) Less(i int, j int) bool {
+func (cache *handleMetricCache) Less(i, j int) bool {
 	return cache.labels[i].less(cache.labels[j])
 }
 

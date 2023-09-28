@@ -30,7 +30,7 @@ type funcMetrics struct {
 ```go
 t := time.Now()
 f()
-callTime := time.Now().Sub(t)
+callTime := time.Since(t)
 
 m := &funcMetrics{}
 m.calls.count = 1
@@ -192,6 +192,7 @@ Statistics are collected for the current process and metrics including Goroutine
 count and memory usage are reported.
 
 Here's an example of how to use the collector:
+
 ```go
 package main
 
@@ -237,6 +238,7 @@ collection to a HTTP handler, reporting things like request processing time,
 error counters, header and body sizes...
 
 Here's an example of how to use the decorator:
+
 ```go
 package main
 
@@ -270,6 +272,7 @@ package exposes a decorator of `http.RoundTripper` which collects and reports
 metrics for client requests the same way it's done on the server side.
 
 Here's an example of how to use the decorator:
+
 ```go
 package main
 
@@ -298,6 +301,7 @@ func main() {
 
 You can also modify the default HTTP client to automatically get metrics for all
 packages using it, this is very convinient to get insights into dependencies.
+
 ```go
 package main
 
@@ -332,6 +336,7 @@ package exposes:
   which collects metrics for server requests.
 
 Here's an example of how to use the decorator on the client side:
+
 ```go
 package main
 

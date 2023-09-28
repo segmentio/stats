@@ -26,7 +26,6 @@ Max realtime timeout      unlimited            unlimited            us
 `
 
 	proc, err := ParseProcLimits(text)
-
 	if err != nil {
 		t.Error(err)
 		return

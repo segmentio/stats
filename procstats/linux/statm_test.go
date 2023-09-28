@@ -9,7 +9,6 @@ func TestParseProcStatm(t *testing.T) {
 	text := `1134 172 153 12 0 115 0`
 
 	proc, err := ParseProcStatm(text)
-
 	if err != nil {
 		t.Error(err)
 		return

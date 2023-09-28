@@ -28,7 +28,7 @@ const (
 	EventAlertTypeSuccess EventAlertType = "success"
 )
 
-// Event is a representation of a datadog event
+// Event is a representation of a datadog event.
 type Event struct {
 	Title          string
 	Text           string
