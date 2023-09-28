@@ -35,7 +35,7 @@ func M(m map[string]string) []Tag {
 // TagsAreSorted returns true if the given list of tags is sorted by tag name,
 // false otherwise.
 func TagsAreSorted(tags []Tag) bool {
-	return slices.IsSortedFunc(tags, tagIsLess)
+	return slices.IsSortedFunc(tags, tagCompare)
 }
 
 // SortTags sorts and deduplicates tags in-place,
@@ -46,12 +46,21 @@ func SortTags(tags []Tag) []Tag {
 	// Stable sort ensures that we have deterministic
 	// "latest wins" deduplication.
 	// For 20 or fewer tags, this is as fast as an unstable sort.
-	slices.SortStableFunc(tags, tagIsLess)
+	slices.SortStableFunc(tags, tagCompare)
 
 	return deduplicateTags(tags)
 }
 
-func tagIsLess(a, b Tag) bool { return a.Name < b.Name }
+func tagCompare(a, b Tag) int {
+	switch {
+	case a.Name < b.Name:
+		return -1
+	case a.Name > b.Name:
+		return +1
+	}
+
+	return 0
+}
 
 func deduplicateTags(tags []Tag) []Tag {
 	var prev string
