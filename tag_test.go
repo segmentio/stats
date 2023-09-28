@@ -178,7 +178,7 @@ func BenchmarkTagsOrder(b *testing.B) {
 	})
 	b.Run("slices.IsSortedFunc", func(b *testing.B) {
 		benchmarkTagsOrder(b, func(tags []Tag) bool {
-			return slices.IsSortedFunc(tags, tagIsLess)
+			return slices.IsSortedFunc(tags, tagCompare)
 		})
 	})
 	b.Run("sort.SliceIsSorted", func(b *testing.B) {
@@ -190,7 +190,7 @@ func BenchmarkTagsOrder(b *testing.B) {
 
 func tagIsLessByIndex(tags []Tag) func(int, int) bool {
 	return func(i, j int) bool {
-		return tagIsLess(tags[i], tags[j]) < 0
+		return tagCompare(tags[i], tags[j]) < 0
 	}
 }
 
@@ -264,12 +264,12 @@ func benchmark_SortTags(b *testing.B, t0 []Tag) {
 	})
 
 	b.Run("slices.SortFunc", func(b *testing.B) {
-		fn := func(tags []Tag) { slices.SortFunc(tags, tagIsLess) }
+		fn := func(tags []Tag) { slices.SortFunc(tags, tagCompare) }
 		benchmark_SortTags_func(b, t0, fn)
 	})
 
 	b.Run("slices.SortStableFunc", func(b *testing.B) {
-		fn := func(tags []Tag) { slices.SortStableFunc(tags, tagIsLess) }
+		fn := func(tags []Tag) { slices.SortStableFunc(tags, tagCompare) }
 		benchmark_SortTags_func(b, t0, fn)
 	})
 
