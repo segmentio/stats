@@ -7,7 +7,7 @@ require (
 	github.com/segmentio/fasthash v0.0.0-20180216231524-a72b379d632e
 	github.com/segmentio/objconv v1.0.1
 	github.com/segmentio/vpcinfo v0.1.10
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.4
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 	golang.org/x/sync v0.3.0
 )
