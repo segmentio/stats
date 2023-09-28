@@ -102,6 +102,28 @@ var testMetrics = []struct {
 	},
 
 	{
+		s: "song.length:240|d|@0.5\n",
+		m: Metric{
+			Type:  Distribution,
+			Name:  "song.length",
+			Value: 240,
+			Rate:  0.5,
+			Tags:  nil,
+		},
+	},
+
+	{
+		s: "users.uniques:1234|d\n",
+		m: Metric{
+			Type:  Distribution,
+			Name:  "users.uniques",
+			Value: 1234,
+			Rate:  1,
+			Tags:  nil,
+		},
+	},
+
+	{
 		s: "users.online:1|c|#country:china\n",
 		m: Metric{
 			Type:  Counter,

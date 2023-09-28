@@ -109,7 +109,7 @@ func DescCol(text string, colType ColumnType) Column {
 // Grafana.
 type ColumnType string
 
-// ColumnTypes
+// ColumnTypes.
 const (
 	Untyped ColumnType = ""
 	String  ColumnType = "string"

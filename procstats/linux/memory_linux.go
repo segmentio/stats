@@ -57,7 +57,8 @@ func readSysinfoMemoryLimit() (limit uint64, err error) {
 	var sysinfo syscall.Sysinfo_t
 
 	if err = syscall.Sysinfo(&sysinfo); err == nil {
-		limit = uint64(sysinfo.Unit) * sysinfo.Totalram
+		// syscall.Sysinfo returns an uint32 on linux/arm, but uint64 otherwise
+		limit = uint64(sysinfo.Unit) * uint64(sysinfo.Totalram)
 	}
 
 	return

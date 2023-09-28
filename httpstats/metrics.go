@@ -120,7 +120,7 @@ func (r *responseBody) close() {
 }
 
 func (r *responseBody) complete() {
-	r.metrics.observeResponse(r.res, r.op, r.bytes, time.Now().Sub(r.start))
+	r.metrics.observeResponse(r.res, r.op, r.bytes, time.Since(r.start))
 	r.eng.ReportAt(r.start, r.metrics)
 }
 
@@ -366,7 +366,7 @@ func transferEncoding(te []string) string {
 	}
 }
 
-func parseContentType(s string) (contentType string, charset string) {
+func parseContentType(s string) (contentType, charset string) {
 	for i := 0; len(s) != 0; i++ {
 		var t string
 		if t, s = parseHeaderToken(s); strings.HasPrefix(t, "charset=") {
@@ -378,7 +378,7 @@ func parseContentType(s string) (contentType string, charset string) {
 	return
 }
 
-func parseHeaderToken(s string) (token string, next string) {
+func parseHeaderToken(s string) (token, next string) {
 	if i := strings.IndexByte(s, ';'); i >= 0 {
 		token, next = strings.TrimSpace(s[:i]), strings.TrimSpace(s[i+1:])
 	} else {

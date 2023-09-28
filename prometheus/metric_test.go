@@ -11,6 +11,47 @@ import (
 	"github.com/segmentio/stats/v4"
 )
 
+func TestUnsafeByteSliceToString(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		input    []byte
+		expected string
+	}{
+		{
+			name:     "nil bytes",
+			input:    nil,
+			expected: "",
+		},
+		{
+			name:     "no bytes",
+			input:    []byte{},
+			expected: "",
+		},
+		{
+			name:     "list of floats",
+			input:    []byte("1.2:3.4:5.6:7.8"),
+			expected: "1.2:3.4:5.6:7.8",
+		},
+		{
+			name:     "deadbeef",
+			input:    []byte{0xde, 0xad, 0xbe, 0xef},
+			expected: "\xde\xad\xbe\xef",
+		},
+		{
+			name:     "embedded zero",
+			input:    []byte("this\x00that"),
+			expected: "this\x00that",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			res := unsafeByteSliceToString(test.input)
+			if res != test.expected {
+				t.Errorf("Expected %q but got %q", test.expected, res)
+			}
+		})
+	}
+}
+
 func TestMetricStore(t *testing.T) {
 	input := []metric{
 		{mtype: counter, scope: "test", name: "A", value: 1},

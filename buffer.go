@@ -132,7 +132,7 @@ type Serializer interface {
 type buffer struct {
 	lock uint64
 	data []byte
-	pad  [32]byte // padding to avoid false sharing between threads
+	_    [32]byte // padding to avoid false sharing between threads
 }
 
 func (b *buffer) acquire() bool {
@@ -153,10 +153,6 @@ func (b *buffer) append(s Serializer, t time.Time, m ...Measure) {
 
 func (b *buffer) len() int {
 	return len(b.data)
-}
-
-func (b *buffer) cap() int {
-	return cap(b.data)
 }
 
 func (b *buffer) flush(w io.Writer, n int) {

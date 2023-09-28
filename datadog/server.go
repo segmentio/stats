@@ -2,10 +2,13 @@ package datadog
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"net"
 	"runtime"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 )
 
 // Handler defines the interface that types must satisfy to process metrics
@@ -30,7 +33,7 @@ func (f HandlerFunc) HandleMetric(m Metric, a net.Addr) {
 }
 
 // HandleEvent is a no-op for backwards compatibility.
-func (f HandlerFunc) HandleEvent(e Event, a net.Addr) {
+func (f HandlerFunc) HandleEvent(Event, net.Addr) {
 	return
 }
 
@@ -49,7 +52,7 @@ func ListenAndServe(addr string, handler Handler) (err error) {
 
 // Serve runs a dogstatsd server, listening for datagrams on conn and forwarding
 // the metrics to handler.
-func Serve(conn net.PacketConn, handler Handler) (err error) {
+func Serve(conn net.PacketConn, handler Handler) error {
 	defer conn.Close()
 
 	concurrency := runtime.GOMAXPROCS(-1)
@@ -57,46 +60,51 @@ func Serve(conn net.PacketConn, handler Handler) (err error) {
 		concurrency = 1
 	}
 
-	done := make(chan error, concurrency)
-	conn.SetDeadline(time.Time{})
-
-	for i := 0; i != concurrency; i++ {
-		go serve(conn, handler, done)
+	err := conn.SetDeadline(time.Time{})
+	if err != nil {
+		return err
 	}
 
-	for i := 0; i != concurrency; i++ {
-		switch e := <-done; e {
-		case nil, io.EOF, io.ErrClosedPipe, io.ErrUnexpectedEOF:
-		default:
-			err = e
-		}
-		conn.Close()
+	var errgrp errgroup.Group
+
+	for i := 0; i < concurrency; i++ {
+		errgrp.Go(func() error {
+			return serve(conn, handler)
+		})
 	}
 
-	return
+	err = errgrp.Wait()
+	switch {
+	default:
+		return err
+	case err == nil:
+	case errors.Is(err, io.EOF):
+	case errors.Is(err, io.ErrClosedPipe):
+	case errors.Is(err, io.ErrUnexpectedEOF):
+	}
+
+	return nil
 }
 
-func serve(conn net.PacketConn, handler Handler, done chan<- error) {
+func serve(conn net.PacketConn, handler Handler) error {
 	b := make([]byte, 65536)
 
 	for {
 		n, a, err := conn.ReadFrom(b)
 		if err != nil {
-			done <- err
-			return
+			return err
 		}
 
 		for s := b[:n]; len(s) != 0; {
-			var ln []byte
-			var off int
-
-			if off = bytes.IndexByte(s, '\n'); off < 0 {
+			off := bytes.IndexByte(s, '\n')
+			if off < 0 {
 				off = len(s)
 			} else {
 				off++
 			}
 
-			ln, s = s[:off], s[off:]
+			ln := s[:off]
+			s = s[off:]
 
 			if bytes.HasPrefix(ln, []byte("_e")) {
 				e, err := parseEvent(string(ln))
@@ -105,14 +113,15 @@ func serve(conn net.PacketConn, handler Handler, done chan<- error) {
 				}
 
 				handler.HandleEvent(e, a)
-			} else {
-				m, err := parseMetric(string(ln))
-				if err != nil {
-					continue
-				}
-
-				handler.HandleMetric(m, a)
+				continue
 			}
+
+			m, err := parseMetric(string(ln))
+			if err != nil {
+				continue
+			}
+
+			handler.HandleMetric(m, a)
 		}
 	}
 }

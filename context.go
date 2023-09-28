@@ -33,7 +33,7 @@ func ContextAddTags(ctx context.Context, tags ...Tag) bool {
 }
 
 // ContextTags returns a copy of the tags on the context if they exist and nil
-// if they don't exist
+// if they don't exist.
 func ContextTags(ctx context.Context) []Tag {
 	if x := getTagSlice(ctx); x != nil {
 		x.lock.Lock()
@@ -62,12 +62,12 @@ type tagSlice struct {
 // for defining context keys was copied from Go 1.7's new use of context in net/http.
 type tagsKey struct{}
 
-// String is Stringer implementation
+// String implements the fmt.Stringer interface.
 func (k tagsKey) String() string {
 	return "stats_tags_context_key"
 }
 
-// contextKeyReqTags is contextKey for tags
+// contextKeyReqTags is contextKey for tags.
 var (
 	contextKeyReqTags = tagsKey{}
 )
