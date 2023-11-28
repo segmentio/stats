@@ -7,14 +7,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-/*
-Data I want:
-- name of grpc method
-- call duration
-- call response code?
-
-*/
-
 func MetricsServerInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		// // Get the metadata from the incoming context
@@ -23,7 +15,7 @@ func MetricsServerInterceptor() grpc.UnaryServerInterceptor {
 		// 	return nil, fmt.Errorf("couldn't parse incoming context metadata")
 		// }
 
-		m := &metrics{}
+		// m := &metrics{}
 
 		log.Printf("-->> metrics interceptor hit")
 		log.Print(ctx)
