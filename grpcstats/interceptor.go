@@ -23,7 +23,9 @@ func MetricsServerInterceptor() grpc.UnaryServerInterceptor {
 			return nil, fmt.Errorf("couldn't parse incoming context metadata")
 		}
 
-		fmt.Printf("md: %v\n", md)
+		for k, v := range md {
+			fmt.Printf("md.%v: %v\n", k, v)
+		}
 
 		// m := &metrics{}
 
