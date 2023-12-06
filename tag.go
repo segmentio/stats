@@ -51,14 +51,13 @@ func SortTags(tags []Tag) []Tag {
 	return deduplicateTags(tags)
 }
 
+// reports whether a is less than b
 func tagCompare(a, b Tag) int {
-	switch {
-	case a.Name < b.Name:
+	if a.Name < b.Name {
 		return -1
-	case a.Name > b.Name:
-		return +1
+	} else if b.Name < a.Name {
+		return 1
 	}
-
 	return 0
 }
 

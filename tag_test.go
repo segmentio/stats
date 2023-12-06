@@ -190,7 +190,7 @@ func BenchmarkTagsOrder(b *testing.B) {
 
 func tagIsLessByIndex(tags []Tag) func(int, int) bool {
 	return func(i, j int) bool {
-		return tagCompare(tags[i], tags[j]) < 0
+		return tagCompare(tags[i], tags[j]) == -1
 	}
 }
 
