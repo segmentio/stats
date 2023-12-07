@@ -12,6 +12,9 @@ import (
 )
 
 func TestReadMemoryLimit(t *testing.T) {
+	if sysGone(t) {
+		t.Skip("/sys files not available on this filesystem; skipping test")
+	}
 	if limit, err := ReadMemoryLimit(os.Getpid()); err != nil {
 		t.Error(err)
 

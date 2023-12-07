@@ -1,7 +1,7 @@
 package linux
 
 import (
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -32,7 +32,7 @@ func readProcCGroupMemoryLimit(cgroups ProcCGroup) (limit uint64) {
 func readMemoryCGroupMemoryLimit(cgroup CGroup) (limit uint64) {
 	limit = unlimitedMemoryLimit // default value if something doesn't work
 
-	if b, err := ioutil.ReadFile(readMemoryCGroupMemoryLimitFilePath(cgroup.Path)); err == nil {
+	if b, err := os.ReadFile(readMemoryCGroupMemoryLimitFilePath(cgroup.Path)); err == nil {
 		if v, err := strconv.ParseUint(strings.TrimSpace(string(b)), 10, 64); err == nil {
 			limit = v
 		}
