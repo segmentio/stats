@@ -7,6 +7,7 @@
 package linux
 
 import (
+	"os"
 	"reflect"
 	"testing"
 )
@@ -51,6 +52,12 @@ func TestParseProcCGroup(t *testing.T) {
 	}
 }
 
+func sysGone(t *testing.T) bool {
+	t.Helper()
+	_, err := os.Stat("/sys/fs/cgroup/cpu/cpu.cfs_period_us")
+	return os.IsNotExist(err)
+}
+
 func TestProcCGroupLookup(t *testing.T) {
 	tests := []struct {
 		proc   ProcCGroup
@@ -81,6 +88,9 @@ func TestProcCGroupLookup(t *testing.T) {
 }
 
 func TestReadCPUPeriod(t *testing.T) {
+	if sysGone(t) {
+		t.Skip("/sys files not available on this filesystem; skipping test")
+	}
 	period, err := ReadCPUPeriod("")
 	if err != nil {
 		t.Fatal(err)
@@ -91,6 +101,9 @@ func TestReadCPUPeriod(t *testing.T) {
 }
 
 func TestReadCPUQuota(t *testing.T) {
+	if sysGone(t) {
+		t.Skip("/sys files not available on this filesystem; skipping test")
+	}
 	quota, err := ReadCPUQuota("")
 	if err != nil {
 		t.Fatal(err)
@@ -101,6 +114,9 @@ func TestReadCPUQuota(t *testing.T) {
 }
 
 func TestReadCPUShares(t *testing.T) {
+	if sysGone(t) {
+		t.Skip("/sys files not available on this filesystem; skipping test")
+	}
 	shares, err := ReadCPUShares("")
 	if err != nil {
 		t.Fatal(err)

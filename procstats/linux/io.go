@@ -2,7 +2,7 @@ package linux
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -10,7 +10,7 @@ import (
 )
 
 func readFile(path string) string {
-	b, err := ioutil.ReadFile(path)
+	b, err := os.ReadFile(path)
 	check(err)
 	return string(b)
 }
