@@ -1,4 +1,4 @@
-// package grpcstats
+package grpcstats
 
 // import (
 // 	"net/http"
