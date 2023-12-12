@@ -12,11 +12,11 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-func NewInterceptor() grpc.UnaryServerInterceptor {
-	return NewInterceptorWith(stats.DefaultEngine)
+func NewMetricsInterceptor() grpc.UnaryServerInterceptor {
+	return NewMetricsInterceptorWith(stats.DefaultEngine)
 }
 
-func NewInterceptorWith(eng *stats.Engine) grpc.UnaryServerInterceptor {
+func NewMetricsInterceptorWith(eng *stats.Engine) grpc.UnaryServerInterceptor {
 	// return &interceptor{
 	// 	eng: eng,
 	// }
@@ -146,6 +146,6 @@ func (r *requestBody) complete() {
 	r.metrics.observeRequest(r.info)
 }
 
-// func WithMetricsInterceptor() grpc.ServerOption {
-// 	return grpc.UnaryInterceptor(MetricsServerInterceptor())
-// }
+func WithMetricsInterceptor() grpc.ServerOption {
+	return grpc.UnaryInterceptor(NewMetricsInterceptor())
+}
