@@ -187,9 +187,17 @@ type ProcInfo struct {
 	Threads ThreadInfo
 }
 
-// CollectProcInfo return a ProcInfo and error (if any) for a given PID.
+// CollectProcInfo returns a ProcInfo and error (if any) for a given PID.
 func CollectProcInfo(pid int) (ProcInfo, error) {
 	return collectProcInfo(pid)
+}
+
+type OSUnsupportedError struct {
+	Msg string
+}
+
+func (o *OSUnsupportedError) Error() string {
+	return o.Msg
 }
 
 // CPUInfo holds statistics and configuration details for a process.

@@ -23,7 +23,6 @@ static mach_port_t mach_task_self() { return mach_task_self_; }
 import "C"
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"syscall"
@@ -35,7 +34,7 @@ func collectProcInfo(pid int) (info ProcInfo, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
 
 	if pid != os.Getpid() {
-		panic(errors.New("on darwin systems only metrics of the current process can be collected"))
+		panic(&OSUnsupportedError{Msg: "on darwin systems only metrics of the current process can be collected"})
 	}
 
 	self := C.mach_port_name_t(C.mach_task_self())

@@ -1,9 +1,11 @@
 package procstats
 
 import (
-	"io/ioutil"
+	"errors"
+	"io"
 	"os"
 	"os/exec"
+	"runtime"
 	"testing"
 	"time"
 
@@ -18,22 +20,38 @@ func TestProcMetrics(t *testing.T) {
 	t.Run("child", func(t *testing.T) {
 		cmd := exec.Command("yes")
 		cmd.Stdin = os.Stdin
-		cmd.Stdout = ioutil.Discard
-		cmd.Stderr = ioutil.Discard
+		cmd.Stdout = io.Discard
+		cmd.Stderr = io.Discard
 
-		cmd.Start()
+		if err := cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
 		time.Sleep(200 * time.Millisecond)
 		testProcMetrics(t, cmd.Process.Pid)
 		cmd.Process.Signal(os.Interrupt)
-		cmd.Wait()
+		waitErr := cmd.Wait()
+		if exitErr, ok := waitErr.(*exec.ExitError); ok && exitErr.Error() == "signal: interrupt" {
+			// This is expected from stopping the process
+		} else {
+			t.Fatal(waitErr)
+		}
 	})
 }
 
 func testProcMetrics(t *testing.T, pid int) {
+	t.Helper()
 	h := &statstest.Handler{}
 	e := stats.NewEngine("", h)
 
 	proc := NewProcMetricsWith(e, pid)
+
+	// for darwin - catch the "can't collect child metrics" error before
+	// starting the test
+	_, err := CollectProcInfo(proc.pid)
+	var o *OSUnsupportedError
+	if errors.As(err, &o) {
+		t.Skipf("can't run test because current OS is unsupported: %v", runtime.GOOS)
+	}
 
 	for i := 0; i != 10; i++ {
 		t.Logf("collect number %d", i)
