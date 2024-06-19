@@ -23,6 +23,9 @@ func TestBaseConn(t *testing.T) {
 }
 
 func TestConn(t *testing.T) {
+	initValue := stats.GoVersionReportingEnabled
+	stats.GoVersionReportingEnabled = false
+	defer func() { stats.GoVersionReportingEnabled = initValue }()
 	h := &statstest.Handler{}
 	e := stats.NewEngine("netstats.test", h)
 
@@ -84,6 +87,9 @@ func TestConn(t *testing.T) {
 }
 
 func TestConnError(t *testing.T) {
+	initValue := stats.GoVersionReportingEnabled
+	stats.GoVersionReportingEnabled = false
+	defer func() { stats.GoVersionReportingEnabled = initValue }()
 	h := &statstest.Handler{}
 	e := stats.NewEngine("netstats.test", h)
 

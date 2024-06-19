@@ -109,7 +109,7 @@ func NewGoMetrics() *GoMetrics {
 	return NewGoMetricsWith(stats.DefaultEngine)
 }
 
-// NewGoMetricsWith creates a new collector for the Go unrtime that producers
+// NewGoMetricsWith creates a new collector for the Go runtime that producers
 // metrics on eng.
 func NewGoMetricsWith(eng *stats.Engine) *GoMetrics {
 	g := &GoMetrics{
