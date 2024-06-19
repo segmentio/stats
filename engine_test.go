@@ -1,7 +1,7 @@
 package stats_test
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"reflect"
 	"strings"
@@ -70,14 +70,21 @@ func TestEngine(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		testFunc := test.function
-		t.Run(test.scenario, func(t *testing.T) {
-			t.Parallel()
-			h := &statstest.Handler{}
-			testFunc(t, stats.NewEngine("test", h, stats.T("service", "test-service")))
-		})
-	}
+	initValue := stats.GoVersionReportingEnabled
+	stats.GoVersionReportingEnabled = false
+	defer func() { stats.GoVersionReportingEnabled = initValue }()
+	// Extra t.Run is necessary so above defer runs after parallel tests
+	// complete.
+	t.Run("subtests", func(t *testing.T) {
+		for _, test := range tests {
+			testFunc := test.function
+			t.Run(test.scenario, func(t *testing.T) {
+				t.Parallel()
+				h := &statstest.Handler{}
+				testFunc(t, stats.NewEngine("test", h, stats.T("service", "test-service")))
+			})
+		}
+	})
 }
 
 func testEngineWithPrefix(t *testing.T, eng *stats.Engine) {
@@ -342,7 +349,8 @@ func BenchmarkEngine(b *testing.B) {
 		},
 	}
 
-	for _, eng := range engines {
+	for i := range engines {
+		eng := &engines[i]
 		b.Run(eng.name, func(b *testing.B) {
 			tests := []struct {
 				scenario string
@@ -522,7 +530,7 @@ type discardTransport struct{}
 func (t *discardTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return &http.Response{
 		StatusCode: http.StatusOK,
-		Body:       ioutil.NopCloser(strings.NewReader("")),
+		Body:       io.NopCloser(strings.NewReader("")),
 		Request:    req,
 	}, nil
 }
