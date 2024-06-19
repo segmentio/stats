@@ -385,3 +385,16 @@ func main() {
     // ...
 }
 ```
+
+### Addendum
+
+By default, the stats library will report the running go version when you
+invoke NewEngine() as three metrics:
+
+- `go_version.major`
+- `go_version.minor`
+- `go_version.patch`
+
+Set `STATS_DISABLE_GO_VERSION_REPORTING` to `true` in your environment, or set
+`stats.GoVersionReportingEnabled` to `false` before collecting any metrics, to
+disable this behavior.

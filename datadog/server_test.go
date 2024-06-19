@@ -15,6 +15,9 @@ import (
 )
 
 func TestServer(t *testing.T) {
+	initValue := stats.GoVersionReportingEnabled
+	stats.GoVersionReportingEnabled = false
+	defer func() { stats.GoVersionReportingEnabled = initValue }()
 	engine := stats.NewEngine("datadog.test", nil)
 
 	a := uint32(0)
@@ -97,6 +100,7 @@ func TestServer(t *testing.T) {
 }
 
 func startUDPTestServer(t *testing.T, handler Handler) (addr string, closer io.Closer) {
+	t.Helper()
 	conn, err := net.ListenPacket("udp", "127.0.0.1:0")
 	if err != nil {
 		t.Error(err)

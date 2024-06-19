@@ -1,19 +1,22 @@
 package stats
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
+	"strings"
 	"sync"
 	"time"
 )
 
-// An Engine carries the context for producing metrics, it is configured by
+// An Engine carries the context for producing metrics. It is configured by
 // setting the exported fields or using the helper methods to create sub-engines
 // that inherit the configuration of the base they were created from.
 //
 // The program must not modify the engine's handler, prefix, or tags after it
-// started using it. If changes need to be made new engines must be created by
+// starts using them. If changes need to be made new engines must be created by
 // calls to WithPrefix or WithTags.
 type Engine struct {
 	// The measure handler that the engine forwards measures to.
@@ -26,7 +29,7 @@ type Engine struct {
 	//
 	// The list of tags has to be sorted. This is automatically managed by the
 	// helper methods WithPrefix, WithTags and the NewEngine function. A program
-	// that manipulates this field directly has to respect this requirement.
+	// that manipulates this field directly must respect this requirement.
 	Tags []Tag
 
 	// Indicates whether to allow duplicated tags from the tags list before sending.
@@ -41,16 +44,19 @@ type Engine struct {
 	// The cached values include the engine prefix in the measure names, which
 	// is why the cache must be local to the engine.
 	cache measureCache
+
+	once sync.Once
 }
 
 // NewEngine creates and returns a new engine configured with prefix, handler,
 // and tags.
 func NewEngine(prefix string, handler Handler, tags ...Tag) *Engine {
-	return &Engine{
+	e := &Engine{
 		Handler: handler,
 		Prefix:  prefix,
 		Tags:    SortTags(copyTags(tags)),
 	}
+	return e
 }
 
 // Register adds handler to eng.
@@ -144,7 +150,35 @@ func (eng *Engine) ClockAt(name string, start time.Time, tags ...Tag) *Clock {
 	}
 }
 
+var truthyValues = map[string]bool{
+	"true": true,
+	"TRUE": true,
+	"yes":  true,
+	"1":    true,
+	"on":   true,
+}
+
+var GoVersionReportingEnabled = !truthyValues[os.Getenv("STATS_DISABLE_GO_VERSION_REPORTING")]
+
 func (eng *Engine) measure(t time.Time, name string, value interface{}, ftype FieldType, tags ...Tag) {
+	fmt.Println("call measure_")
+	if GoVersionReportingEnabled {
+		eng.once.Do(func() {
+			fmt.Println("run engine once")
+			vsn := strings.TrimPrefix(runtime.Version(), "go")
+			fmt.Println("vsn", vsn)
+			parts := strings.Split(vsn, ".")
+			// this filters out weird compiled Go versions like tip.
+			// older Go version might be "go1.13"
+			if len(parts) == 2 || len(parts) == 3 {
+				eng.measureOne(t, "go_version", 1, Gauge, []Tag{{"go_version", vsn}}...)
+			}
+		})
+	}
+	eng.measureOne(t, name, value, ftype, tags...)
+}
+
+func (eng *Engine) measureOne(t time.Time, name string, value interface{}, ftype FieldType, tags ...Tag) {
 	name, field := splitMeasureField(name)
 	mp := measureArrayPool.Get().(*[1]Measure)
 
