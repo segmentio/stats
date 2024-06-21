@@ -15,10 +15,6 @@ func (f structField) pointer(ptr unsafe.Pointer) unsafe.Pointer {
 	return unsafe.Pointer(uintptr(ptr) + f.off)
 }
 
-func (f structField) value(ptr unsafe.Pointer) reflect.Value {
-	return reflect.NewAt(f.typ, f.pointer(ptr))
-}
-
 func (f structField) bool(ptr unsafe.Pointer) bool {
 	return *(*bool)(f.pointer(ptr))
 }

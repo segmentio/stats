@@ -15,9 +15,10 @@ const (
 	TracingStop                     ProcState = 't'
 	Paging                          ProcState = 'P'
 	Dead                            ProcState = 'X'
-	Dead_                           ProcState = 'x'
-	Wakekill                        ProcState = 'W'
-	Parked                          ProcState = 'P'
+	//revive:disable-next-line
+	Dead_    ProcState = 'x'
+	Wakekill ProcState = 'W'
+	Parked   ProcState = 'P'
 )
 
 // Scan updates the ProcState for a process.

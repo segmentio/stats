@@ -30,6 +30,7 @@ func TestProcMetrics(t *testing.T) {
 		testProcMetrics(t, cmd.Process.Pid)
 		cmd.Process.Signal(os.Interrupt)
 		waitErr := cmd.Wait()
+		//revive:disable-next-line
 		if exitErr, ok := waitErr.(*exec.ExitError); ok && exitErr.Error() == "signal: interrupt" {
 			// This is expected from stopping the process
 		} else {

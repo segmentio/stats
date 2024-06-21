@@ -13,7 +13,7 @@ import (
 func TestMultiHandler(t *testing.T) {
 	t.Run("calling HandleMeasures on a multi-handler dispatches to each handler", func(t *testing.T) {
 		n := 0
-		f := stats.HandlerFunc(func(time time.Time, measures ...stats.Measure) { n++ })
+		f := stats.HandlerFunc(func(time.Time, ...stats.Measure) { n++ })
 		m := stats.MultiHandler(f, f, f)
 
 		m.HandleMeasures(time.Now())

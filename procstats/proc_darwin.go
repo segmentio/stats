@@ -25,9 +25,10 @@ import "C"
 import (
 	"fmt"
 	"os"
-	"syscall"
 	"time"
 	"unsafe"
+
+	"golang.org/x/sys/unix"
 )
 
 func collectProcInfo(pid int) (info ProcInfo, err error) {
@@ -41,11 +42,11 @@ func collectProcInfo(pid int) (info ProcInfo, err error) {
 	task := C.mach_port_name_t(0)
 	checkKern(C.task_for_pid(self, C.int(pid), &task))
 
-	rusage := syscall.Rusage{}
-	check(syscall.Getrusage(syscall.RUSAGE_SELF, &rusage))
+	rusage := unix.Rusage{}
+	check(unix.Getrusage(unix.RUSAGE_SELF, &rusage))
 
-	nofile := syscall.Rlimit{}
-	check(syscall.Getrlimit(syscall.RLIMIT_NOFILE, &nofile))
+	nofile := unix.Rlimit{}
+	check(unix.Getrlimit(unix.RLIMIT_NOFILE, &nofile))
 
 	info.CPU.User = time.Duration(rusage.Utime.Nano())
 	info.CPU.Sys = time.Duration(rusage.Stime.Nano())

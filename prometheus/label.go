@@ -11,13 +11,6 @@ type label struct {
 	value string
 }
 
-func (l label) hash() uint64 {
-	h := jody.Init64
-	h = jody.AddString64(h, l.name)
-	h = jody.AddString64(h, l.value)
-	return h
-}
-
 func (l label) equal(other label) bool {
 	return l.name == other.name && l.value == other.value
 }

@@ -51,7 +51,7 @@ func SortTags(tags []Tag) []Tag {
 	return deduplicateTags(tags)
 }
 
-// reports whether a is less than b
+// tagCompare reports whether a is less than b.
 func tagCompare(a, b Tag) int {
 	if a.Name < b.Name {
 		return -1

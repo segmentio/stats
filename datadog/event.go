@@ -51,6 +51,6 @@ func (e Event) String() string {
 func (e Event) Format(f fmt.State, _ rune) {
 	buf := bufferPool.Get().(*buffer)
 	buf.b = appendEvent(buf.b[:0], e)
-	f.Write(buf.b)
+	_, _ = f.Write(buf.b)
 	bufferPool.Put(buf)
 }

@@ -39,7 +39,7 @@ func (m Metric) String() string {
 func (m Metric) Format(f fmt.State, _ rune) {
 	buf := bufferPool.Get().(*buffer)
 	buf.b = appendMetric(buf.b[:0], m)
-	f.Write(buf.b)
+	_, _ = f.Write(buf.b)
 	bufferPool.Put(buf)
 }
 

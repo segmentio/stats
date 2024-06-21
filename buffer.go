@@ -156,7 +156,7 @@ func (b *buffer) len() int {
 }
 
 func (b *buffer) flush(w io.Writer, n int) {
-	w.Write(b.data[:n])
+	_, _ = w.Write(b.data[:n])
 	n = copy(b.data, b.data[n:])
 	b.data = b.data[:n]
 }

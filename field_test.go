@@ -17,10 +17,10 @@ func BenchmarkAssign40BytesStruct(b *testing.B) {
 		c int
 	}
 
-	s := S{}
+	var s S
 
 	for i := 0; i != b.N; i++ {
-		s = S{a: "hello"}
+		s = S{a: "hello", b: "", c: 0}
 		_ = s
 	}
 }
@@ -31,10 +31,10 @@ func BenchmarkAssign32BytesStruct(b *testing.B) {
 		b string
 	}
 
-	s := S{}
+	var s S
 
 	for i := 0; i != b.N; i++ {
-		s = S{a: "hello"}
+		s = S{a: "hello", b: ""}
 		_ = s
 	}
 }

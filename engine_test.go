@@ -64,6 +64,10 @@ func TestEngine(t *testing.T) {
 			scenario: "calling Engine.Clock produces expected metrics",
 			function: testEngineClock,
 		},
+		{
+			scenario: "calling Engine.WithTags produces expected tags",
+			function: testEngineWithTags,
+		},
 	}
 
 	for _, test := range tests {
@@ -307,6 +311,7 @@ func checkMeasuresEqual(t *testing.T, eng *stats.Engine, expected ...stats.Measu
 }
 
 func measures(t *testing.T, eng *stats.Engine) []stats.Measure {
+	t.Helper()
 	return eng.Handler.(*statstest.Handler).Measures()
 }
 

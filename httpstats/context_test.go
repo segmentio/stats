@@ -27,7 +27,8 @@ func TestRequestContextTagPropegation(t *testing.T) {
 	assert.Equal(t, 0, len(RequestTags(x)), "Original request should have no tags (because no context with key)")
 
 	// create a child request which creates a child context
-	z := y.WithContext(context.WithValue(y.Context(), interface{}("not"), "important"))
+	type contextVal struct{}
+	z := y.WithContext(context.WithValue(y.Context(), contextVal{}, "important"))
 	assert.Equal(t, 1, len(RequestTags(z)), "We should still be able to see original tags")
 
 	// Add tags to the child context's reference to the original tag slice

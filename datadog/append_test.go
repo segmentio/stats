@@ -4,7 +4,7 @@ import "testing"
 
 func TestAppendMetric(t *testing.T) {
 	for _, test := range testMetrics {
-		t.Run(test.m.Name, func(b *testing.T) {
+		t.Run(test.m.Name, func(t *testing.T) {
 			if s := string(appendMetric(nil, test.m)); s != test.s {
 				t.Errorf("\n<<< %#v\n>>> %#v", test.s, s)
 			}

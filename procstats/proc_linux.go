@@ -1,16 +1,17 @@
 package procstats
 
 import (
-	"io/ioutil"
+	"io"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/segmentio/stats/v4/procstats/linux"
+
+	"golang.org/x/sys/unix"
 )
 
 var (
@@ -54,15 +55,17 @@ func getconf(name string) (string, error) {
 	}
 
 	w.Close()
-	b, err := ioutil.ReadAll(r)
-	p.Wait()
+	b, err := io.ReadAll(r)
+	if _, err := p.Wait(); err != nil {
+		return "", err
+	}
 	return string(b), err
 }
 
 func collectProcInfo(pid int) (info ProcInfo, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
 
-	var pagesize = uint64(syscall.Getpagesize())
+	pagesize := uint64(unix.Getpagesize())
 	var cpu CPUInfo
 
 	memoryLimit, err := linux.ReadMemoryLimit(pid)
@@ -84,8 +87,8 @@ func collectProcInfo(pid int) (info ProcInfo, err error) {
 	check(err)
 
 	if pid == os.Getpid() {
-		rusage := syscall.Rusage{}
-		check(syscall.Getrusage(syscall.RUSAGE_SELF, &rusage))
+		rusage := unix.Rusage{}
+		check(unix.Getrusage(unix.RUSAGE_SELF, &rusage))
 
 		cpuPeriod, _ := linux.ReadCPUPeriod("")
 		cpuQuota, _ := linux.ReadCPUQuota("")

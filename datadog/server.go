@@ -33,9 +33,7 @@ func (f HandlerFunc) HandleMetric(m Metric, a net.Addr) {
 }
 
 // HandleEvent is a no-op for backwards compatibility.
-func (f HandlerFunc) HandleEvent(Event, net.Addr) {
-	return
-}
+func (f HandlerFunc) HandleEvent(Event, net.Addr) {}
 
 // ListenAndServe starts a new dogstatsd server, listening for UDP datagrams on
 // addr and forwarding the metrics to handler.

@@ -59,7 +59,7 @@ func client(cmd string, args ...string) {
 	args, extra = split(args, "--")
 	fset.StringVar(&addr, "addr", "localhost:8125", "The network address where a dogstatsd server is listening for incoming UDP datagrams")
 	fset.Var(&tags, "tags", "A comma-separated list of tags to set on the metric")
-	fset.Parse(args)
+	_ = fset.Parse(args)
 	args = fset.Args()
 
 	if len(args) == 0 {
@@ -74,8 +74,6 @@ func client(cmd string, args ...string) {
 			value = 1.0
 		} else if value, err = strconv.ParseFloat(args[0], 64); err != nil {
 			errorf("bad metric value: %s", args[0])
-		} else {
-			args = args[1:]
 		}
 
 	case "set":
@@ -83,8 +81,6 @@ func client(cmd string, args ...string) {
 			errorf("missing metric value")
 		} else if value, err = strconv.ParseFloat(args[0], 64); err != nil {
 			errorf("bad metric value: %s", args[0])
-		} else {
-			args = args[1:]
 		}
 	}
 
@@ -110,19 +106,19 @@ func server(args ...string) {
 	var bind string
 
 	fset.StringVar(&bind, "bind", ":8125", "The network address to listen on for incoming UDP datagrams")
-	fset.Parse(args)
+	_ = fset.Parse(args)
 	log.Printf("listening for incoming UDP datagram on %s", bind)
 
-	datadog.ListenAndServe(bind, handlers{})
+	_ = datadog.ListenAndServe(bind, handlers{})
 }
 
 type handlers struct{}
 
-func (h handlers) HandleMetric(m datadog.Metric, a net.Addr) {
+func (h handlers) HandleMetric(m datadog.Metric, _ net.Addr) {
 	log.Print(m)
 }
 
-func (h handlers) HandleEvent(e datadog.Event, a net.Addr) {
+func (h handlers) HandleEvent(e datadog.Event, _ net.Addr) {
 	log.Print(e)
 }
 

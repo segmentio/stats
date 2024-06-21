@@ -191,13 +191,13 @@ func (res *queryResponse) close() error {
 
 func (res *queryResponse) flush() {
 	if res.timeserie != nil {
-		res.enc.Encode(res.timeserie)
+		_ = res.enc.Encode(res.timeserie)
 		res.timeserie.closed = true
 		res.timeserie = nil
 	}
 
 	if res.table != nil {
-		res.enc.Encode(res.table)
+		_ = res.enc.Encode(res.table)
 		res.table.closed = true
 		res.table = nil
 	}

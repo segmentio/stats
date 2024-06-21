@@ -4,10 +4,11 @@ import (
 	"log"
 	"net"
 	"os"
-	"syscall"
 	"time"
 
 	"github.com/segmentio/stats/v4"
+
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -158,7 +159,7 @@ func dial(address string, sizehint int) (conn net.Conn, bufsize int, err error) 
 	// sent in one batch we attempt to attempt to adjust the kernel buffer size
 	// to accept larger datagrams, or fallback to the default socket buffer size
 	// if it failed.
-	if bufsize, err = syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_SNDBUF); err != nil {
+	if bufsize, err = unix.GetsockoptInt(fd, unix.SOL_SOCKET, unix.SO_SNDBUF); err != nil {
 		conn.Close()
 		return
 	}
@@ -169,7 +170,7 @@ func dial(address string, sizehint int) (conn net.Conn, bufsize int, err error) 
 	bufsize /= 2
 
 	for sizehint > bufsize && sizehint > 0 {
-		if err := syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_SNDBUF, sizehint); err == nil {
+		if err := unix.SetsockoptInt(fd, unix.SOL_SOCKET, unix.SO_SNDBUF, sizehint); err == nil {
 			bufsize = sizehint
 			break
 		}
@@ -194,6 +195,6 @@ func dial(address string, sizehint int) (conn net.Conn, bufsize int, err error) 
 	}
 
 	// Creating the file put the socket in blocking mode, reverting.
-	syscall.SetNonblock(fd, true)
+	_ = unix.SetNonblock(fd, true)
 	return
 }
