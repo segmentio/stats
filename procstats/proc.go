@@ -134,7 +134,7 @@ func (p *ProcMetrics) Collect() {
 		now := time.Now()
 
 		if !p.lastTime.IsZero() {
-			ratio := 1.0
+			var ratio float64
 			switch {
 			case m.CPU.Period > 0 && m.CPU.Quota > 0:
 				ratio = float64(m.CPU.Quota) / float64(m.CPU.Period)

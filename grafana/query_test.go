@@ -32,7 +32,7 @@ func TestQueryHandler(t *testing.T) {
 
 	client := http.Client{}
 	server := httptest.NewServer(NewQueryHandler(
-		QueryHandlerFunc(func(ctx context.Context, res QueryResponse, req *QueryRequest) error {
+		QueryHandlerFunc(func(_ context.Context, res QueryResponse, req *QueryRequest) error {
 			if !req.From.Equal(t0) {
 				t.Error("bad 'from' time:", req.From, "!=", t0)
 			}

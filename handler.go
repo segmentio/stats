@@ -97,4 +97,4 @@ var Discard = &discard{}
 
 type discard struct{}
 
-func (*discard) HandleMeasures(time time.Time, measures ...Measure) {}
+func (*discard) HandleMeasures(time.Time, ...Measure) {}

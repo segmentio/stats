@@ -5,7 +5,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 func readMemoryLimit(pid int) (limit uint64, err error) {
@@ -54,10 +55,10 @@ func readMemoryCGroupMemoryLimitFilePath(cgroupPath string) string {
 }
 
 func readSysinfoMemoryLimit() (limit uint64, err error) {
-	var sysinfo syscall.Sysinfo_t
+	var sysinfo unix.Sysinfo_t
 
-	if err = syscall.Sysinfo(&sysinfo); err == nil {
-		// syscall.Sysinfo returns an uint32 on linux/arm, but uint64 otherwise
+	if err = unix.Sysinfo(&sysinfo); err == nil {
+		// unix.Sysinfo returns an uint32 on linux/arm, but uint64 otherwise
 		limit = uint64(sysinfo.Unit) * uint64(sysinfo.Totalram)
 	}
 

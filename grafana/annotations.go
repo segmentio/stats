@@ -117,7 +117,7 @@ type annotationsResponse struct {
 }
 
 func (res *annotationsResponse) WriteAnnotation(a Annotation) {
-	res.enc.Encode(annotationInfo{
+	_ = res.enc.Encode(annotationInfo{
 		Annotation: annotation{
 			Name:       res.name,
 			Datasource: res.datasource,

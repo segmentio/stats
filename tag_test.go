@@ -224,7 +224,7 @@ func BenchmarkSortTags_few(b *testing.B) {
 		{"C", ""},
 	}
 
-	benchmark_SortTags(b, t0)
+	benchmarkSortTags(b, t0)
 }
 
 func BenchmarkSortTags_many(b *testing.B) {
@@ -252,39 +252,39 @@ func BenchmarkSortTags_many(b *testing.B) {
 		{"C", ""},
 	}
 
-	benchmark_SortTags(b, t0)
+	benchmarkSortTags(b, t0)
 }
 
-func benchmark_SortTags(b *testing.B, t0 []Tag) {
+func benchmarkSortTags(b *testing.B, t0 []Tag) {
 	b.Helper()
 
 	b.Run("SortTags", func(b *testing.B) {
 		fn := func(tags []Tag) { SortTags(tags) }
-		benchmark_SortTags_func(b, t0, fn)
+		benchmarkSortTagsFunc(b, t0, fn)
 	})
 
 	b.Run("slices.SortFunc", func(b *testing.B) {
 		fn := func(tags []Tag) { slices.SortFunc(tags, tagCompare) }
-		benchmark_SortTags_func(b, t0, fn)
+		benchmarkSortTagsFunc(b, t0, fn)
 	})
 
 	b.Run("slices.SortStableFunc", func(b *testing.B) {
 		fn := func(tags []Tag) { slices.SortStableFunc(tags, tagCompare) }
-		benchmark_SortTags_func(b, t0, fn)
+		benchmarkSortTagsFunc(b, t0, fn)
 	})
 
 	b.Run("sort.Slice", func(b *testing.B) {
 		fn := func(tags []Tag) { sort.Slice(tags, tagIsLessByIndex(tags)) }
-		benchmark_SortTags_func(b, t0, fn)
+		benchmarkSortTagsFunc(b, t0, fn)
 	})
 
 	b.Run("sort.SliceStable", func(b *testing.B) {
 		fn := func(tags []Tag) { sort.SliceStable(tags, tagIsLessByIndex(tags)) }
-		benchmark_SortTags_func(b, t0, fn)
+		benchmarkSortTagsFunc(b, t0, fn)
 	})
 }
 
-func benchmark_SortTags_func(b *testing.B, t0 []Tag, fn func([]Tag)) {
+func benchmarkSortTagsFunc(b *testing.B, t0 []Tag, fn func([]Tag)) {
 	b.Helper()
 	b.ReportAllocs()
 
@@ -296,7 +296,7 @@ func benchmark_SortTags_func(b *testing.B, t0 []Tag, fn func([]Tag)) {
 	}
 }
 
-func Benchmark_tagsBuffer_sort_sorted(b *testing.B) {
+func BenchmarkTagsBufferSortSorted(b *testing.B) {
 	b.ReportAllocs()
 
 	tags := []Tag{
@@ -322,7 +322,7 @@ func Benchmark_tagsBuffer_sort_sorted(b *testing.B) {
 	}
 }
 
-func Benchmark_tagsBuffer_sort_unsorted(b *testing.B) {
+func BenchmarkTagsBufferSortUnsorted(b *testing.B) {
 	b.ReportAllocs()
 
 	tags := []Tag{
@@ -348,7 +348,7 @@ func Benchmark_tagsBuffer_sort_unsorted(b *testing.B) {
 	}
 }
 
-func Benchmark_mergeTags(b *testing.B) {
+func BenchmarkMergeTags(b *testing.B) {
 	b.ReportAllocs()
 
 	origT1 := []Tag{

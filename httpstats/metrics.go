@@ -58,14 +58,14 @@ type nullBody struct{}
 
 func (n *nullBody) Close() error { return nil }
 
-func (n *nullBody) Read(b []byte) (int, error) { return 0, io.EOF }
+func (n *nullBody) Read([]byte) (int, error) { return 0, io.EOF }
 
 type requestBody struct {
 	body    io.ReadCloser
 	eng     *stats.Engine
-	req     *http.Request
 	metrics *metrics
 	bytes   int
+	req     *http.Request
 	op      string
 	once    sync.Once
 }

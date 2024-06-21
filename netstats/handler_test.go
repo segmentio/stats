@@ -10,7 +10,7 @@ type testHandler struct {
 	ok bool
 }
 
-func (h *testHandler) ServeConn(ctx context.Context, conn net.Conn) {
+func (h *testHandler) ServeConn(context.Context, net.Conn) {
 	h.ok = true
 }
 

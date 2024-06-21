@@ -21,7 +21,7 @@ type Handler struct {
 }
 
 // HandleMeasures process a variadic list of stats.Measure.
-func (h *Handler) HandleMeasures(time time.Time, measures ...stats.Measure) {
+func (h *Handler) HandleMeasures(_ time.Time, measures ...stats.Measure) {
 	h.Lock()
 	for _, m := range measures {
 		h.measures = append(h.measures, m.Clone())

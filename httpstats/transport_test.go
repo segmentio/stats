@@ -79,7 +79,7 @@ func TestTransportError(t *testing.T) {
 	h := &statstest.Handler{}
 	e := stats.NewEngine("", h)
 
-	server := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, _ *http.Request) {
 		conn, _, _ := res.(http.Hijacker).Hijack()
 		conn.Close()
 	}))

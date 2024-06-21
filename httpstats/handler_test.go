@@ -68,7 +68,7 @@ func TestHandlerHijack(t *testing.T) {
 	h := &statstest.Handler{}
 	e := stats.NewEngine("", h)
 
-	server := httptest.NewServer(NewHandlerWith(e, http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+	server := httptest.NewServer(NewHandlerWith(e, http.HandlerFunc(func(res http.ResponseWriter, _ *http.Request) {
 		// make sure the response writer supports hijacking
 		conn, _, _ := res.(http.Hijacker).Hijack()
 		conn.Close()

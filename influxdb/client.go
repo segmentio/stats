@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -215,7 +214,7 @@ func makeURL(address, database string) *url.URL {
 
 func readResponse(r *http.Response) error {
 	if r.StatusCode < 300 {
-		io.Copy(ioutil.Discard, r.Body)
+		_, _ = io.Copy(io.Discard, r.Body)
 		r.Body.Close()
 		return nil
 	}

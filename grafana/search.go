@@ -81,11 +81,11 @@ type searchResponse struct {
 }
 
 func (res *searchResponse) WriteTarget(target string) {
-	res.enc.Encode(target)
+	_ = res.enc.Encode(target)
 }
 
 func (res *searchResponse) WriteTargetValue(target string, value interface{}) {
-	res.enc.Encode(struct {
+	_ = res.enc.Encode(struct {
 		Target string      `json:"target"`
 		Value  interface{} `json:"value"`
 	}{target, value})

@@ -160,6 +160,7 @@ func bufSizeFromFD(f *os.File, sizehint int) (bufsize int, err error) {
 	// to accept larger datagrams, or fallback to the default socket buffer size
 	// if it failed.
 	if bufsize, err = unix.GetsockoptInt(fd, unix.SOL_SOCKET, unix.SO_SNDBUF); err != nil {
+		f.Close()
 		return
 	}
 
@@ -194,7 +195,7 @@ func bufSizeFromFD(f *os.File, sizehint int) (bufsize int, err error) {
 	}
 
 	// Creating the file put the socket in blocking mode, reverting.
-	unix.SetNonblock(fd, true)
+	_ = unix.SetNonblock(fd, true)
 	return
 }
 

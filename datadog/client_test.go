@@ -1,9 +1,9 @@
 package datadog
 
 import (
+	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"strings"
@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/segmentio/stats/v4"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestClient_UDP(t *testing.T) {
@@ -90,7 +90,7 @@ func TestClientWriteLargeMetrics_UDP(t *testing.T) {
 		UseDistributions: true,
 	})
 
-	testMeassure := stats.Measure{
+	testMeasure := stats.Measure{
 		Name: "request",
 		Fields: []stats.Field{
 			{Name: "count", Value: stats.ValueOf(5)},
@@ -101,14 +101,14 @@ func TestClientWriteLargeMetrics_UDP(t *testing.T) {
 			stats.T("hello", "world"),
 		},
 	}
-	client.HandleMeasures(time.Time{}, testMeassure)
+	client.HandleMeasures(time.Time{}, testMeasure)
 	client.Flush()
 
 	expectedPacket1 := "request.count:5|c|#answer:42,hello:world\nrequest.dist_rtt:0.1|d|#answer:42,hello:world\n"
 	assert.EqualValues(t, expectedPacket1, string(<-packets))
 
 	client.useDistributions = false
-	client.HandleMeasures(time.Time{}, testMeassure)
+	client.HandleMeasures(time.Time{}, testMeasure)
 	client.Flush()
 
 	expectedPacket2 := "request.count:5|c|#answer:42,hello:world\nrequest.dist_rtt:0.1|h|#answer:42,hello:world\n"
@@ -188,7 +188,7 @@ main.http.rtt.seconds:0.001215296|h|#http_req_content_charset:,http_req_content_
 }
 
 func BenchmarkClient(b *testing.B) {
-	log.SetOutput(ioutil.Discard)
+	log.SetOutput(io.Discard)
 
 	for _, N := range []int{1, 10, 100} {
 		b.Run(fmt.Sprintf("write a batch of %d measures to a client", N), func(b *testing.B) {
@@ -221,6 +221,14 @@ func BenchmarkClient(b *testing.B) {
 	}
 }
 
+func isClosedNetworkConnectionErr(err error) bool {
+	var netErr *net.OpError
+	if errors.As(err, &netErr) {
+		return strings.Contains(netErr.Err.Error(), "use of closed network connection")
+	}
+	return false
+}
+
 // startUDPListener starts a goroutine listening for UDP packets on 127.0.0.1 and an available port.
 // The address listened to is returned as `addr`. The payloads of packets received are copied to `packets`.
 func startUDPListener(t *testing.T, packets chan []byte) (addr string, closer io.Closer) {
@@ -238,7 +246,9 @@ func startUDPListener(t *testing.T, packets chan []byte) (addr string, closer io
 			}
 
 			if err != nil {
-				t.Log(err)
+				if !isClosedNetworkConnectionErr(err) {
+					fmt.Println("err reading from UDP connection in goroutine:", err)
+				}
 				return
 			}
 		}

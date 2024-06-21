@@ -159,7 +159,7 @@ func (h *Handler) WriteStats(w io.Writer) {
 			b = append(b, '\n')
 		}
 
-		w.Write(appendMetric(b, m))
+		_, _ = w.Write(appendMetric(b, m))
 		lastMetricName = name
 	}
 }

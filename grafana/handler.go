@@ -47,7 +47,7 @@ func Handle(mux *http.ServeMux, prefix string, handler Handler) {
 	if _, pattern := mux.Handler(&http.Request{
 		URL: &url.URL{Path: root},
 	}); len(pattern) == 0 {
-		mux.HandleFunc(root, func(res http.ResponseWriter, req *http.Request) {
+		mux.HandleFunc(root, func(res http.ResponseWriter, _ *http.Request) {
 			setResponseHeaders(res)
 		})
 	}

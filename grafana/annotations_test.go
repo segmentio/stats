@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -28,7 +28,7 @@ func TestAnnotationsHandler(t *testing.T) {
 
 	client := http.Client{}
 	server := httptest.NewServer(NewAnnotationsHandler(
-		AnnotationsHandlerFunc(func(ctx context.Context, res AnnotationsResponse, req *AnnotationsRequest) error {
+		AnnotationsHandlerFunc(func(_ context.Context, res AnnotationsResponse, req *AnnotationsRequest) error {
 			if !req.From.Equal(ar.Range.From) {
 				t.Error("bad 'from' time:", req.From, ar.Range.From)
 			}
@@ -79,7 +79,7 @@ func TestAnnotationsHandler(t *testing.T) {
 	}
 	defer r.Body.Close()
 
-	found, _ := ioutil.ReadAll(r.Body)
+	found, _ := io.ReadAll(r.Body)
 	expect := annotationsResult
 
 	if s := string(found); s != expect {

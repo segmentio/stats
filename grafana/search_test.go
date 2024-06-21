@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -19,7 +19,7 @@ func TestSearchHandler(t *testing.T) {
 
 	client := http.Client{}
 	server := httptest.NewServer(NewSearchHandler(
-		SearchHandlerFunc(func(ctx context.Context, res SearchResponse, req *SearchRequest) error {
+		SearchHandlerFunc(func(_ context.Context, res SearchResponse, req *SearchRequest) error {
 			if req.Target != sr.Target {
 				t.Error("bad 'from' time:", req.Target, "!=", sr.Target)
 			}
@@ -44,7 +44,7 @@ func TestSearchHandler(t *testing.T) {
 	}
 	defer r.Body.Close()
 
-	found, _ := ioutil.ReadAll(r.Body)
+	found, _ := io.ReadAll(r.Body)
 	expect := searchResult
 
 	if s := string(found); s != expect {
