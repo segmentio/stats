@@ -9,6 +9,10 @@ name: golangci-lint
       - '**.go'
       - .golangci.yml
       - .github/workflows/golangci-lint.yml
+  pull_request:
+    branches:
+      - main
+
 
 jobs:
   lint:
