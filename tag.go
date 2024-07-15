@@ -38,10 +38,9 @@ func TagsAreSorted(tags []Tag) bool {
 	return slices.IsSortedFunc(tags, tagCompare)
 }
 
-// SortTags sorts and deduplicates tags in-place,
-// favoring later elements whenever a tag name duplicate occurs.
-// The returned slice may be shorter than the input
-// due to the elimination of duplicates.
+// SortTags sorts and deduplicates tags in-place, favoring later elements
+// whenever a tag name duplicate occurs. The returned slice may be shorter than
+// the input due to the elimination of duplicates.
 func SortTags(tags []Tag) []Tag {
 	// Stable sort ensures that we have deterministic
 	// "latest wins" deduplication.
