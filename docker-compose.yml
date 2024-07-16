@@ -2,17 +2,28 @@ services:
   influxdb:
     image: influxdb:alpine
     ports:
-      - 8086:8086
-  
+    - 8086:8086
+
+    # If you are on arm64 and experiencing issues with the tests (hangs,
+    # connection reset) then try the following in order:
+
+    # - stopping and removing all downloaded container images
+    # - ensuring you have the latest Docker Desktop version
+    # - factory reset your Docker Desktop settings
+
+    # If you are still running into issues please post in #help-infra-seg.
+    platform: linux/amd64
   otel-collector:
     image: otel/opentelemetry-collector:0.48.0
     command:
-      - "/otelcol"
-      - "--config=/etc/otel-config.yaml"
+    - "/otelcol"
+    - "--config=/etc/otel-config.yaml"
     ports:
-      - 4317:4317
-      - 4318:4318
-      - 4319:4319
-      - 8888:8888
+    - 4317:4317
+    - 4318:4318
+    - 4319:4319
+    - 8888:8888
     volumes:
-      - "./.otel/config.yaml:/etc/otel-config.yaml"
+    - "./.otel/config.yaml:/etc/otel-config.yaml"
+    # See platform comment above for amd64/arm64 troubleshooting
+    platform: linux/amd64
