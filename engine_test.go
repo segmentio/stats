@@ -68,6 +68,10 @@ func TestEngine(t *testing.T) {
 			scenario: "calling Engine.WithTags produces expected tags",
 			function: testEngineWithTags,
 		},
+		{
+			scenario: "calling Engine.Incr produces expected tags when AllowDuplicateTags is set",
+			function: testEngineAllowDuplicateTags,
+		},
 	}
 
 	for _, test := range tests {
@@ -124,6 +128,29 @@ func testEngineFlush(t *testing.T, eng *stats.Engine) {
 	if n := h.FlushCalls(); n != 3 {
 		t.Error("bad number of flush calls:", n)
 	}
+}
+
+func testEngineAllowDuplicateTags(t *testing.T, eng *stats.Engine) {
+	e2 := eng.WithTags()
+	e2.AllowDuplicateTags = true
+	if e2.Prefix != "test" {
+		t.Error("bad prefix:", e2.Prefix)
+	}
+	e2.Incr("measure.count")
+	e2.Incr("measure.count", stats.T("category", "a"), stats.T("category", "b"), stats.T("category", "c"))
+
+	checkMeasuresEqual(t, e2,
+		stats.Measure{
+			Name:   "test.measure",
+			Fields: []stats.Field{stats.MakeField("count", 1, stats.Counter)},
+			Tags:   []stats.Tag{stats.T("service", "test-service")},
+		},
+		stats.Measure{
+			Name:   "test.measure",
+			Fields: []stats.Field{stats.MakeField("count", 1, stats.Counter)},
+			Tags:   []stats.Tag{stats.T("service", "test-service"), stats.T("category", "a"), stats.T("category", "b"), stats.T("category", "c")},
+		},
+	)
 }
 
 func testEngineIncr(t *testing.T, eng *stats.Engine) {
