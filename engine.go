@@ -29,6 +29,12 @@ type Engine struct {
 	// that manipulates this field directly has to respect this requirement.
 	Tags []Tag
 
+	// Indicates whether to allow duplicated tags from the tags list before sending.
+	// This option is turned off by default, ensuring that duplicate tags are removed.
+	// Turn it on if you need to send the same tag multiple times with different values,
+	// which is a special use case.
+	AllowDuplicateTags bool
+
 	// This cache keeps track of the generated measure structures to avoid
 	// rebuilding them every time a same measure type is seen by the engine.
 	//
@@ -148,7 +154,7 @@ func (eng *Engine) measure(t time.Time, name string, value interface{}, ftype Fi
 	m.Tags = append(m.Tags[:0], eng.Tags...)
 	m.Tags = append(m.Tags, tags...)
 
-	if len(tags) != 0 && !TagsAreSorted(m.Tags) {
+	if len(tags) != 0 && !eng.AllowDuplicateTags && !TagsAreSorted(m.Tags) {
 		SortTags(m.Tags)
 	}
 
@@ -192,7 +198,9 @@ func (eng *Engine) ReportAt(time time.Time, metrics interface{}, tags ...Tag) {
 		tb = tagsPool.Get().(*tagsBuffer)
 		tb.append(tags...)
 		tb.append(eng.Tags...)
-		tb.sort()
+		if !eng.AllowDuplicateTags {
+			tb.sort()
+		}
 		tags = tb.tags
 	}
 
