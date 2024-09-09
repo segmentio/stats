@@ -1,7 +1,6 @@
 package procstats_test
 
 import (
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"os/user"
@@ -21,33 +20,36 @@ func TestProcMetrics(t *testing.T) {
 		t.Skip()
 	}
 
-	rand.Seed(time.Now().UnixNano())
+	// Create a new random generator
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	h := &statstest.Handler{}
 	e := stats.NewEngine("", h)
-
 	proc := procstats.NewDelayMetricsWith(e, os.Getpid())
 
 	for i := 0; i != 10; i++ {
-		tmpfile, err := ioutil.TempFile("", "delaystats_test")
+		tmpFile, err := os.CreateTemp("", "delaystats_test")
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer tmpfile.Close()
-		defer os.Remove(tmpfile.Name())
+		defer func(name string) {
+			err := os.Remove(name)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}(tmpFile.Name())
 
-		b := make([]byte, rand.Int31n(1000000))
-
-		if _, err := rand.Read(b); err != nil {
+		b := make([]byte, rng.Int31n(1000000))
+		if _, err := rng.Read(b); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := tmpfile.Write(b); err != nil {
+		if _, err := tmpFile.Write(b); err != nil {
 			t.Fatal(err)
 		}
-		if err := tmpfile.Sync(); err != nil {
+		if err := tmpFile.Sync(); err != nil {
 			t.Fatal(err)
 		}
-		if err := tmpfile.Close(); err != nil {
+		if err := tmpFile.Close(); err != nil {
 			t.Fatal(err)
 		}
 

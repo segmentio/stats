@@ -1,6 +1,8 @@
 module github.com/segmentio/stats/v5
 
-go 1.18
+go 1.22.0
+
+toolchain go1.23.1
 
 require (
 	github.com/mdlayher/taskstats v0.0.0-20190313225729-7cbba52ee072
@@ -8,8 +10,8 @@ require (
 	github.com/segmentio/objconv v1.0.1
 	github.com/segmentio/vpcinfo v0.1.10
 	github.com/stretchr/testify v1.8.4
-	golang.org/x/exp v0.0.0-20240613232115-7f521ea00fb8
-	golang.org/x/sync v0.7.0
+	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0
+	golang.org/x/sync v0.8.0
 	golang.org/x/sys v0.21.0
 )
 

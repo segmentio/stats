@@ -1,7 +1,7 @@
 package httpstats
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -81,7 +81,7 @@ func TestUrlLength(t *testing.T) {
 
 func TestHeaderLength(t *testing.T) {
 	hdrlen := func(h1 http.Header) int {
-		c := &iostats.CountWriter{W: ioutil.Discard}
+		c := &iostats.CountWriter{W: io.Discard}
 		h2 := copyHeader(h1)
 		h2.Write(c)
 		return c.N + len("\r\n")
@@ -108,7 +108,7 @@ func TestHeaderLength(t *testing.T) {
 
 func TestRequestLength(t *testing.T) {
 	reqlen := func(req *http.Request) int {
-		c := &iostats.CountWriter{W: ioutil.Discard}
+		c := &iostats.CountWriter{W: io.Discard}
 		r := &http.Request{
 			Proto:            req.Proto,
 			Method:           req.Method,
@@ -153,7 +153,7 @@ func TestRequestLength(t *testing.T) {
 
 func TestResponseLength(t *testing.T) {
 	reslen := func(res *http.Response) int {
-		c := &iostats.CountWriter{W: ioutil.Discard}
+		c := &iostats.CountWriter{W: io.Discard}
 		r := &http.Response{
 			StatusCode:       res.StatusCode,
 			ProtoMajor:       res.ProtoMajor,
@@ -181,7 +181,7 @@ func TestResponseLength(t *testing.T) {
 			Request:       &http.Request{Method: "GET"},
 			ContentLength: 11,
 			Header:        http.Header{"Content-Type": {"text/plain"}},
-			Body:          ioutil.NopCloser(strings.NewReader("Hello World!")),
+			Body:          io.NopCloser(strings.NewReader("Hello World!")),
 		},
 	}
 

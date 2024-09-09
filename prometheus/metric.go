@@ -1,7 +1,6 @@
 package prometheus
 
 import (
-	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -404,16 +403,9 @@ func le(buckets []stats.Value) string {
 	return unsafeByteSliceToString(b)
 }
 
-// This function converts the byte array to a string without additional
-// memory allocation.
-// Source: https://stackoverflow.com/a/66865482 (license: CC BY-SA 4.0).
+// unsafeByteSliceToString converts a byte slice to a string without copying the underlying data.
 func unsafeByteSliceToString(b []byte) string {
-	sliceHeader := (*reflect.SliceHeader)(unsafe.Pointer(&b))
-	var s string
-	sh := (*reflect.StringHeader)(unsafe.Pointer(&s))
-	sh.Data = sliceHeader.Data
-	sh.Len = sliceHeader.Len
-	return s
+	return unsafe.String(unsafe.SliceData(b), len(b))
 }
 
 func nextLe(s string) (head, tail string) {

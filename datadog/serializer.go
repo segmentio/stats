@@ -5,7 +5,6 @@ import (
 	"io"
 	"log"
 	"math"
-	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -16,7 +15,7 @@ import (
 // Datagram format: https://docs.datadoghq.com/developers/dogstatsd/datagram_shell
 
 type serializer struct {
-	conn             net.Conn
+	conn             io.WriteCloser
 	bufferSize       int
 	filters          map[string]struct{}
 	distPrefixes     []string

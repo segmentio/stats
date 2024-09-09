@@ -1,7 +1,7 @@
 package httpstats
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -16,7 +16,7 @@ func TestHandler(t *testing.T) {
 	e := stats.NewEngine("", h)
 
 	server := httptest.NewServer(NewHandlerWith(e, http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		ioutil.ReadAll(req.Body)
+		io.ReadAll(req.Body)
 		_ = RequestWithTags(req, stats.T("foo", "bar"))
 		res.WriteHeader(http.StatusOK)
 		res.Write([]byte("Hello World"))
@@ -28,7 +28,7 @@ func TestHandler(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	ioutil.ReadAll(res.Body)
+	io.ReadAll(res.Body)
 	res.Body.Close()
 
 	measures := h.Measures()

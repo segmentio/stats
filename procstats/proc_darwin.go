@@ -69,9 +69,9 @@ func collectProcInfo(pid int) (info ProcInfo, err error) {
 func memoryAvailable() uint64 {
 	mib := [2]C.int{C.CTL_HW, C.HW_MEMSIZE}
 	mem := C.int64_t(0)
-	len := C.size_t(8) // sizeof(int64_t)
+	length := C.size_t(8) // sizeof(int64_t)
 
-	_, err := C.sysctl(&mib[0], 2, unsafe.Pointer(&mem), &len, nil, 0)
+	_, err := C.sysctl(&mib[0], 2, unsafe.Pointer(&mem), &length, nil, 0)
 	check(err)
 
 	return uint64(mem)

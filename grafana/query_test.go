@@ -3,7 +3,7 @@ package grafana
 import (
 	"bytes"
 	"context"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -83,7 +83,7 @@ func TestQueryHandler(t *testing.T) {
 	}
 	defer r.Body.Close()
 
-	found, _ := ioutil.ReadAll(r.Body)
+	found, _ := io.ReadAll(r.Body)
 	expect := queryResult
 
 	if s := string(found); s != expect {

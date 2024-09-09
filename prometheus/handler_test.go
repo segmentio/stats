@@ -2,7 +2,7 @@ package prometheus
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -92,7 +92,7 @@ func TestServeHTTP(t *testing.T) {
 	}
 	defer res.Body.Close()
 
-	b, _ := ioutil.ReadAll(res.Body)
+	b, _ := io.ReadAll(res.Body)
 
 	const expects = `# TYPE A counter
 A 3 1496614320000

@@ -48,8 +48,9 @@ func (c *HTTPClient) Handle(ctx context.Context, request *colmetricpb.ExportMetr
 	return c.do(httpReq)
 }
 
-//TODO: deal with requests failures and retries. We potentially want to implement
-//      some kind of retry mechanism with expotential backoff + short time window.
+// TODO: deal with requests failures and retries. We potentially want to implement
+//
+//	some kind of retry mechanism with expotential backoff + short time window.
 func (c *HTTPClient) do(req *http.Request) error {
 	resp, err := c.client.Do(req)
 	if err != nil {

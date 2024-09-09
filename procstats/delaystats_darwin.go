@@ -1,6 +1,6 @@
 package procstats
 
-func collectDelayInfo(pid int) (info DelayInfo) {
+func collectDelayInfo(_ int) (info DelayInfo) {
 	// TODO
 	return
 }

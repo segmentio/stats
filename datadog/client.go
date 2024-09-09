@@ -1,9 +1,11 @@
 package datadog
 
 import (
+	"io"
 	"log"
-	"net"
+	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/segmentio/stats/v5"
@@ -40,6 +42,8 @@ var (
 // The ClientConfig type is used to configure datadog clients.
 type ClientConfig struct {
 	// Address of the datadog database to send metrics to.
+	// UDP: host:port (default)
+	// UDS: unixgram://dir/file.ext
 	Address string
 
 	// Maximum size of batch of events sent to datadog.
@@ -106,15 +110,23 @@ func NewClientWith(config ClientConfig) *Client {
 		},
 	}
 
-	conn, bufferSize, err := dial(config.Address, config.BufferSize)
+	w, err := newWriter(config.Address)
 	if err != nil {
 		log.Printf("stats/datadog: %s", err)
+		c.err = err
+		w = &noopWriter{}
 	}
 
-	c.conn, c.err, c.bufferSize = conn, err, bufferSize
-	c.buffer.BufferSize = bufferSize
+	newBufSize, err := w.CalcBufferSize(config.BufferSize)
+	if err != nil {
+		log.Printf("stats/datadog: unable to calc writer's buffer size. Defaulting to a buffer of size %d - %v\n", DefaultBufferSize, err)
+		newBufSize = DefaultBufferSize
+	}
+
+	c.bufferSize = newBufSize
 	c.buffer.Serializer = &c.serializer
-	log.Printf("stats/datadog: sending metrics with a buffer of size %d B", bufferSize)
+	c.serializer.conn = w
+	log.Printf("stats/datadog: sending metrics with a buffer of size %d B", newBufSize)
 	return c
 }
 
@@ -140,18 +152,7 @@ func (c *Client) Close() error {
 	return c.err
 }
 
-func dial(address string, sizehint int) (conn net.Conn, bufsize int, err error) {
-	var f *os.File
-
-	if conn, err = net.Dial("udp", address); err != nil {
-		return
-	}
-
-	if f, err = conn.(*net.UDPConn).File(); err != nil {
-		conn.Close()
-		return
-	}
-	defer f.Close()
+func bufSizeFromFD(f *os.File, sizehint int) (bufsize int, err error) {
 	fd := int(f.Fd())
 
 	// The kernel refuses to send UDP datagrams that are larger than the size of
@@ -160,7 +161,6 @@ func dial(address string, sizehint int) (conn net.Conn, bufsize int, err error) 
 	// to accept larger datagrams, or fallback to the default socket buffer size
 	// if it failed.
 	if bufsize, err = unix.GetsockoptInt(fd, unix.SOL_SOCKET, unix.SO_SNDBUF); err != nil {
-		conn.Close()
 		return
 	}
 
@@ -197,4 +197,45 @@ func dial(address string, sizehint int) (conn net.Conn, bufsize int, err error) 
 	// Creating the file put the socket in blocking mode, reverting.
 	_ = unix.SetNonblock(fd, true)
 	return
+}
+
+type ddWriter interface {
+	io.WriteCloser
+	CalcBufferSize(desiredBufSize int) (int, error)
+}
+
+func newWriter(addr string) (ddWriter, error) {
+	if strings.HasPrefix(addr, "unixgram://") ||
+		strings.HasPrefix(addr, "udp://") {
+		u, err := url.Parse(addr)
+		if err != nil {
+			return nil, err
+		}
+		switch u.Scheme {
+		case "unixgram":
+			return newUDSWriter(u.Path)
+		case "udp":
+			return newUDPWriter(u.Path)
+		}
+	}
+	// default assume addr host:port to use UDP
+	return newUDPWriter(addr)
+}
+
+// noopWriter is a writer that does nothing.
+type noopWriter struct{}
+
+// Write writes nothing.
+func (w *noopWriter) Write(_ []byte) (int, error) {
+	return 0, nil
+}
+
+// Close is a noop close.
+func (w *noopWriter) Close() error {
+	return nil
+}
+
+// CalcBufferSize returns the sizehint.
+func (w *noopWriter) CalcBufferSize(sizehint int) (int, error) {
+	return sizehint, nil
 }

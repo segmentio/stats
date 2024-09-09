@@ -1,7 +1,7 @@
 package stats_test
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"reflect"
 	"strings"
@@ -549,7 +549,7 @@ type discardTransport struct{}
 func (t *discardTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return &http.Response{
 		StatusCode: http.StatusOK,
-		Body:       ioutil.NopCloser(strings.NewReader("")),
+		Body:       io.NopCloser(strings.NewReader("")),
 		Request:    req,
 	}, nil
 }

@@ -1,16 +1,22 @@
 package linux
 
 import (
-	"io/ioutil"
+	"os"
 	"testing"
 )
 
 func TestReadFile(t *testing.T) {
-	f, _ := ioutil.TempFile("/tmp", "io_test_")
+	f, err := os.CreateTemp("/tmp", "io_test_")
+	if err != nil {
+		t.Error(err)
+	}
 	path := f.Name()
-	f.Write([]byte("Hello World!\n"))
-	f.Close()
-
+	if _, err := f.Write([]byte("Hello World!\n")); err != nil {
+		t.Error(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Error(err)
+	}
 	if s := readFile(path); s != "Hello World!\n" {
 		t.Error("invalid file content:", s)
 	}

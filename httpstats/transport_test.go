@@ -2,7 +2,6 @@ package httpstats
 
 import (
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -34,7 +33,7 @@ func TestTransport(t *testing.T) {
 					e := stats.NewEngine("", h)
 
 					server := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-						ioutil.ReadAll(req.Body)
+						io.ReadAll(req.Body)
 						res.Write([]byte("Hello World!"))
 					}))
 					defer server.Close()
@@ -51,7 +50,7 @@ func TestTransport(t *testing.T) {
 						t.Error(err)
 						return
 					}
-					ioutil.ReadAll(res.Body)
+					io.ReadAll(res.Body)
 					res.Body.Close()
 
 					if len(h.Measures()) == 0 {
