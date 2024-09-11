@@ -156,7 +156,7 @@ type metrics struct {
 			msgtype   string `tag:"type"`
 
 			contentCharset   string `tag:"http_res_content_charset"`
-			contentEncoding  string `tag:"http_res_content_endoing"`
+			contentEncoding  string `tag:"http_res_content_encoding"`
 			contentType      string `tag:"http_res_content_type"`
 			protocol         string `tag:"http_res_protocol"`
 			server           string `tag:"http_res_server"`
@@ -167,7 +167,7 @@ type metrics struct {
 		}
 
 		contentCharset   string `tag:"http_req_content_charset"`
-		contentEncoding  string `tag:"http_req_content_endoing"`
+		contentEncoding  string `tag:"http_req_content_encoding"`
 		contentType      string `tag:"http_req_content_type"`
 		host             string `tag:"http_req_host"`
 		method           string `tag:"http_req_method"`
