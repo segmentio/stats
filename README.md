@@ -6,10 +6,10 @@ Installation
 ------------
 
 ```
-go get github.com/segmentio/stats/v4
+go get github.com/segmentio/stats/v5
 ```
 
-Migration to v4
+Migration to v5
 ---------------
 
 Version 4 of the stats package introduced a new way of producing metrics based
@@ -101,8 +101,8 @@ collection platforms.
 package main
 
 import (
-    "github.com/segmentio/stats/v4"
-    "github.com/segmentio/stats/v4/datadog"
+    "github.com/segmentio/stats/v5"
+    "github.com/segmentio/stats/v5/datadog"
 )
 
 func main() {
@@ -132,8 +132,8 @@ func main() {
 package main
 
 import (
-    "github.com/segmentio/stats/v4"
-    "github.com/segmentio/stats/v4/datadog"
+    "github.com/segmentio/stats/v5"
+    "github.com/segmentio/stats/v5/datadog"
 )
 
 func main() {
@@ -183,7 +183,7 @@ Monitoring
 
 > 🚧 Go metrics reported with the `procstats` package were previously tagged with a
 > `version` label that reported the Go runtime version. This label was renamed to
-> `go_version` in v4.6.0.
+> `go_version` in v5.6.0.
 
 The
 [github.com/segmentio/stats/procstats](https://godoc.org/github.com/segmentio/stats/procstats)
@@ -197,8 +197,8 @@ Here's an example of how to use the collector:
 package main
 
 import (
-    "github.com/segmentio/stats/v4/datadog"
-    "github.com/segmentio/stats/v4/procstats"
+    "github.com/segmentio/stats/v5/datadog"
+    "github.com/segmentio/stats/v5/procstats"
 )
 
 
@@ -245,8 +245,8 @@ package main
 import (
     "net/http"
 
-    "github.com/segmentio/stats/v4/datadog"
-    "github.com/segmentio/stats/v4/httpstats"
+    "github.com/segmentio/stats/v5/datadog"
+    "github.com/segmentio/stats/v5/httpstats"
 )
 
 func main() {
@@ -279,8 +279,8 @@ package main
 import (
     "net/http"
 
-    "github.com/segmentio/stats/v4/datadog"
-    "github.com/segmentio/stats/v4/httpstats"
+    "github.com/segmentio/stats/v5/datadog"
+    "github.com/segmentio/stats/v5/httpstats"
 )
 
 func main() {
@@ -308,8 +308,8 @@ package main
 import (
     "net/http"
 
-    "github.com/segmentio/stats/v4/datadog"
-    "github.com/segmentio/stats/v4/httpstats"
+    "github.com/segmentio/stats/v5/datadog"
+    "github.com/segmentio/stats/v5/httpstats"
 )
 
 func main() {
@@ -342,7 +342,7 @@ package main
 
 import (
     "github.com/segmentio/redis-go"
-    "github.com/segmentio/stats/v4/redisstats"
+    "github.com/segmentio/stats/v5/redisstats"
 )
 
 func main() {
@@ -365,7 +365,7 @@ package main
 
 import (
     "github.com/segmentio/redis-go"
-    "github.com/segmentio/stats/v4/redisstats"
+    "github.com/segmentio/stats/v5/redisstats"
 )
 
 func main() {

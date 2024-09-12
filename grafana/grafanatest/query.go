@@ -3,7 +3,7 @@ package grafanatest
 import (
 	"time"
 
-	"github.com/segmentio/stats/v4/grafana"
+	"github.com/segmentio/stats/v5/grafana"
 )
 
 // QueryResponse is an implementation of the grafana.QueryResponse interface

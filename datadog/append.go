@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/segmentio/stats/v4"
+	"github.com/segmentio/stats/v5"
 )
 
 func appendMetric(b []byte, m Metric) []byte {

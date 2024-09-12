@@ -4,7 +4,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/segmentio/stats/v4"
+	"github.com/segmentio/stats/v5"
 )
 
 // DelayMetrics is a metric collector that reports resource delays on processes.

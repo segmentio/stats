@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/segmentio/stats/v4/iostats"
+	"github.com/segmentio/stats/v5/iostats"
 )
 
 func TestResponseStatusBucket(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/segmentio/stats/v4"
+	"github.com/segmentio/stats/v5"
 	colmetricpb "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
 	metricpb "go.opentelemetry.io/proto/otlp/metrics/v1"
 )

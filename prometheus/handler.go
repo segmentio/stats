@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/segmentio/stats/v4"
+	"github.com/segmentio/stats/v5"
 )
 
 // Handler is a type that bridges the stats API to a prometheus-compatible HTTP

@@ -14,7 +14,7 @@ import (
 
 	"github.com/segmentio/objconv/json"
 
-	"github.com/segmentio/stats/v4"
+	"github.com/segmentio/stats/v5"
 )
 
 const (

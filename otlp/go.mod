@@ -1,4 +1,4 @@
-module github.com/segmentio/stats/v4/otlp
+module github.com/segmentio/stats/v5/otlp
 
 go 1.19
 

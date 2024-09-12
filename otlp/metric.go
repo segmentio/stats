@@ -5,7 +5,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/segmentio/stats/v4"
+	"github.com/segmentio/stats/v5"
 )
 
 type metric struct {

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/segmentio/stats/v4"
+	"github.com/segmentio/stats/v5"
 )
 
 func TestUnsafeByteSliceToString(t *testing.T) {

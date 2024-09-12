@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/segmentio/stats/v4"
+	"github.com/segmentio/stats/v5"
 )
 
 // Datagram format: https://docs.datadoghq.com/developers/dogstatsd/datagram_shell

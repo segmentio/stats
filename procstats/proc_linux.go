@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/segmentio/stats/v4/procstats/linux"
+	"github.com/segmentio/stats/v5/procstats/linux"
 
 	"golang.org/x/sys/unix"
 )

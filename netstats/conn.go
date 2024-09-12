@@ -10,7 +10,7 @@ import (
 
 	"github.com/segmentio/vpcinfo"
 
-	"github.com/segmentio/stats/v4"
+	"github.com/segmentio/stats/v5"
 )
 
 func init() {

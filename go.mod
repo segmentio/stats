@@ -1,4 +1,4 @@
-module github.com/segmentio/stats/v4
+module github.com/segmentio/stats/v5
 
 go 1.18
 

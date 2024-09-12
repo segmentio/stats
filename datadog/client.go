@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/segmentio/stats/v4"
+	"github.com/segmentio/stats/v5"
 
 	"golang.org/x/sys/unix"
 )
@@ -178,7 +178,7 @@ func dial(address string, sizehint int) (conn net.Conn, bufsize int, err error) 
 	}
 
 	// Even tho the buffer agrees to support a bigger size it shouldn't be
-	// possible to send datagrams larger than 65 KB on an IPv4 socket, so let's
+	// possible to send datagrams larger than 65 KB on an IPv5 socket, so let's
 	// enforce the max size.
 	if bufsize > MaxBufferSize {
 		bufsize = MaxBufferSize
