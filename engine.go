@@ -60,86 +60,86 @@ func NewEngine(prefix string, handler Handler, tags ...Tag) *Engine {
 	return e
 }
 
-// Register adds handler to eng.
-func (eng *Engine) Register(handler Handler) {
-	if eng.Handler == Discard {
-		eng.Handler = handler
+// Register adds handler to e.
+func (e *Engine) Register(handler Handler) {
+	if e.Handler == Discard {
+		e.Handler = handler
 	} else {
-		eng.Handler = MultiHandler(eng.Handler, handler)
+		e.Handler = MultiHandler(e.Handler, handler)
 	}
 }
 
 // Flush flushes eng's handler (if it implements the Flusher interface).
-func (eng *Engine) Flush() {
-	flush(eng.Handler)
+func (e *Engine) Flush() {
+	flush(e.Handler)
 }
 
 // WithPrefix returns a copy of the engine with prefix appended to eng's current
 // prefix and tags set to the merge of eng's current tags and those passed as
 // argument. Both eng and the returned engine share the same handler.
-func (eng *Engine) WithPrefix(prefix string, tags ...Tag) *Engine {
+func (e *Engine) WithPrefix(prefix string, tags ...Tag) *Engine {
 	return &Engine{
-		Handler: eng.Handler,
-		Prefix:  eng.makeName(prefix),
-		Tags:    mergeTags(eng.Tags, tags),
+		Handler: e.Handler,
+		Prefix:  e.makeName(prefix),
+		Tags:    mergeTags(e.Tags, tags),
 	}
 }
 
 // WithTags returns a copy of the engine with tags set to the merge of eng's
 // current tags and those passed as arguments. Both eng and the returned engine
 // share the same handler.
-func (eng *Engine) WithTags(tags ...Tag) *Engine {
-	return eng.WithPrefix("", tags...)
+func (e *Engine) WithTags(tags ...Tag) *Engine {
+	return e.WithPrefix("", tags...)
 }
 
 // Incr increments by one the counter identified by name and tags.
-func (eng *Engine) Incr(name string, tags ...Tag) {
-	eng.Add(name, 1, tags...)
+func (e *Engine) Incr(name string, tags ...Tag) {
+	e.Add(name, 1, tags...)
 }
 
 // IncrAt increments by one the counter identified by name and tags.
-func (eng *Engine) IncrAt(time time.Time, name string, tags ...Tag) {
-	eng.AddAt(time, name, 1, tags...)
+func (e *Engine) IncrAt(time time.Time, name string, tags ...Tag) {
+	e.AddAt(time, name, 1, tags...)
 }
 
 // Add increments by value the counter identified by name and tags.
-func (eng *Engine) Add(name string, value interface{}, tags ...Tag) {
-	eng.measure(time.Now(), name, value, Counter, tags...)
+func (e *Engine) Add(name string, value interface{}, tags ...Tag) {
+	e.measure(time.Now(), name, value, Counter, tags...)
 }
 
 // AddAt increments by value the counter identified by name and tags.
-func (eng *Engine) AddAt(t time.Time, name string, value interface{}, tags ...Tag) {
-	eng.measure(t, name, value, Counter, tags...)
+func (e *Engine) AddAt(t time.Time, name string, value interface{}, tags ...Tag) {
+	e.measure(t, name, value, Counter, tags...)
 }
 
 // Set sets to value the gauge identified by name and tags.
-func (eng *Engine) Set(name string, value interface{}, tags ...Tag) {
-	eng.measure(time.Now(), name, value, Gauge, tags...)
+func (e *Engine) Set(name string, value interface{}, tags ...Tag) {
+	e.measure(time.Now(), name, value, Gauge, tags...)
 }
 
 // SetAt sets to value the gauge identified by name and tags.
-func (eng *Engine) SetAt(t time.Time, name string, value interface{}, tags ...Tag) {
-	eng.measure(t, name, value, Gauge, tags...)
+func (e *Engine) SetAt(t time.Time, name string, value interface{}, tags ...Tag) {
+	e.measure(t, name, value, Gauge, tags...)
 }
 
 // Observe reports value for the histogram identified by name and tags.
-func (eng *Engine) Observe(name string, value interface{}, tags ...Tag) {
-	eng.measure(time.Now(), name, value, Histogram, tags...)
+func (e *Engine) Observe(name string, value interface{}, tags ...Tag) {
+	e.measure(time.Now(), name, value, Histogram, tags...)
 }
 
 // ObserveAt reports value for the histogram identified by name and tags.
-func (eng *Engine) ObserveAt(t time.Time, name string, value interface{}, tags ...Tag) {
-	eng.measure(t, name, value, Histogram, tags...)
+func (e *Engine) ObserveAt(t time.Time, name string, value interface{}, tags ...Tag) {
+	e.measure(t, name, value, Histogram, tags...)
 }
 
 // Clock returns a new clock identified by name and tags.
-func (eng *Engine) Clock(name string, tags ...Tag) *Clock {
-	return eng.ClockAt(name, time.Now(), tags...)
+func (e *Engine) Clock(name string, tags ...Tag) *Clock {
+	return e.ClockAt(name, time.Now(), tags...)
 }
 
 // ClockAt returns a new clock identified by name and tags with a specified
 // start time.
-func (eng *Engine) ClockAt(name string, start time.Time, tags ...Tag) *Clock {
+func (e *Engine) ClockAt(name string, start time.Time, tags ...Tag) *Clock {
 	cpy := make([]Tag, len(tags), len(tags)+1) // clock always appends a stamp.
 	copy(cpy, tags)
 	return &Clock{
@@ -147,7 +147,7 @@ func (eng *Engine) ClockAt(name string, start time.Time, tags ...Tag) *Clock {
 		first: start,
 		last:  start,
 		tags:  cpy,
-		eng:   eng,
+		eng:   e,
 	}
 }
 
@@ -161,56 +161,66 @@ var truthyValues = map[string]bool{
 
 var GoVersionReportingEnabled = !truthyValues[os.Getenv("STATS_DISABLE_GO_VERSION_REPORTING")]
 
-func (eng *Engine) measure(t time.Time, name string, value interface{}, ftype FieldType, tags ...Tag) {
-	if GoVersionReportingEnabled {
-		eng.once.Do(func() {
-			vsn := strings.TrimPrefix(runtime.Version(), "go")
-			parts := strings.Split(vsn, ".")
-			// this filters out weird compiled Go versions like tip. len(parts)
-			// may equal 2 because older Go version might be "go1.13"
-			if len(parts) == 2 || len(parts) == 3 {
-				eng.Handler.HandleMeasures(t, Measure{
+func (e *Engine) reportVersionOnce(t time.Time) {
+	if !GoVersionReportingEnabled {
+		return
+	}
+	// We can't do this when we create the engine because it's possible to
+	// configure it after creation time with e.g. the Register function. So
+	// instead we try to do it at the moment you try to send your first metric.
+	e.once.Do(func() {
+		vsn := strings.TrimPrefix(runtime.Version(), "go")
+		parts := strings.Split(vsn, ".")
+		// We don't want to report weird compiled Go versions like tip.
+		// len(parts) may equal 2 because an older Go version might be "go1.13"
+		// instead of "go1.13.1"
+		if len(parts) == 2 || len(parts) == 3 {
+			e.Handler.HandleMeasures(t,
+				Measure{
 					Name: "go_version",
 					Fields: []Field{{
-						Name:  "go_version",
+						Name:  "value",
 						Value: intValue(1),
 					}},
 					Tags: []Tag{
 						{"go_version", vsn},
 					},
 				},
-					Measure{
-						Name: "stats_version",
-						Fields: []Field{{
-							Name:  "stats_version",
-							Value: intValue(1),
-						}},
-						Tags: []Tag{
-							{"stats_version", version.Version},
-						},
+				Measure{
+					Name: "stats_version",
+					Fields: []Field{{
+						Name:  "value",
+						Value: intValue(1),
+					}},
+					Tags: []Tag{
+						{"stats_version", version.Version},
 					},
-				)
-			}
-		})
-	}
-	eng.measureOne(t, name, value, ftype, tags...)
+				},
+			)
+		}
+	})
 }
 
-func (eng *Engine) measureOne(t time.Time, name string, value interface{}, ftype FieldType, tags ...Tag) {
+func (e *Engine) measure(t time.Time, name string, value interface{}, ftype FieldType, tags ...Tag) {
+	e.reportVersionOnce(t)
+	e.measureOne(t, name, value, ftype, tags...)
+}
+
+func (e *Engine) measureOne(t time.Time, name string, value interface{}, ftype FieldType, tags ...Tag) {
 	name, field := splitMeasureField(name)
 	mp := measureArrayPool.Get().(*[1]Measure)
 
 	m := &(*mp)[0]
-	m.Name = eng.makeName(name) // TODO: figure out how to optimize this
+	m.Name = e.makeName(name) // TODO: figure out how to optimize this
 	m.Fields = append(m.Fields[:0], MakeField(field, value, ftype))
-	m.Tags = append(m.Tags[:0], eng.Tags...)
+	m.Tags = append(m.Tags[:0], e.Tags...)
 	m.Tags = append(m.Tags, tags...)
 
-	if len(tags) != 0 && !eng.AllowDuplicateTags && !TagsAreSorted(m.Tags) {
+	if len(tags) != 0 && !e.AllowDuplicateTags && !TagsAreSorted(m.Tags) {
 		SortTags(m.Tags)
 	}
 
-	eng.Handler.HandleMeasures(t, (*mp)[:]...)
+	e.Handler.HandleMeasures(t, (*mp)[:]...)
 
 	for i := range m.Fields {
 		m.Fields[i] = Field{}
@@ -224,8 +234,8 @@ func (eng *Engine) measureOne(t time.Time, name string, value interface{}, ftype
 	measureArrayPool.Put(mp)
 }
 
-func (eng *Engine) makeName(name string) string {
-	return concat(eng.Prefix, name)
+func (e *Engine) makeName(name string) string {
+	return concat(e.Prefix, name)
 }
 
 var measureArrayPool = sync.Pool{
@@ -233,34 +243,35 @@ var measureArrayPool = sync.Pool{
 }
 
 // Report calls ReportAt with time.Now() as first argument.
-func (eng *Engine) Report(metrics interface{}, tags ...Tag) {
-	eng.ReportAt(time.Now(), metrics, tags...)
+func (e *Engine) Report(metrics interface{}, tags ...Tag) {
+	e.ReportAt(time.Now(), metrics, tags...)
 }
 
 // ReportAt reports a set of metrics for a given time. The metrics must be of
 // type struct, pointer to struct, or a slice or array to one of those. See
 // MakeMeasures for details about how to make struct types exposing metrics.
-func (eng *Engine) ReportAt(time time.Time, metrics interface{}, tags ...Tag) {
+func (e *Engine) ReportAt(t time.Time, metrics interface{}, tags ...Tag) {
+	e.reportVersionOnce(t)
 	var tb *tagsBuffer
 
 	if len(tags) == 0 {
 		// fast path for the common case where there are no dynamic tags
-		tags = eng.Tags
+		tags = e.Tags
 	} else {
 		tb = tagsPool.Get().(*tagsBuffer)
 		tb.append(tags...)
-		tb.append(eng.Tags...)
-		if !eng.AllowDuplicateTags {
+		tb.append(e.Tags...)
+		if !e.AllowDuplicateTags {
 			tb.sort()
 		}
 		tags = tb.tags
 	}
 
 	mb := measurePool.Get().(*measuresBuffer)
-	mb.measures = appendMeasures(mb.measures[:0], &eng.cache, eng.Prefix, reflect.ValueOf(metrics), tags...)
+	mb.measures = appendMeasures(mb.measures[:0], &e.cache, e.Prefix, reflect.ValueOf(metrics), tags...)
 
 	ms := mb.measures
-	eng.Handler.HandleMeasures(time, ms...)
+	e.Handler.HandleMeasures(t, ms...)
 
 	for i := range ms {
 		ms[i].reset()
@@ -288,8 +299,8 @@ func Flush() {
 }
 
 // WithPrefix returns a copy of the engine with prefix appended to default
-// engine's current prefix and tags set to the merge of eng's current tags and
-// those passed as argument. Both the default engine and the returned engine
+// engine's current prefix and tags set to the merge of engine's current tags
+// and those passed as argument. Both the default engine and the returned engine
 // share the same handler.
 func WithPrefix(prefix string, tags ...Tag) *Engine {
 	return DefaultEngine.WithPrefix(prefix, tags...)

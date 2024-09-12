@@ -1,5 +1,9 @@
 # History
 
+### v5.2.0
+
+
+
 ### v5.1.0
 
 Add support for publishing stats to Unix datagram sockets (UDS).

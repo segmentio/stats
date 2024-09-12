@@ -9,7 +9,7 @@ Installation
 go get github.com/segmentio/stats/v5
 ```
 
-Migration to v5
+Migration to v4/v5
 ---------------
 
 Version 4 of the stats package introduced a new way of producing metrics based
@@ -47,7 +47,7 @@ To avoid greatly increasing the complexity of the codebase some old APIs were
 removed in favor of this new approach, other were transformed to provide more
 flexibility and leverage new features.
 
-The stats package used to only support float values, metrics can now be of
+The stats package used to only support float values. Metrics can now be of
 various numeric types (see stats.MakeMeasure for a detailed description),
 therefore functions like `stats.Add` now accept an `interface{}` value instead
 of `float64`. `stats.ObserveDuration` was also removed since this new approach
@@ -176,6 +176,23 @@ func main() {
 }
 ```
 
+### Troubleshooting
+
+Use the `debugstats` package to print all stats to the console.
+
+```go
+handler := debugstats.Client{Dst: os.Stdout}
+engine := stats.NewEngine("engine-name", handler)
+engine.Incr("server.start")
+```
+
+You can use the `Grep` property to filter the printed metrics for only ones you
+care about:
+
+```go
+handler := debugstats.Client{Dst: os.Stdout, Grep: regexp.MustCompile("server.start")}
+```
+
 Monitoring
 ----------
 
@@ -300,7 +317,7 @@ func main() {
 ```
 
 You can also modify the default HTTP client to automatically get metrics for all
-packages using it, this is very convinient to get insights into dependencies.
+packages using it, this is very convenient to get insights into dependencies.
 
 ```go
 package main

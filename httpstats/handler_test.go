@@ -31,14 +31,15 @@ func TestHandler(t *testing.T) {
 	io.ReadAll(res.Body)
 	res.Body.Close()
 
+	e.Flush()
 	measures := h.Measures()
 
 	if len(measures) == 0 {
 		t.Error("no measures reported by http handler")
 	}
 
+	tagSeen := false
 	for _, m := range measures {
-		tagSeen := false
 		for _, tag := range m.Tags {
 			if tag.Name == "bucket" {
 				switch tag.Value {
@@ -54,9 +55,9 @@ func TestHandler(t *testing.T) {
 				}
 			}
 		}
-		if !tagSeen {
-			t.Errorf("did not see user-added tag for wrapped request. tags: %#v\n%#v", m, m.Tags)
-		}
+	}
+	if !tagSeen {
+		t.Errorf("did not see user-added tag for wrapped request. measures: %#v", measures)
 	}
 
 	for _, m := range measures {

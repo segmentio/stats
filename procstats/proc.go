@@ -40,7 +40,7 @@ type procCPU struct {
 
 type procMemory struct {
 	// Memory
-	available uint64 `metric:"available.bytes" type:"gauge"` // amound of RAM available to the process
+	available uint64 `metric:"available.bytes" type:"gauge"` // amount of RAM available to the process
 	size      uint64 `metric:"total.bytes"     type:"gauge"` // total program memory (including virtual mappings)
 
 	resident struct { // resident set size

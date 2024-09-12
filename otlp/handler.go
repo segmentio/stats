@@ -51,9 +51,7 @@ type Handler struct {
 	metrics map[uint64]*list.Element
 }
 
-var (
-	hashseed = maphash.MakeSeed()
-)
+var hashseed = maphash.MakeSeed()
 
 // NewHandler return an instance of Handler with the default client,
 // flush interval and in-memory metrics limit.
@@ -163,7 +161,7 @@ func (h *Handler) flush() error {
 		return nil
 	}
 
-	//FIXME how big can a metrics service request be ? need pagination ?
+	// FIXME how big can a metrics service request be ? need pagination ?
 	request := &colmetricpb.ExportMetricsServiceRequest{
 		ResourceMetrics: []*metricpb.ResourceMetrics{
 			{

@@ -28,7 +28,7 @@ type HTTPClient struct {
 
 func NewHTTPClient(endpoint string) *HTTPClient {
 	return &HTTPClient{
-		//TODO: add sane default timeout configuration.
+		// TODO: add sane default timeout configuration.
 		client:   http.DefaultClient,
 		endpoint: endpoint,
 	}
