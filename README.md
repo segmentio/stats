@@ -385,3 +385,7 @@ func main() {
     // ...
 }
 ```
+
+### Troubleshooting
+
+Use the `stdoutstats` package
