@@ -1,5 +1,9 @@
 # History
 
+### v5.1.0
+
+Add support for publishing stats to Unix datagram sockets (UDS).
+
 ### v5.0.0 (Released on September 11, 2024)
 
 In the `httpstats` package, replace misspelled `http_req_content_endoing`
