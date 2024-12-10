@@ -1,7 +1,7 @@
 package datadog
 
 import (
-	"github.com/segmentio/stats/v5"
+	stats "github.com/segmentio/stats/v5"
 )
 
 var testEvents = []struct {

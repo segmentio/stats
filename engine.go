@@ -1,7 +1,6 @@
 package stats
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -9,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/segmentio/stats/v5/version"
 )
 
 // An Engine carries the context for producing metrics. It is configured by
@@ -161,17 +162,34 @@ var truthyValues = map[string]bool{
 var GoVersionReportingEnabled = !truthyValues[os.Getenv("STATS_DISABLE_GO_VERSION_REPORTING")]
 
 func (eng *Engine) measure(t time.Time, name string, value interface{}, ftype FieldType, tags ...Tag) {
-	fmt.Println("call measure_")
 	if GoVersionReportingEnabled {
 		eng.once.Do(func() {
-			fmt.Println("run engine once")
 			vsn := strings.TrimPrefix(runtime.Version(), "go")
-			fmt.Println("vsn", vsn)
 			parts := strings.Split(vsn, ".")
-			// this filters out weird compiled Go versions like tip.
-			// older Go version might be "go1.13"
+			// this filters out weird compiled Go versions like tip. len(parts)
+			// may equal 2 because older Go version might be "go1.13"
 			if len(parts) == 2 || len(parts) == 3 {
-				eng.measureOne(t, "go_version", 1, Gauge, []Tag{{"go_version", vsn}}...)
+				eng.Handler.HandleMeasures(t, Measure{
+					Name: "go_version",
+					Fields: []Field{{
+						Name:  "go_version",
+						Value: intValue(1),
+					}},
+					Tags: []Tag{
+						{"go_version", vsn},
+					},
+				},
+					Measure{
+						Name: "stats_version",
+						Fields: []Field{{
+							Name:  "stats_version",
+							Value: intValue(1),
+						}},
+						Tags: []Tag{
+							{"stats_version", version.Version},
+						},
+					},
+				)
 			}
 		})
 	}

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/segmentio/stats/v5"
+	stats "github.com/segmentio/stats/v5"
 	"github.com/segmentio/stats/v5/statstest"
 )
 
@@ -66,10 +66,24 @@ func TestListenerError(t *testing.T) {
 	vsn := strings.TrimPrefix(runtime.Version(), "go")
 	parts := strings.Split(vsn, ".")
 	measures := h.Measures()
+	measurePassed := false
 	if len(parts) == 2 || len(parts) == 3 {
-		if len(measures) != 1+1 {
-			t.Fatalf("expecting to get %d metrics, got back %d: %v", 1+1, len(measures), measures)
+		for _, measure := range measures {
+			if measure.Name != "go_version" {
+				continue
+			}
+			for _, tag := range measure.Tags {
+				if tag.Name != "go_version" {
+					continue
+				}
+				if tag.Value == vsn {
+					measurePassed = true
+				}
+			}
 		}
+	}
+	if !measurePassed {
+		t.Errorf("did not find correct tag for measure: %#v\n", measures)
 	}
 	var foundMetric stats.Measure
 	for i := range measures {

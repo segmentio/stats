@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/segmentio/stats/v5"
+	stats "github.com/segmentio/stats/v5"
 )
 
 func init() {

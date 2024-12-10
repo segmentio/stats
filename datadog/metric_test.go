@@ -3,7 +3,7 @@ package datadog
 import (
 	"testing"
 
-	"github.com/segmentio/stats/v5"
+	stats "github.com/segmentio/stats/v5"
 )
 
 var testMetrics = []struct {

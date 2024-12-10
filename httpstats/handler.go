@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/segmentio/stats/v5"
+	stats "github.com/segmentio/stats/v5"
 )
 
 // NewHandler wraps h to produce metrics on the default engine for every request

@@ -18,7 +18,6 @@ jobs:
   lint:
     name: lint
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/setup-go@v5
         with:

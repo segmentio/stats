@@ -504,9 +504,9 @@ func (c *measureCache) load() *map[reflect.Type][]measureFuncs {
 	return (*map[reflect.Type][]measureFuncs)(atomic.LoadPointer(&c.cache))
 }
 
-func (c *measureCache) compareAndSwap(old, new *map[reflect.Type][]measureFuncs) bool {
+func (c *measureCache) compareAndSwap(old, newPtr *map[reflect.Type][]measureFuncs) bool {
 	return atomic.CompareAndSwapPointer(&c.cache,
 		unsafe.Pointer(old),
-		unsafe.Pointer(new),
+		unsafe.Pointer(newPtr),
 	)
 }

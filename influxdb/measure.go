@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/segmentio/stats/v5"
+	stats "github.com/segmentio/stats/v5"
 )
 
 // AppendMeasure is a formatting routine to append the InflxDB line protocol

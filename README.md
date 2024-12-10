@@ -183,7 +183,7 @@ Monitoring
 
 > 🚧 Go metrics reported with the `procstats` package were previously tagged with a
 > `version` label that reported the Go runtime version. This label was renamed to
-> `go_version` in v5.6.0.
+> `go_version` in v4.6.0.
 
 The
 [github.com/segmentio/stats/procstats](https://godoc.org/github.com/segmentio/stats/procstats)
@@ -389,11 +389,11 @@ func main() {
 ### Addendum
 
 By default, the stats library will report the running go version when you
-invoke NewEngine() as three metrics:
+invoke NewEngine() as a metric:
 
-- `go_version.major`
-- `go_version.minor`
-- `go_version.patch`
+- `go_version` with value 1 and a `tag` set to the current version.
+- `stats_version` with value ` and a `tag` set to the tag value of
+  segmentio/stats.
 
 Set `STATS_DISABLE_GO_VERSION_REPORTING` to `true` in your environment, or set
 `stats.GoVersionReportingEnabled` to `false` before collecting any metrics, to

@@ -6,7 +6,7 @@ import (
 )
 
 // ContextWithTags returns a new child context with the given tags.  If the
-// parent context already has tags set on it, they are _not_ propegated into
+// parent context already has tags set on it, they are _not_ propagated into
 // the context children.
 func ContextWithTags(ctx context.Context, tags ...Tag) context.Context {
 	// initialize the context reference and return a new context

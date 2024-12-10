@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/segmentio/stats/v5"
+	stats "github.com/segmentio/stats/v5"
 	"github.com/segmentio/stats/v5/statstest"
 )
 
