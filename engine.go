@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"sync"
 	"time"
+
+	"github.com/segmentio/stats/version"
 )
 
 // An Engine carries the context for producing metrics, it is configured by
@@ -51,6 +53,10 @@ func NewEngine(prefix string, handler Handler, tags ...Tag) *Engine {
 		Prefix:  prefix,
 		Tags:    SortTags(copyTags(tags)),
 	}
+}
+
+func init() {
+	_ = version.Version
 }
 
 // Register adds handler to eng.
