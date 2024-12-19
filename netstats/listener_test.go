@@ -3,12 +3,11 @@ package netstats
 import (
 	"net"
 	"reflect"
-	"runtime"
-	"strings"
 	"testing"
 
 	stats "github.com/segmentio/stats/v5"
 	"github.com/segmentio/stats/v5/statstest"
+	"github.com/segmentio/stats/v5/version"
 )
 
 func TestListener(t *testing.T) {
@@ -63,11 +62,12 @@ func TestListenerError(t *testing.T) {
 
 	lstn.Close()
 
-	vsn := strings.TrimPrefix(runtime.Version(), "go")
-	parts := strings.Split(vsn, ".")
 	measures := h.Measures()
-	measurePassed := false
-	if len(parts) == 2 || len(parts) == 3 {
+	t.Run("CheckGoVersionEmitted", func(t *testing.T) {
+		if version.DevelGoVersion() {
+			t.Skip("No metrics emitted if compiled with Go devel version")
+		}
+		measurePassed := false
 		for _, measure := range measures {
 			if measure.Name != "go_version" {
 				continue
@@ -76,15 +76,15 @@ func TestListenerError(t *testing.T) {
 				if tag.Name != "go_version" {
 					continue
 				}
-				if tag.Value == vsn {
+				if tag.Value == version.GoVersion() {
 					measurePassed = true
 				}
 			}
 		}
-	}
-	if !measurePassed {
-		t.Errorf("did not find correct tag for measure: %#v\n", measures)
-	}
+		if !measurePassed {
+			t.Errorf("did not find correct 'go_version' tag for measure: %#v\n", measures)
+		}
+	})
 	var foundMetric stats.Measure
 	for i := range measures {
 		if measures[i].Name == "netstats.test.conn.error" {
