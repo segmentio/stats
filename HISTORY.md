@@ -1,8 +1,17 @@
 # History
 
+### v5.3.0 (December 19, 2024)
+
+- Add `debugstats` package that can easily print metrics to stdout.
+
+- Fix file handle leak in procstats in the DelayMetrics collector.
+
 ### v5.2.0
 
-
+- `go_version.value` and `stats_version.value` will be emitted the first
+time any metrics are sent from an Engine. Disable this behavior by setting
+`GoVersionReportingEnabled = false` in code, or setting environment variable
+`STATS_DISABLE_GO_VERSION_REPORTING=true`.
 
 ### v5.1.0
 

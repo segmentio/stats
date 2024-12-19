@@ -1,0 +1,36 @@
+Achille Roussel <achille.roussel@segment.com>
+Alan Braithwaite <alan@segment.com>
+Amir Abu Shareb <yields@icloud.com>
+Bill Havanki <bhavanki@users.noreply.github.com>
+Clement Rey <cr.rey.clement@gmail.com>
+Colin <colinking@users.noreply.github.com>
+Collin Van Dyck <collin@segment.com>
+Daniel Fuentes <daniel.fuentes@segment.com>
+David Betts <wdbetts@gmail.com>
+David Scrobonia <dscrobonia@users.noreply.github.com>
+Dean Karn <Dean.Karn@gmail.com>
+Dominic Barnes <dominic@dbarnes.info>
+Erik Weathers <erikdw@gmail.com>
+Hyonjee Joo <5000208+hjoo@users.noreply.github.com>
+Jeremy Jackins <jeremyjackins@gmail.com>
+John Boggs <jboggs@twilio.com>
+Joseph Herlant <aerostitch@users.noreply.github.com>
+Julien Fabre <julien@segment.com>
+Kevin Burke <kevin.burke@segment.com>
+Kevin Gillette <kgillette@twilio.com>
+Matt Layher <mdlayher@gmail.com>
+Michael S. Fischer <michael.fischer@segment.com>
+Mike Nichols <nichols.mike.s@gmail.com>
+Prateek Srivastava <f2prateek@gmail.com>
+Ray Jenkins <ray@segment.com>
+Rick Branson <rick@diodeware.com>
+Rob McQueen <rob@segment.com>
+Rohit Garg <rohitgarg19@gmail.com>
+Thomas Meson <thomas@zen.ly>
+Tyson Mote <tyson@segment.com>
+Ulysse Carion <ulyssecarion@gmail.com>
+Vic Vijayakumar <needcaffeine@users.noreply.github.com>
+Yerden Zhumabekov <yerden.zhumabekov@gmail.com>
+dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>
+noctarius aka Christoph Engelbert <me@noctarius.com>
+sungjujin <87332309+sungjujin@users.noreply.github.com>
