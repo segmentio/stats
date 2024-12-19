@@ -50,8 +50,6 @@ type DelayInfo struct {
 }
 
 // CollectDelayInfo returns DelayInfo for a pid and an error, if any.
-func CollectDelayInfo(pid int) (info DelayInfo, err error) {
-	defer func() { err = convertPanicToError(recover()) }()
-	info = collectDelayInfo(pid)
-	return
+func CollectDelayInfo(pid int) (DelayInfo, error) {
+	return collectDelayInfo(pid)
 }

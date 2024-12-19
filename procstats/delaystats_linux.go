@@ -7,23 +7,29 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func collectDelayInfo(pid int) DelayInfo {
+func collectDelayInfo(pid int) (DelayInfo, error) {
 	client, err := taskstats.New()
-	if err == unix.ENOENT {
-		err = errors.New("failed to communicate with taskstats Netlink family, ensure this program is not running in a network namespace")
+	switch {
+	case errors.Is(err, unix.ENOENT):
+		return DelayInfo{}, errors.New("failed to communicate with taskstats Netlink family, ensure this program is not running in a network namespace")
+	case err != nil:
+		return DelayInfo{}, err
+	default:
+		defer client.Close()
 	}
-	check(err)
 
 	stats, err := client.TGID(pid)
-	if err == unix.EPERM {
-		err = errors.New("failed to open Netlink socket: permission denied, ensure CAP_NET_RAW is enabled for this process, or run it with root privileges")
-	}
-	check(err)
-
-	return DelayInfo{
-		BlockIODelay:   stats.BlockIODelay,
-		CPUDelay:       stats.CPUDelay,
-		FreePagesDelay: stats.FreePagesDelay,
-		SwapInDelay:    stats.SwapInDelay,
+	switch {
+	case errors.Is(err, unix.EPERM):
+		return DelayInfo{}, errors.New("failed to open Netlink socket: permission denied, ensure CAP_NET_RAW is enabled for this process, or run it with root privileges")
+	case err != nil:
+		return DelayInfo{}, err
+	default:
+		return DelayInfo{
+			BlockIODelay:   stats.BlockIODelay,
+			CPUDelay:       stats.CPUDelay,
+			FreePagesDelay: stats.FreePagesDelay,
+			SwapInDelay:    stats.SwapInDelay,
+		}, nil
 	}
 }
