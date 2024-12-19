@@ -29,7 +29,7 @@ type Handler struct {
 	// of services the metrics are coming from. The intent of this field is to
 	// provide support for this use case.
 	//
-	// Note that triming only applies to the metric namespace, the metric
+	// Note that trimming only applies to the metric namespace, the metric
 	// name will always be left untouched.
 	//
 	// If empty, no prefix trimming is done.
