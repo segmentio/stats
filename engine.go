@@ -170,34 +170,34 @@ func (e *Engine) reportVersionOnce(t time.Time) {
 	// instead we try to do it at the moment you try to send your first metric.
 	e.once.Do(func() {
 		vsn := strings.TrimPrefix(runtime.Version(), "go")
-		parts := strings.Split(vsn, ".")
-		// We don't want to report weird compiled Go versions like tip.
-		// len(parts) may equal 2 because an older Go version might be "go1.13"
-		// instead of "go1.13.1"
-		if len(parts) == 2 || len(parts) == 3 {
-			e.Handler.HandleMeasures(t,
-				Measure{
-					Name: "go_version",
-					Fields: []Field{{
-						Name:  "value",
-						Value: intValue(1),
-					}},
-					Tags: []Tag{
-						{"go_version", vsn},
-					},
+		measures := []Measure{
+			{
+				Name: "stats_version",
+				Fields: []Field{{
+					Name:  "value",
+					Value: intValue(1),
+				}},
+				Tags: []Tag{
+					{"stats_version", version.Version},
 				},
-				Measure{
-					Name: "stats_version",
-					Fields: []Field{{
-						Name:  "value",
-						Value: intValue(1),
-					}},
-					Tags: []Tag{
-						{"stats_version", version.Version},
-					},
-				},
-			)
+			},
 		}
+		// We don't want to report weird compiled Go versions like "devel" with
+		// a commit SHA. Splitting on periods does not work as well for
+		// filtering these
+		if strings.Count(vsn, " ") <= 2 && !strings.HasPrefix(vsn, "devel") {
+			measures = append(measures, Measure{
+				Name: "go_version",
+				Fields: []Field{{
+					Name:  "value",
+					Value: intValue(1),
+				}},
+				Tags: []Tag{
+					{"go_version", vsn},
+				},
+			})
+		}
+		e.Handler.HandleMeasures(t, measures...)
 	})
 }
 
