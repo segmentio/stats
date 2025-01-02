@@ -1,5 +1,9 @@
 # History
 
+### v5.3.1 (January 2, 2024)
+
+- Fix version parsing logic.
+
 ### v5.3.0 (December 19, 2024)
 
 - Add `debugstats` package that can easily print metrics to stdout.
