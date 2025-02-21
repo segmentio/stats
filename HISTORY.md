@@ -1,6 +1,13 @@
 # History
 
-### v5.3.1 (January 2, 2024)
+### v5.4.0 (February 21, 2025)
+
+- Fix a regression in configured buffer size for the datadog client. Versions
+5.0.0 to 5.3.1 would ignore any configured buffer size and use the default value
+of 1024. This could lead to smaller than expected writes and contention for the
+file handle.
+
+### v5.3.1 (January 2, 2025)
 
 - Fix version parsing logic.
 
