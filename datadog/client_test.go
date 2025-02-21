@@ -38,6 +38,16 @@ func TestClient(t *testing.T) {
 	}
 }
 
+func TestClientSetsBothBufferSizes(t *testing.T) {
+	c := NewClientWith(ClientConfig{BufferSize: 12345})
+	if c.bufferSize != 12345 {
+		t.Errorf("expected buffer size to be 12345, got %d", c.bufferSize)
+	}
+	if c.buffer.BufferSize != 12345 {
+		t.Errorf("expected buffer.BufferSize to be 12345, got %d", c.buffer.BufferSize)
+	}
+}
+
 func TestClientWithDistributionPrefixes(t *testing.T) {
 	client := NewClientWith(ClientConfig{
 		Address:              DefaultAddress,

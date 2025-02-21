@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -26,9 +27,12 @@ func TestServer(t *testing.T) {
 	seenGauges := make([]Metric, 0)
 	var mu sync.Mutex
 
+	// The repeat string ensures that internal buffers are set correctly if we
+	// pass in a custom buffer size
+	aName := strings.Repeat("A", DefaultBufferSize+20)
 	addr, closer := startUDPTestServer(t, HandlerFunc(func(m Metric, _ net.Addr) {
 		switch m.Name {
-		case "datadog.test.A":
+		case "datadog.test." + aName:
 			atomic.AddUint32(&a, uint32(m.Value))
 
 		case "datadog.test.B":
@@ -53,13 +57,14 @@ func TestServer(t *testing.T) {
 	}))
 	defer closer.Close()
 
-	client := NewClient(addr)
+	// The buffer size here ensures that internal buffers are set correctly
+	client := NewClientWith(ClientConfig{Address: addr, BufferSize: DefaultBufferSize + 500})
 	defer client.Close()
 	engine.Register(client)
 
-	engine.Incr("A")
-	engine.Incr("A")
-	engine.Incr("A")
+	engine.Incr(aName)
+	engine.Incr(aName)
+	engine.Incr(aName)
 
 	now := time.Now()
 	engine.Set("B", float64(time.Since(now)))
