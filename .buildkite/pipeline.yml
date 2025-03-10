@@ -1,0 +1,16 @@
+steps:
+  - label: ":golang: test"
+    env:
+      SEGMENT_BUILDKITE_IMAGE: "buildkite-agent-golang1.23"
+      SEGMENT_CONTEXTS: aws-credentials
+    commands: |
+      export GOCACHE="$$PWD/.go/cache"
+      export GOMODCACHE="$$PWD/.go/pkg/mod"
+      echo '+++ TESTS'
+      go test -race ./...
+    plugins:
+      - ssh://git@github.com/segmentio/cache-buildkite-plugin#v4.0.0:
+          key: "stats-{{ checksum 'go.mod' }}"
+          save: true
+          paths:
+            - .go/
