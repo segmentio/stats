@@ -12,6 +12,8 @@ import (
 )
 
 func TestHandler(t *testing.T) {
+	statstest.DisableVersionReporting(t)
+
 	h := &statstest.Handler{}
 	e := stats.NewEngine("", h)
 
@@ -65,6 +67,8 @@ func TestHandler(t *testing.T) {
 }
 
 func TestHandlerHijack(t *testing.T) {
+	statstest.DisableVersionReporting(t)
+
 	h := &statstest.Handler{}
 	e := stats.NewEngine("", h)
 

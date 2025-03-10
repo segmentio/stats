@@ -10,9 +10,12 @@ import (
 	"time"
 
 	"github.com/segmentio/stats/v4"
+	"github.com/segmentio/stats/v4/statstest"
 )
 
 func TestServer(t *testing.T) {
+	statstest.DisableVersionReporting(t)
+
 	engine := stats.NewEngine("datadog.test", nil)
 
 	a := uint32(0)

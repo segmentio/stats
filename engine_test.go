@@ -16,6 +16,8 @@ import (
 )
 
 func TestEngine(t *testing.T) {
+	statstest.DisableVersionReporting(t)
+
 	tests := []struct {
 		scenario string
 		function func(*testing.T, *stats.Engine)

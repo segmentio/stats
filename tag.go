@@ -1,143 +1,28 @@
 package stats
 
 import (
-	"sync"
-
-	"golang.org/x/exp/slices"
+	statsv5 "github.com/segmentio/stats/v5"
 )
 
-// A Tag is a pair of a string key and value set on measures to define the
-// dimensions of the metrics.
-type Tag struct {
-	Name  string
-	Value string
-}
+// Tag behaves like [stats/v5.Tag].
+type Tag = statsv5.Tag
 
-// T is shorthand for `stats.Tag{Name: "blah", Value: "foo"}`  It returns
-// the tag for Name k and Value v.
+// T behaves like [stats/v5.T].
 func T(k, v string) Tag {
-	return Tag{Name: k, Value: v}
+	return statsv5.T(k, v)
 }
 
-func (t Tag) String() string {
-	return t.Name + "=" + t.Value
-}
-
-// M allows for creating a tag list from a map.
+// M behaves like [stats/v5.M].
 func M(m map[string]string) []Tag {
-	tags := make([]Tag, 0, len(m))
-	for k, v := range m {
-		tags = append(tags, T(k, v))
-	}
-	return tags
+	return statsv5.M(m)
 }
 
-// TagsAreSorted returns true if the given list of tags is sorted by tag name,
-// false otherwise.
+// TagsAreSorted behaves like [stats/v5.TagsAreSorted].
 func TagsAreSorted(tags []Tag) bool {
-	return slices.IsSortedFunc(tags, tagCompare)
+	return statsv5.TagsAreSorted(tags)
 }
 
-// SortTags sorts and deduplicates tags in-place, favoring later elements
-// whenever a tag name duplicate occurs. The returned slice may be shorter than
-// the input due to the elimination of duplicates.
+// SortTags behaves like [stats/v5.SortTags].
 func SortTags(tags []Tag) []Tag {
-	// Stable sort ensures that we have deterministic
-	// "latest wins" deduplication.
-	// For 20 or fewer tags, this is as fast as an unstable sort.
-	slices.SortStableFunc(tags, tagCompare)
-
-	return deduplicateTags(tags)
-}
-
-// tagCompare reports whether a is less than b.
-func tagCompare(a, b Tag) int {
-	if a.Name < b.Name {
-		return -1
-	} else if b.Name < a.Name {
-		return 1
-	}
-	return 0
-}
-
-func deduplicateTags(tags []Tag) []Tag {
-	var prev string
-	out := tags[:0]
-
-	for _, tag := range tags {
-		switch {
-		case tag.Name == "":
-			// Ignore unnamed tags.
-			continue
-
-		case tag.Name != prev:
-			// Non-duplicate tag: keep.
-			prev = tag.Name
-			out = append(out, tag)
-
-		default:
-			// Duplicate tag: replace previous, same-named tag.
-			i := len(out) - 1
-			out[i] = tag
-		}
-	}
-
-	if len(out) == 0 {
-		// No input tags had non-empty names:
-		// return nil to be consistent for ease of testing.
-		return nil
-	}
-
-	return out
-}
-
-// mergeTags returns the sorted, deduplicated-by-name union of t1 and t2.
-// When duplicate tag names are encountered,
-// the latest Tag with that name is the name-value pair that is retained:
-// for each tag name in t2, the same tag names in t1 will be ignored,
-// though this will also have the effect of deduplicating tag
-// that may have even existed within a single tag slice.
-func mergeTags(t1, t2 []Tag) []Tag {
-	n := len(t1) + len(t2)
-	if n == 0 {
-		return nil
-	}
-
-	out := make([]Tag, 0, n)
-	out = append(out, t1...)
-	out = append(out, t2...)
-
-	return SortTags(out)
-}
-
-func copyTags(tags []Tag) []Tag {
-	if len(tags) == 0 {
-		return nil
-	}
-	ctags := make([]Tag, len(tags))
-	copy(ctags, tags)
-	return ctags
-}
-
-type tagsBuffer struct {
-	tags []Tag
-}
-
-func (b *tagsBuffer) reset() {
-	for i := range b.tags {
-		b.tags[i] = Tag{}
-	}
-	b.tags = b.tags[:0]
-}
-
-func (b *tagsBuffer) sort() {
-	SortTags(b.tags)
-}
-
-func (b *tagsBuffer) append(tags ...Tag) {
-	b.tags = append(b.tags, tags...)
-}
-
-var tagsPool = sync.Pool{
-	New: func() any { return &tagsBuffer{tags: make([]Tag, 0, 8)} },
+	return statsv5.SortTags(tags)
 }

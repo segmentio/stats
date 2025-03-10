@@ -23,6 +23,8 @@ func TestBaseConn(t *testing.T) {
 }
 
 func TestConn(t *testing.T) {
+	statstest.DisableVersionReporting(t)
+
 	h := &statstest.Handler{}
 	e := stats.NewEngine("netstats.test", h)
 
@@ -84,6 +86,8 @@ func TestConn(t *testing.T) {
 }
 
 func TestConnError(t *testing.T) {
+	statstest.DisableVersionReporting(t)
+
 	h := &statstest.Handler{}
 	e := stats.NewEngine("netstats.test", h)
 

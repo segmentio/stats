@@ -10,6 +10,8 @@ import (
 )
 
 func TestListener(t *testing.T) {
+	statstest.DisableVersionReporting(t)
+
 	h := &statstest.Handler{}
 	e := stats.NewEngine("netstats.test", h)
 
@@ -45,6 +47,8 @@ func TestListener(t *testing.T) {
 }
 
 func TestListenerError(t *testing.T) {
+	statstest.DisableVersionReporting(t)
+
 	h := &statstest.Handler{}
 	e := stats.NewEngine("netstats.test", h)
 
