@@ -16,6 +16,33 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// TestDefaultAddressFromEnv tests that the addressFromEnv function returns the
+// default address when the environment variable is not set.
+func TestDefaultAddressFromEnv(t *testing.T) {
+	address := addressFromEnv()
+
+	assert.Equal(t, "localhost:8125", address)
+}
+
+// TestUdpAddressFromEnv tests that the addressFromEnv function returns the
+// address from the environment variable when it is set.
+func TestUdpAddressFromEnv(t *testing.T) {
+	t.Setenv("STATSD_HOST", "not-localhost")
+	t.Setenv("STATSD_UDP_PORT", "1234")
+
+	address := addressFromEnv()
+	assert.Equal(t, "not-localhost:1234", address)
+}
+
+// TestUdsAddressFromEnv tests that the addressFromEnv function returns the
+// address from the environment variable when it is set.
+func TestUdsAddressFromEnv(t *testing.T) {
+	t.Setenv("STATSD_SOCKET", "/dir/file.ext")
+
+	address := addressFromEnv()
+	assert.Equal(t, "unixgram:///dir/file.ext", address)
+}
+
 func TestClient(t *testing.T) {
 	client := NewClient(DefaultAddress)
 
