@@ -151,6 +151,24 @@ func main() {
 }
 ```
 
+### Configuring Using Environment Variables
+
+The datadog client can be auto-configured using the following environment variables:
+
+* `STATSD_HOST` - the hostname of the UDP server. Defaults to `localhost`
+* `STATSD_UDP_PORT` - the port of the UDP server. Defaults to `8125`
+* `STATSD_SOCKET` - the path of the unix domain socket of the server.
+
+Note: if the `STATSD_SOCKET` variable is present, the client will be configured to use UDS by default and ignore the UDP settings.
+
+```go
+func main() {
+    stats.Register(datadog.NewClientFromEnv())
+    defer stats.Flush()
+
+    // ...
+```
+
 ### Flushing Metrics
 
 Metrics are stored in a buffer, which will be flushed when it reaches its

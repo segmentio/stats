@@ -1,5 +1,11 @@
 # History
 
+### Unreleased
+
+- Adds support for datadog client configuration using environment variables.
+  `STATSD_HOST`, `STATSD_UDP_PORT` and `STATSD_SOCKET` can now be used to
+  configure the datadog client.
+
 ### v5.4.0 (February 21, 2025)
 
 - Fix a regression in configured buffer size for the datadog client. Versions

@@ -14,9 +14,18 @@ import (
 )
 
 const (
+
+	// DefaultHost is the default host to which the datadog client tries to
+	// connect to.
+	DefaultHost = "localhost"
+
+	// DefaultPort is the default port to which the datadog client tries to
+	// connect to.
+	DefaultPort = "8125"
+
 	// DefaultAddress is the default address to which the datadog client tries
 	// to connect to.
-	DefaultAddress = "localhost:8125"
+	DefaultAddress = DefaultHost + ":" + DefaultPort
 
 	// DefaultBufferSize is the default size for batches of metrics sent to
 	// datadog.
@@ -77,11 +86,19 @@ func NewClient(addr string) *Client {
 	})
 }
 
+// NewClientFromEnv creates and returns a new datadog client publishing metrics
+// to the server running at the address specified in the environment variable.
+// The STATSD_HOST and STATSD_UDP_PORT environment variables are used to
+// determine the address.
+func NewClientFromEnv() *Client {
+	return NewClientWith(ClientConfig{})
+}
+
 // NewClientWith creates and returns a new datadog client configured with the
 // given config.
 func NewClientWith(config ClientConfig) *Client {
 	if len(config.Address) == 0 {
-		config.Address = DefaultAddress
+		config.Address = addressFromEnv()
 	}
 
 	if config.BufferSize == 0 {
@@ -151,6 +168,25 @@ func (c *Client) Close() error {
 	c.Flush()
 	c.close()
 	return c.err
+}
+
+// Returns the address to which the client will send metrics by
+// looking at the STATSD_SOCKET, STATSD_HOST and STATSD_UDP_PORT environment variables.
+func addressFromEnv() string {
+	socket := os.Getenv("STATSD_SOCKET")
+	if len(socket) > 0 {
+		return "unixgram://" + socket
+	}
+	hostname := os.Getenv("STATSD_HOST")
+	if len(hostname) == 0 {
+		hostname = DefaultHost
+	}
+	port := os.Getenv("STATSD_UDP_PORT")
+	if len(port) == 0 {
+		port = DefaultPort
+	}
+	addr := hostname + ":" + port
+	return addr
 }
 
 func bufSizeFromFD(f *os.File, sizehint int) (bufsize int, err error) {
