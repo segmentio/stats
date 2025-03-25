@@ -27,6 +27,8 @@ func (s *serializer) Write(b []byte) (int, error) {
 		return 0, io.ErrClosedPipe
 	}
 
+	// Ensure the serialized metric payload have valid UTF-8 encoded bytes
+	b = bytes.ToValidUTF8(b, []byte("\uFFFD"))
 	if len(b) <= s.bufferSize {
 		return s.conn.Write(b)
 	}
