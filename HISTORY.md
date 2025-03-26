@@ -1,5 +1,9 @@
 # History
 
+### v5.5.0 (March 26, 2025)
+
+- Add logic to replace invalid unicode in the serialized datadog payload with '\ufffd'.
+
 ### v5.4.0 (February 21, 2025)
 
 - Fix a regression in configured buffer size for the datadog client. Versions
