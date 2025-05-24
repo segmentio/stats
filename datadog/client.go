@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	stats "github.com/segmentio/stats/v5"
-
 	"golang.org/x/sys/unix"
+
+	stats "github.com/segmentio/stats/v5"
 )
 
 const (

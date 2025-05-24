@@ -29,12 +29,44 @@ func TestClient(t *testing.T) {
 			Tags: []stats.Tag{
 				stats.T("answer", "42"),
 				stats.T("hello", "world"),
+				stats.T("env", "production"),
 			},
 		})
 	}
 
 	if err := client.Close(); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestClientSanitizesMetricNames(t *testing.T) {
+	// Start a goroutine listening for packets and giving them back on packets chan
+	packets := make(chan []byte)
+	addr, closer := startUDPListener(t, packets)
+	defer closer.Close()
+
+	client := NewClientWith(ClientConfig{
+		Address: addr,
+	})
+
+	testMeasure := stats.Measure{
+		Name: "request:colon|atsign@laughing🤡end",
+		Fields: []stats.Field{
+			{Name: "colon:atsign@pipe|end", Value: stats.ValueOf(5)},
+		},
+		Tags: []stats.Tag{
+			stats.T("colon:atsign@pipe|end", "42"),
+		},
+	}
+	client.HandleMeasures(time.Time{}, testMeasure)
+	client.Flush()
+
+	expectedPacket1 := "request_colon_atsign_laughing_end.colon_atsign_pipe_end:5|c|#colon_atsign_pipe_end:42\n"
+	select {
+	case packet := <-packets:
+		assert.EqualValues(t, expectedPacket1, string(packet))
+	case <-time.After(2 * time.Second):
+		t.Fatal("no response after 2 seconds")
 	}
 }
 

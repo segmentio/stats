@@ -29,7 +29,8 @@ func TestServer(t *testing.T) {
 
 	// The repeat string ensures that internal buffers are set correctly if we
 	// pass in a custom buffer size
-	aName := strings.Repeat("A", DefaultBufferSize+20)
+	bufferSize := 200
+	aName := strings.Repeat("A", bufferSize+20)
 	addr, closer := startUDPTestServer(t, HandlerFunc(func(m Metric, _ net.Addr) {
 		switch m.Name {
 		case "datadog.test." + aName:
@@ -58,7 +59,7 @@ func TestServer(t *testing.T) {
 	defer closer.Close()
 
 	// The buffer size here ensures that internal buffers are set correctly
-	client := NewClientWith(ClientConfig{Address: addr, BufferSize: DefaultBufferSize + 500})
+	client := NewClientWith(ClientConfig{Address: addr, BufferSize: bufferSize + 500})
 	defer client.Close()
 	engine.Register(client)
 
@@ -76,14 +77,13 @@ func TestServer(t *testing.T) {
 	engine.Observe("C", 2)
 	engine.Observe("C", 3)
 
-	// because this is "last write wins" it's possible it runs before the reads
-	// of 1 or 2; add a sleep to try to ensure it loses the race
 	engine.Flush()
 
-	// Give time for the server to receive the metrics.
+	// because this is "last write wins" it's possible it runs before the reads
+	// of 1 or 2; add a sleep to try to ensure it loses the race
 	time.Sleep(20 * time.Millisecond)
 
-	if n := atomic.LoadUint32(&a); n != 3 { // two increments (+1, +1, +1)
+	if n := atomic.LoadUint32(&a); n != 3 { // three increments (+1, +1, +1)
 		t.Error("datadog.test.A: bad value:", n)
 	}
 
