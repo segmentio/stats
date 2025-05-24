@@ -16,3 +16,6 @@ AUTHORS.txt: force
 	go run github.com/kevinburke/write_mailmap@latest > AUTHORS.txt
 
 authors: AUTHORS.txt
+
+bench:
+	go test -bench . -run='^$$' -benchmem -count=10 ./...
