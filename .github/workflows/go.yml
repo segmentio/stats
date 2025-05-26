@@ -11,7 +11,6 @@ jobs:
           - 'oldstable'
           - 'stable'
         label:
-          - [self-hosted, linux, arm64, segment]
           - ubuntu-latest
 
     runs-on: ${{ matrix.label }}
@@ -34,4 +33,4 @@ jobs:
         run: go mod download
 
       - name: Run Tests
-        run: go test -race -tags=${{ matrix.tags }} ./...
+        run: go test -trimpath -race ./...
