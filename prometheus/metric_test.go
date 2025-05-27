@@ -11,6 +11,48 @@ import (
 	"github.com/segmentio/stats/v5"
 )
 
+func TestFuzzyDeadlock(t *testing.T) {
+	const (
+		iterations = 10000
+		timeout    = 1 * time.Second
+	)
+
+	for i := 0; i < iterations; i++ {
+		// 1) fresh store with one expired metric so cleanup() will actually delete
+		var store metricStore
+		store.entries = make(map[metricKey]*metricEntry)
+		m := metric{
+			mtype: counter,
+			scope: "svc",
+			name:  "fuzzy_deadlock",
+			value: 1,
+			time:  time.Now().Add(-time.Hour), // expired
+		}
+		store.update(m, nil)
+
+		// 2) race collect vs cleanup once
+		done := make(chan struct{}, 2)
+		go func() {
+			store.collect(nil)
+			done <- struct{}{}
+		}()
+		go func() {
+			store.cleanup(time.Now())
+			done <- struct{}{}
+		}()
+
+		// 3) both must finish within timeout or we assume a deadlock
+		for j := 0; j < 2; j++ {
+			select {
+			case <-done:
+				// one of them completed
+			case <-time.After(timeout):
+				t.Fatalf("iteration %d: deadlock (neither collect nor cleanup returned)", i)
+			}
+		}
+	}
+}
+
 func TestUnsafeByteSliceToString(t *testing.T) {
 	for _, test := range []struct {
 		name     string
