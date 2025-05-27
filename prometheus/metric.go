@@ -226,11 +226,14 @@ func (entry *metricEntry) cleanup(exp time.Time, empty func()) {
 		}
 	}
 
-	if len(entry.states) == 0 {
+	// remember whether we emptied out all states _while_ holding the lock
+	shouldDelete := (len(entry.states) == 0)
+	entry.mutex.Unlock()
+
+	// now call back into store (taking store.mutex) only after releasing entry.mutex
+	if shouldDelete {
 		empty()
 	}
-
-	entry.mutex.Unlock()
 }
 
 type metricState struct {
