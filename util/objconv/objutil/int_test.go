@@ -19,7 +19,6 @@ func TestParseInt(t *testing.T) {
 	for _, test := range parseIntTests {
 		t.Run(test.s, func(t *testing.T) {
 			v, err := ParseInt([]byte(test.s))
-
 			if err != nil {
 				t.Error(err)
 			}
@@ -61,7 +60,6 @@ func TestParseUintHex(t *testing.T) {
 	for _, test := range parseUintHexTests {
 		t.Run(test.s, func(t *testing.T) {
 			v, err := ParseUintHex([]byte(test.s))
-
 			if err != nil {
 				t.Error(err)
 			}

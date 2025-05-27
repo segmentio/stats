@@ -104,7 +104,7 @@ var TestValues = [...]interface{}{
 
 	// error
 	errors.New(""),
-	errors.New("Hello World!"),
+	errors.New("hello world"),
 	errors.New(strings.Repeat("A", objutil.Uint8Max+1)),
 	errors.New(strings.Repeat("A", objutil.Uint16Max+1)),
 
@@ -189,9 +189,8 @@ func TestCodec(t *testing.T, codec objconv.Codec) {
 func newValue(model interface{}) reflect.Value {
 	if model == nil {
 		return reflect.New(reflect.TypeOf(&model).Elem())
-	} else {
-		return reflect.New(reflect.TypeOf(model))
 	}
+	return reflect.New(reflect.TypeOf(model))
 }
 
 func testCodecValues(t *testing.T, codec objconv.Codec) {
@@ -211,7 +210,7 @@ func testCodecValues(t *testing.T, codec objconv.Codec) {
 			}
 
 			if err := d.Decode(v2.Interface()); err != nil {
-				t.Error(err)
+				t.Errorf("Decode(%v): got error %v", v1, err)
 				return
 			}
 
@@ -318,13 +317,16 @@ func BenchmarkCodec(b *testing.B, codec objconv.Codec) {
 }
 
 func benchmarkEncoder(b *testing.B, codec objconv.Codec) {
+	b.Helper()
 	for _, v := range TestValues {
 		b.Run(testName(v), func(b *testing.B) {
 			c := &counter{}
 			e := objconv.NewEncoder(codec.NewEmitter(c))
 
 			for i := 0; i != b.N; i++ {
-				e.Encode(v)
+				if err := e.Encode(v); err != nil {
+					b.Fatal(err)
+				}
 			}
 
 			b.SetBytes(int64(c.n / b.N))
@@ -338,7 +340,9 @@ func benchmarkDecoder(b *testing.B, codec objconv.Codec) {
 
 	for _, v := range TestValues {
 		e := objconv.NewEncoder(codec.NewEmitter(a))
-		e.Encode(v)
+		if err := e.Encode(v); err != nil {
+			b.Fatal(err)
+		}
 
 		s := a.Bytes()
 		r := bytes.NewReader(s)
@@ -348,7 +352,9 @@ func benchmarkDecoder(b *testing.B, codec objconv.Codec) {
 
 			for i := 0; i != b.N; i++ {
 				var x interface{}
-				d.Decode(&x)
+				if err := d.Decode(&x); err != nil {
+					b.Fatal(err)
+				}
 				r.Reset(s)
 			}
 
@@ -366,10 +372,14 @@ func benchmarkStreamEncoder(b *testing.B, codec objconv.Codec) {
 			e := objconv.NewStreamEncoder(codec.NewEmitter(c))
 
 			for i := 0; i != b.N; i++ {
-				e.Encode(v)
+				if err := e.Encode(v); err != nil {
+					b.Fatal(err)
+				}
 			}
 
-			e.Close()
+			if err := e.Close(); err != nil {
+				b.Fatal(err)
+			}
 			b.SetBytes(int64(c.n / b.N))
 		})
 	}
@@ -381,8 +391,12 @@ func benchmarkStreamDecoder(b *testing.B, codec objconv.Codec) {
 
 	for _, v := range TestValues {
 		e := objconv.NewStreamEncoder(codec.NewEmitter(a))
-		e.Encode(v)
-		e.Close()
+		if err := e.Encode(v); err != nil {
+			b.Fatal(err)
+		}
+		if err := e.Close(); err != nil {
+			b.Fatal(err)
+		}
 
 		s := a.Bytes()
 		r := bytes.NewReader(s)
@@ -392,7 +406,9 @@ func benchmarkStreamDecoder(b *testing.B, codec objconv.Codec) {
 
 			for i := 0; i != b.N; i++ {
 				var x interface{}
-				d.Decode(&x)
+				if err := d.Decode(&x); err != nil {
+					b.Fatal(err)
+				}
 				r.Reset(s)
 			}
 
@@ -401,11 +417,6 @@ func benchmarkStreamDecoder(b *testing.B, codec objconv.Codec) {
 
 		a.Reset()
 	}
-}
-
-func parseURL(s string) url.URL {
-	u, _ := url.Parse(s)
-	return *u
 }
 
 func parseQuery(s string) url.Values {
@@ -433,8 +444,12 @@ type point struct {
 
 func (p point) MarshalBinary() ([]byte, error) {
 	b := &bytes.Buffer{}
-	binary.Write(b, binary.BigEndian, p.x)
-	binary.Write(b, binary.BigEndian, p.y)
+	if err := binary.Write(b, binary.BigEndian, p.x); err != nil {
+		return nil, err
+	}
+	if err := binary.Write(b, binary.BigEndian, p.y); err != nil {
+		return nil, err
+	}
 	return b.Bytes(), nil
 }
 
@@ -444,12 +459,16 @@ func (p point) MarshalText() ([]byte, error) {
 
 func (p *point) UnmarshalBinary(b []byte) error {
 	r := bytes.NewReader(b)
-	binary.Read(r, binary.BigEndian, &p.x)
-	binary.Read(r, binary.BigEndian, &p.y)
+	if err := binary.Read(r, binary.BigEndian, &p.x); err != nil {
+		return err
+	}
+	if err := binary.Read(r, binary.BigEndian, &p.y); err != nil {
+		return err
+	}
 	return nil
 }
 
 func (p *point) UnmarshalText(b []byte) error {
-	fmt.Sscanf(string(b), "(%d,%d)", &p.x, &p.y)
-	return nil
+	_, err := fmt.Sscanf(string(b), "(%d,%d)", &p.x, &p.y)
+	return err
 }

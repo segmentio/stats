@@ -87,21 +87,21 @@ const (
 
 // CheckUint64Bounds verifies that v is smaller than max, t represents the
 // original type of v.
-func CheckUint64Bounds(v uint64, max uint64, t reflect.Type) (err error) {
-	if v > max {
-		err = fmt.Errorf("objconv: %d overflows the maximum value of %d for %s", v, max, t)
+func CheckUint64Bounds(v, maxVal uint64, t reflect.Type) error {
+	if v > maxVal {
+		return fmt.Errorf("objconv: %d overflows the maximum value of %d for %s", v, maxVal, t)
 	}
-	return
+	return nil
 }
 
 // CheckInt64Bounds verifies that v is within min and max, t represents the
 // original type of v.
-func CheckInt64Bounds(v int64, min int64, max uint64, t reflect.Type) (err error) {
-	if v < min {
-		err = fmt.Errorf("objconv: %d overflows the minimum value of %d for %s", v, min, t)
+func CheckInt64Bounds(v, minVal int64, maxVal uint64, t reflect.Type) error {
+	if v < minVal {
+		return fmt.Errorf("objconv: %d overflows the minimum value of %d for %s", v, minVal, t)
 	}
-	if v > 0 && uint64(v) > max {
-		err = fmt.Errorf("objconv: %d overflows the maximum value of %d for %s", v, max, t)
+	if v > 0 && uint64(v) > maxVal {
+		return fmt.Errorf("objconv: %d overflows the maximum value of %d for %s", v, maxVal, t)
 	}
-	return
+	return nil
 }

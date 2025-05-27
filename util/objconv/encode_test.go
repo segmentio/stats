@@ -9,22 +9,24 @@ import (
 )
 
 // Used for testing that the encoder does the right thing with type aliases.
-type TBool bool
-type TInt int
-type TInt8 int8
-type TInt16 int16
-type TInt32 int32
-type TInt64 int64
-type TUint uint
-type TUint8 uint8
-type TUint16 uint16
-type TUint32 uint32
-type TUint64 uint64
-type TUintptr uintptr
-type TFloat32 float32
-type TFloat64 float64
-type TString string
-type TBytes []byte
+type (
+	TBool    bool
+	TInt     int
+	TInt8    int8
+	TInt16   int16
+	TInt32   int32
+	TInt64   int64
+	TUint    uint
+	TUint8   uint8
+	TUint16  uint16
+	TUint32  uint32
+	TUint64  uint64
+	TUintptr uintptr
+	TFloat32 float32
+	TFloat64 float64
+	TString  string
+	TBytes   []byte
+)
 
 func TestEncoder(t *testing.T) {
 	now := time.Now()

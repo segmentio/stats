@@ -9,7 +9,7 @@ import (
 )
 
 func TestDecoderDecodeType(t *testing.T) {
-	date := time.Date(2016, 12, 12, 01, 01, 01, 0, time.UTC)
+	date := time.Date(2016, time.December, 12, 1, 1, 1, 0, time.UTC)
 	err := errors.New("error")
 
 	tests := [...]struct {
@@ -239,7 +239,7 @@ func TestDecoderDecodeType(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("%T->%T", test.in, test.out), func(t *testing.T) {
-			var dec = NewDecoder(NewValueParser(test.in))
+			dec := NewDecoder(NewValueParser(test.in))
 			var val reflect.Value
 			var ptr interface{}
 
@@ -310,7 +310,7 @@ func TestDecoderDecodeToEmptyInterface(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("%T->interface{}", test), func(t *testing.T) {
-			var dec = NewDecoder(NewValueParser(test))
+			dec := NewDecoder(NewValueParser(test))
 			var val interface{}
 
 			if err := dec.Decode(&val); err != nil {
@@ -336,7 +336,7 @@ func TestStreamDecoder(t *testing.T) {
 			dec := NewStreamDecoder(val)
 
 			var v interface{}
-			var i = int64(0)
+			i := int64(0)
 
 			if n := dec.Len(); n != len(test) {
 				t.Error("invalid length returned by the stream decoder:", n)
@@ -391,7 +391,6 @@ func TestStreamRencode(t *testing.T) {
 
 			dec := NewStreamDecoder(in)
 			enc, err := dec.Encoder(out)
-
 			if err != nil {
 				t.Error(err)
 				return

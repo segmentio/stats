@@ -90,17 +90,17 @@ func AppendDuration(b []byte, d time.Duration) []byte {
 func fmtFrac(buf []byte, v uint64, prec int) (nw int, nv uint64) {
 	// Omit trailing zeros up to and including decimal point.
 	w := len(buf)
-	print := false
+	shouldPrint := false
 	for i := 0; i < prec; i++ {
 		digit := v % 10
-		print = print || digit != 0
-		if print {
+		shouldPrint = shouldPrint || digit != 0
+		if shouldPrint {
 			w--
 			buf[w] = byte(digit) + '0'
 		}
 		v /= 10
 	}
-	if print {
+	if shouldPrint {
 		w--
 		buf[w] = '.'
 	}

@@ -9,9 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/segmentio/stats/v5"
 	colmetricpb "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
 	metricpb "go.opentelemetry.io/proto/otlp/metrics/v1"
+
+	"github.com/segmentio/stats/v5"
 )
 
 type testCase struct {
@@ -119,8 +120,6 @@ func sumPtr(f float64) *float64 {
 	return &f
 }
 
-var conversionTests = []testCase{}
-
 func initTest() {
 	stats.Buckets.Set("foobar.hist",
 		0,
@@ -158,13 +157,13 @@ type client struct {
 	expected []*metricpb.Metric
 }
 
-func (c *client) Handle(ctx context.Context, request *colmetricpb.ExportMetricsServiceRequest) error {
+func (c *client) Handle(_ context.Context, request *colmetricpb.ExportMetricsServiceRequest) error {
 	for _, rm := range request.GetResourceMetrics() {
 		for _, sm := range rm.GetScopeMetrics() {
 			metrics := sm.GetMetrics()
 			if !reflect.DeepEqual(metrics, c.expected) {
 				return fmt.Errorf(
-					"unexpected metrics in request\nexpected: %v\ngot:%v\n",
+					"unexpected metrics in request\nexpected: %v\ngot:%v",
 					c.expected,
 					metrics,
 				)
@@ -196,8 +195,9 @@ func TestSendOtel(t *testing.T) {
 	}
 
 	for i, test := range handleTests {
-		t.Run(fmt.Sprintf("handle-%d", i), func(t *testing.T) {
-			h.HandlerMeasure(now, test.in...)
+		idx, tc := i, test
+		t.Run(fmt.Sprintf("handle-%d", idx), func(_ *testing.T) {
+			h.HandlerMeasure(now, tc.in...)
 		})
 	}
 

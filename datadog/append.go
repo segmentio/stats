@@ -41,7 +41,7 @@ func appendEvent(b []byte, e Event) []byte {
 	b = append(b, e.Title...)
 	b = append(b, '|')
 
-	b = append(b, strings.Replace(e.Text, "\n", "\\n", -1)...)
+	b = append(b, strings.ReplaceAll(e.Text, "\n", "\\n")...)
 
 	if e.Priority != EventPriorityNormal {
 		b = append(b, '|', 'p', ':')

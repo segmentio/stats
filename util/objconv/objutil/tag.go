@@ -62,11 +62,12 @@ func ParseTagJSON(s string) Tag {
 	}
 }
 
-func parseNextTagToken(s string) (token string, next string) {
-	if split := strings.IndexByte(s, ','); split < 0 {
-		token = s
-	} else {
-		token, next = s[:split], s[split+1:]
+func parseNextTagToken(s string) (string, string) {
+	split := strings.IndexByte(s, ',')
+	if split < 0 {
+		token := s
+		return token, ""
 	}
-	return
+	token, next := s[:split], s[split+1:]
+	return token, next
 }

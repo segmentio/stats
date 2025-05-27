@@ -57,7 +57,7 @@ func parseEvent(s string) (e Event, err error) {
 		Priority:  EventPriorityNormal,
 		AlertType: EventAlertTypeInfo,
 		Title:     rawTitle,
-		Text:      strings.Replace(rawText, "\\n", "\n", -1),
+		Text:      strings.ReplaceAll(rawText, "\\n", "\n"),
 	}
 
 	var tags string

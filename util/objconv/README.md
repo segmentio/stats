@@ -133,7 +133,7 @@ func main() {
 ```
 
 Stream decoders are capable of reading values from either arrays or single
-values, this is very convenient when an program cannot predict the structure of
+values, this is very convenient when a program cannot predict the structure of
 the stream. If the actual data representation is not an array the stream decoder
 will simply behave like a normal decoder and produce a single value.
 

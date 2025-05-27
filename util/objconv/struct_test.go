@@ -40,7 +40,7 @@ func TestMakeStructField(t *testing.T) {
 		},
 
 		{
-			s: reflect.TypeOf(b{}).Field(0),
+			s: reflect.TypeOf(b{a: a{}}).Field(0),
 			f: structField{
 				index: []int{0},
 				name:  "a",

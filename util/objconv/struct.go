@@ -143,7 +143,7 @@ func (cache *structTypeCache) lookup(t reflect.Type) (s *structType) {
 		cache.mutex.Unlock()
 	}
 
-	return
+	return s
 }
 
 // clear empties the cache.
@@ -155,11 +155,10 @@ func (cache *structTypeCache) clear() {
 	cache.mutex.Unlock()
 }
 
-var (
-	// This struct cache is used to avoid reusing reflection over and over when
-	// the objconv functions are called. The performance improvements on iterating
-	// over struct fields are huge, this is a really important optimization:
-	structCache = structTypeCache{
-		store: make(map[reflect.Type]*structType),
-	}
-)
+// This struct cache is used to avoid reusing reflection over and over
+// when the objconv functions are called. The performance improvements
+// on iterating over struct fields are huge, this is a really important
+// optimization.
+var structCache = structTypeCache{
+	store: make(map[reflect.Type]*structType),
+}

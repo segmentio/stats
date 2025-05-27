@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/segmentio/encoding/json"
+
 	stats "github.com/segmentio/stats/v5"
 )
 

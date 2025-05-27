@@ -44,11 +44,11 @@ func (p *Parser) ParseType() (t objconv.Type, err error) {
 	var b byte
 
 	if err = p.skipSpaces(); err != nil {
-		return
+		return t, err
 	}
 
 	if b, err = p.peekByteAt(0); err != nil {
-		return
+		return t, err
 	}
 
 	switch {
@@ -90,7 +90,7 @@ func (p *Parser) ParseType() (t objconv.Type, err error) {
 		err = fmt.Errorf("objconv/json: expected token but found '%c'", b)
 	}
 
-	return
+	return t, err
 }
 
 func (p *Parser) ParseNil() (err error) {
@@ -101,7 +101,7 @@ func (p *Parser) ParseBool() (v bool, err error) {
 	var b byte
 
 	if b, err = p.peekByteAt(0); err != nil {
-		return
+		return v, err
 	}
 
 	switch b {
@@ -115,15 +115,15 @@ func (p *Parser) ParseBool() (v bool, err error) {
 		err = fmt.Errorf("objconv/json: expected boolean but found '%c'", b)
 	}
 
-	return
+	return v, err
 }
 
 func (p *Parser) ParseInt() (v int64, err error) {
 	if v, err = objutil.ParseInt(p.s); err != nil {
-		return
+		return v, err
 	}
 	p.i += len(p.s)
-	return
+	return v, err
 }
 
 func (p *Parser) ParseUint() (v uint64, err error) {
@@ -132,16 +132,16 @@ func (p *Parser) ParseUint() (v uint64, err error) {
 
 func (p *Parser) ParseFloat() (v float64, err error) {
 	if v, err = strconv.ParseFloat(stringNoCopy(p.s), 64); err != nil {
-		return
+		return v, err
 	}
 	p.i += len(p.s)
-	return
+	return v, err
 }
 
 func (p *Parser) ParseString() (v []byte, err error) {
 	if p.i == p.j {
 		if err = p.fill(); err != nil {
-			return
+			return v, err
 		}
 	}
 
@@ -154,13 +154,13 @@ func (p *Parser) ParseString() (v []byte, err error) {
 		if off1 >= 0 && off2 < 0 {
 			v = p.b[p.i+1 : p.i+1+off1]
 			p.i += off1 + 2
-			return
+			return v, err
 		}
 	}
 
 	// there are escape characters or the string didn't fit in the read buffer.
 	if err = p.readByte('"'); err != nil {
-		return
+		return v, err
 	}
 
 	escaped := false
@@ -170,7 +170,7 @@ func (p *Parser) ParseString() (v []byte, err error) {
 		var b byte
 
 		if b, err = p.peekByteAt(0); err != nil {
-			return
+			return v, err
 		}
 		p.i++
 
@@ -198,11 +198,11 @@ func (p *Parser) ParseString() (v []byte, err error) {
 				var r1 rune
 				var r2 rune
 				if r1, err = p.readUnicode(); err != nil {
-					return
+					return v, err
 				}
 				if utf16.IsSurrogate(r1) {
 					if r2, err = p.readUnicode(); err != nil {
-						return
+						return v, err
 					}
 					r1 = utf16.DecodeRune(r1, r2)
 				}
@@ -226,7 +226,7 @@ func (p *Parser) ParseString() (v []byte, err error) {
 	}
 
 	p.s = v[:0]
-	return
+	return v, err
 }
 
 func (p *Parser) ParseBytes() (v []byte, err error) {
@@ -241,7 +241,7 @@ func (p *Parser) ParseDuration() (v time.Duration, err error) {
 	panic("objconv/json: ParseDuration should never be called because JSON has no duration type, this is likely a bug in the decoder code")
 }
 
-func (p *Parser) ParseError() (v error, err error) {
+func (p *Parser) ParseError() (v, err error) {
 	panic("objconv/json: ParseError should never be called because JSON has no error type, this is likely a bug in the decoder code")
 }
 
@@ -249,9 +249,9 @@ func (p *Parser) ParseArrayBegin() (n int, err error) {
 	return -1, p.readByte('[')
 }
 
-func (p *Parser) ParseArrayEnd(n int) (err error) {
+func (p *Parser) ParseArrayEnd(_ int) (err error) {
 	if err = p.skipSpaces(); err != nil {
-		return
+		return err
 	}
 	return p.readByte(']')
 }
@@ -260,11 +260,11 @@ func (p *Parser) ParseArrayNext(n int) (err error) {
 	var b byte
 
 	if err = p.skipSpaces(); err != nil {
-		return
+		return err
 	}
 
 	if b, err = p.peekByteAt(0); err != nil {
-		return
+		return err
 	}
 
 	switch {
@@ -278,23 +278,23 @@ func (p *Parser) ParseArrayNext(n int) (err error) {
 		}
 	}
 
-	return
+	return err
 }
 
 func (p *Parser) ParseMapBegin() (n int, err error) {
 	return -1, p.readByte('{')
 }
 
-func (p *Parser) ParseMapEnd(n int) (err error) {
-	if err = p.skipSpaces(); err != nil {
-		return
+func (p *Parser) ParseMapEnd(_ int) error {
+	if err := p.skipSpaces(); err != nil {
+		return err
 	}
 	return p.readByte('}')
 }
 
-func (p *Parser) ParseMapValue(n int) (err error) {
-	if err = p.skipSpaces(); err != nil {
-		return
+func (p *Parser) ParseMapValue(_ int) error {
+	if err := p.skipSpaces(); err != nil {
+		return err
 	}
 	return p.readByte(':')
 }
@@ -303,11 +303,11 @@ func (p *Parser) ParseMapNext(n int) (err error) {
 	var b byte
 
 	if err = p.skipSpaces(); err != nil {
-		return
+		return err
 	}
 
 	if b, err = p.peekByteAt(0); err != nil {
-		return
+		return err
 	}
 
 	switch b {
@@ -321,7 +321,7 @@ func (p *Parser) ParseMapNext(n int) (err error) {
 		}
 	}
 
-	return
+	return err
 }
 
 func (p *Parser) TextParser() bool {
@@ -331,30 +331,30 @@ func (p *Parser) TextParser() bool {
 func (p *Parser) DecodeBytes(b []byte) (v []byte, err error) {
 	var n int
 	if n, err = base64.StdEncoding.Decode(b, b); err != nil {
-		return
+		return v, err
 	}
 	v = b[:n]
-	return
+	return v, err
 }
 
 func (p *Parser) peek(n int) (b []byte, err error) {
 	for (p.i + n) > p.j {
 		if err = p.fill(); err != nil {
-			return
+			return b, err
 		}
 	}
 	b = p.b[p.i : p.i+n]
-	return
+	return b, err
 }
 
 func (p *Parser) peekByteAt(i int) (b byte, err error) {
 	for (p.i + i + 1) > p.j {
 		if err = p.fill(); err != nil {
-			return
+			return b, err
 		}
 	}
 	b = p.b[p.i+i]
-	return
+	return b, err
 }
 
 func isNumberByte(b byte) bool {
@@ -367,7 +367,7 @@ func (p *Parser) peekNumber() (b []byte, err error) {
 	for i, c := range p.b[p.i:p.j] {
 		if !isNumberByte(c) {
 			b = p.b[p.i : p.i+i]
-			return
+			return b, err
 		}
 	}
 
@@ -387,7 +387,7 @@ func (p *Parser) peekNumber() (b []byte, err error) {
 		}
 	}
 	b = p.b[p.i : p.i+i]
-	return
+	return b, err
 }
 
 func (p *Parser) readByte(b byte) (err error) {
@@ -401,12 +401,12 @@ func (p *Parser) readByte(b byte) (err error) {
 		}
 	}
 
-	return
+	return err
 }
 
 func (p *Parser) readToken(token []byte) (err error) {
 	var chunk []byte
-	var n = len(token)
+	n := len(token)
 
 	if chunk, err = p.peek(n); err == nil {
 		if bytes.Equal(chunk, token) {
@@ -416,7 +416,7 @@ func (p *Parser) readToken(token []byte) (err error) {
 		}
 	}
 
-	return
+	return err
 }
 
 func (p *Parser) readUnicode() (r rune, err error) {
@@ -424,29 +424,29 @@ func (p *Parser) readUnicode() (r rune, err error) {
 	var code uint64
 
 	if chunk, err = p.peek(4); err != nil {
-		return
+		return r, err
 	}
 
 	if code, err = objutil.ParseUintHex(chunk); err != nil {
 		err = fmt.Errorf("objconv/json: expected an hexadecimal unicode code point but found %#v", string(chunk))
-		return
+		return r, err
 	}
 
 	if code > objutil.Uint16Max {
 		err = fmt.Errorf("objconv/json: expected an hexadecimal unicode code points but found an overflowing value %X", code)
-		return
+		return r, err
 	}
 
 	p.i += 4
 	r = rune(code)
-	return
+	return r, err
 }
 
 func (p *Parser) skipSpaces() (err error) {
 	for {
 		if p.i == p.j {
 			if err = p.fill(); err != nil {
-				return
+				return err
 			}
 		}
 
@@ -456,7 +456,7 @@ func (p *Parser) skipSpaces() (err error) {
 			case ' ', '\n', '\t', '\r', '\b', '\f':
 				p.i++
 			default:
-				return
+				return err
 			}
 		}
 
@@ -476,13 +476,13 @@ func (p *Parser) fill() (err error) {
 		err = nil
 		p.j += n
 	} else if err != nil {
-		return
+		return err
 	} else {
 		err = io.ErrNoProgress
-		return
+		return err
 	}
 
-	return
+	return err
 }
 
 func stringNoCopy(b []byte) string {

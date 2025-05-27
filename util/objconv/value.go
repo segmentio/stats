@@ -84,7 +84,7 @@ func zeroValueOf(t reflect.Type) reflect.Value {
 }
 
 var (
-	// basic types
+	// Basic types.
 	boolType           = reflect.TypeOf(false)
 	intType            = reflect.TypeOf(int(0))
 	int8Type           = reflect.TypeOf(int8(0))
@@ -104,9 +104,9 @@ var (
 	timeType           = reflect.TypeOf(time.Time{})
 	durationType       = reflect.TypeOf(time.Duration(0))
 	sliceInterfaceType = reflect.TypeOf(([]interface{})(nil))
-	timePtrType        = reflect.PtrTo(timeType)
+	timePtrType        = reflect.PointerTo(timeType)
 
-	// interfaces
+	// Interfaces.
 	errorInterface             = elemTypeOf((*error)(nil))
 	valueEncoderInterface      = elemTypeOf((*ValueEncoder)(nil))
 	valueDecoderInterface      = elemTypeOf((*ValueDecoder)(nil))
@@ -116,7 +116,7 @@ var (
 	textUnmarshalerInterface   = elemTypeOf((*encoding.TextUnmarshaler)(nil))
 	emptyInterface             = elemTypeOf((*interface{})(nil))
 
-	// common map types, used for optimization for map encoding algorithms
+	// Common map types, used for optimization for map encoding algorithms.
 	mapStringStringType       = reflect.TypeOf((map[string]string)(nil))
 	mapStringInterfaceType    = reflect.TypeOf((map[string]interface{})(nil))
 	mapInterfaceInterfaceType = reflect.TypeOf((map[interface{}]interface{})(nil))
@@ -214,52 +214,52 @@ func (p *ValueParser) ParseType() (Type, error) {
 }
 
 func (p *ValueParser) ParseNil() (err error) {
-	return
+	return err
 }
 
 func (p *ValueParser) ParseBool() (v bool, err error) {
 	v = p.value().Bool()
-	return
+	return v, err
 }
 
 func (p *ValueParser) ParseInt() (v int64, err error) {
 	v = p.value().Int()
-	return
+	return v, err
 }
 
 func (p *ValueParser) ParseUint() (v uint64, err error) {
 	v = p.value().Uint()
-	return
+	return v, err
 }
 
 func (p *ValueParser) ParseFloat() (v float64, err error) {
 	v = p.value().Float()
-	return
+	return v, err
 }
 
 func (p *ValueParser) ParseString() (v []byte, err error) {
 	v = []byte(p.value().String())
-	return
+	return v, err
 }
 
 func (p *ValueParser) ParseBytes() (v []byte, err error) {
 	v = p.value().Bytes()
-	return
+	return v, err
 }
 
 func (p *ValueParser) ParseTime() (v time.Time, err error) {
 	v = p.value().Interface().(time.Time)
-	return
+	return v, err
 }
 
 func (p *ValueParser) ParseDuration() (v time.Duration, err error) {
 	v = p.value().Interface().(time.Duration)
-	return
+	return v, err
 }
 
-func (p *ValueParser) ParseError() (v error, err error) {
+func (p *ValueParser) ParseError() (v, err error) {
 	v = p.value().Interface().(error)
-	return
+	return v, err
 }
 
 func (p *ValueParser) ParseArrayBegin() (n int, err error) {
@@ -271,7 +271,7 @@ func (p *ValueParser) ParseArrayBegin() (n int, err error) {
 		p.push(v.Index(0))
 	}
 
-	return
+	return n, err
 }
 
 func (p *ValueParser) ParseArrayEnd(n int) (err error) {
@@ -279,14 +279,14 @@ func (p *ValueParser) ParseArrayEnd(n int) (err error) {
 		p.pop()
 	}
 	p.popContext()
-	return
+	return err
 }
 
 func (p *ValueParser) ParseArrayNext(n int) (err error) {
 	ctx := p.context()
 	p.pop()
 	p.push(ctx.value.Index(n))
-	return
+	return err
 }
 
 func (p *ValueParser) ParseMapBegin() (n int, err error) {
@@ -316,7 +316,7 @@ func (p *ValueParser) ParseMapBegin() (n int, err error) {
 		}
 	}
 
-	return
+	return n, err
 }
 
 func (p *ValueParser) ParseMapEnd(n int) (err error) {
@@ -324,7 +324,7 @@ func (p *ValueParser) ParseMapEnd(n int) (err error) {
 		p.pop()
 	}
 	p.popContext()
-	return
+	return err
 }
 
 func (p *ValueParser) ParseMapValue(n int) (err error) {
@@ -337,7 +337,7 @@ func (p *ValueParser) ParseMapValue(n int) (err error) {
 		p.push(ctx.value.FieldByIndex(ctx.fields[n].index))
 	}
 
-	return
+	return err
 }
 
 func (p *ValueParser) ParseMapNext(n int) (err error) {
@@ -350,7 +350,7 @@ func (p *ValueParser) ParseMapNext(n int) (err error) {
 		p.push(reflect.ValueOf(ctx.fields[n].name))
 	}
 
-	return
+	return err
 }
 
 func (p *ValueParser) value() reflect.Value {
@@ -435,7 +435,7 @@ func (e *ValueEmitter) EmitDuration(v time.Duration) error { return e.push(v) }
 
 func (e *ValueEmitter) EmitError(v error) error { return e.push(v) }
 
-func (e *ValueEmitter) EmitArrayBegin(v int) error { return e.pushMark() }
+func (e *ValueEmitter) EmitArrayBegin(_ int) error { return e.pushMark() }
 
 func (e *ValueEmitter) EmitArrayEnd() error {
 	v := e.pop(e.popMark())
@@ -446,7 +446,7 @@ func (e *ValueEmitter) EmitArrayEnd() error {
 
 func (e *ValueEmitter) EmitArrayNext() error { return nil }
 
-func (e *ValueEmitter) EmitMapBegin(v int) error { return e.pushMark() }
+func (e *ValueEmitter) EmitMapBegin(_ int) error { return e.pushMark() }
 
 func (e *ValueEmitter) EmitMapEnd() error {
 	v := e.pop(e.popMark())

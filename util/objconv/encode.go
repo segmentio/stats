@@ -37,7 +37,7 @@ func NewEncoder(e Emitter) *Encoder {
 // Encode encodes the generic value v.
 func (e Encoder) Encode(v interface{}) (err error) {
 	if err = e.encodeMapValueMaybe(); err != nil {
-		return
+		return err
 	}
 
 	// This type switch optimizes encoding of common value types, it prevents
@@ -229,11 +229,12 @@ func (e Encoder) Encode(v interface{}) (err error) {
 	}
 }
 
-func (e *Encoder) encodeMapValueMaybe() (err error) {
+func (e *Encoder) encodeMapValueMaybe() error {
+	var err error
 	if e.key {
 		e.key, err = false, e.Emitter.EmitMapValue()
 	}
-	return
+	return err
 }
 
 func (e Encoder) encode(v reflect.Value) error {
@@ -318,11 +319,11 @@ func (e Encoder) encodeTime(v reflect.Value) error {
 	if v.Kind() != reflect.Ptr {
 		t = v.Interface().(time.Time)
 	} else {
-		if ptr := v.Interface().(*time.Time); ptr == nil {
+		ptr := v.Interface().(*time.Time)
+		if ptr == nil {
 			return e.Emitter.EmitNil()
-		} else {
-			t = *ptr
 		}
+		t = *ptr
 	}
 
 	return e.Emitter.EmitTime(t)
@@ -345,7 +346,7 @@ func (e Encoder) encodeArrayWith(v reflect.Value, f encodeFunc) error {
 	return e.EncodeArray(v.Len(), func(e Encoder) (err error) {
 		err = f(e, v.Index(i))
 		i++
-		return
+		return err
 	})
 }
 
@@ -354,7 +355,7 @@ func (e Encoder) encodeSliceOfString(a []string) error {
 	return e.EncodeArray(len(a), func(e Encoder) (err error) {
 		err = e.Emitter.EmitString(a[i])
 		i++
-		return
+		return err
 	})
 }
 
@@ -363,7 +364,7 @@ func (e Encoder) encodeSliceOfInterface(a []interface{}) error {
 	return e.EncodeArray(len(a), func(e Encoder) (err error) {
 		err = e.Encode(a[i])
 		i++
-		return
+		return err
 	})
 }
 
@@ -374,7 +375,7 @@ func (e Encoder) encodeMap(v reflect.Value) error {
 	return e.encodeMapWith(v, kf, vf)
 }
 
-func (e Encoder) encodeMapWith(v reflect.Value, kf encodeFunc, vf encodeFunc) error {
+func (e Encoder) encodeMapWith(v reflect.Value, kf, vf encodeFunc) error {
 	t := v.Type()
 
 	if !e.SortMapKeys {
@@ -391,8 +392,8 @@ func (e Encoder) encodeMapWith(v reflect.Value, kf encodeFunc, vf encodeFunc) er
 	}
 
 	var k []reflect.Value
-	var n = v.Len()
-	var i = 0
+	n := v.Len()
+	i := 0
 
 	if n != 0 {
 		k = v.MapKeys()
@@ -402,18 +403,18 @@ func (e Encoder) encodeMapWith(v reflect.Value, kf encodeFunc, vf encodeFunc) er
 		}
 	}
 
-	return e.EncodeMap(n, func(ke Encoder, ve Encoder) (err error) {
-		if err = kf(e, k[i]); err != nil {
-			return
+	return e.EncodeMap(n, func(_, _ Encoder) error {
+		if err := kf(e, k[i]); err != nil {
+			return err
 		}
-		if err = e.Emitter.EmitMapValue(); err != nil {
-			return
+		if err := e.Emitter.EmitMapValue(); err != nil {
+			return err
 		}
-		if err = vf(e, v.MapIndex(k[i])); err != nil {
-			return
+		if err := vf(e, v.MapIndex(k[i])); err != nil {
+			return err
 		}
 		i++
-		return
+		return nil
 	})
 }
 
@@ -426,23 +427,23 @@ func (e Encoder) encodeMapInterfaceInterface(m map[interface{}]interface{}) (err
 	i := 0
 
 	if err = e.Emitter.EmitMapBegin(n); err != nil {
-		return
+		return err
 	}
 
 	for k, v := range m {
 		if i != 0 {
 			if err = e.Emitter.EmitMapNext(); err != nil {
-				return
+				return err
 			}
 		}
 		if err = e.Encode(k); err != nil {
-			return
+			return err
 		}
 		if err = e.Emitter.EmitMapValue(); err != nil {
-			return
+			return err
 		}
 		if err = e.Encode(v); err != nil {
-			return
+			return err
 		}
 		i++
 	}
@@ -459,23 +460,23 @@ func (e Encoder) encodeMapStringInterface(m map[string]interface{}) (err error) 
 	i := 0
 
 	if err = e.Emitter.EmitMapBegin(n); err != nil {
-		return
+		return err
 	}
 
 	for k, v := range m {
 		if i != 0 {
 			if err = e.Emitter.EmitMapNext(); err != nil {
-				return
+				return err
 			}
 		}
 		if err = e.Emitter.EmitString(k); err != nil {
-			return
+			return err
 		}
 		if err = e.Emitter.EmitMapValue(); err != nil {
-			return
+			return err
 		}
 		if err = e.Encode(v); err != nil {
-			return
+			return err
 		}
 		i++
 	}
@@ -492,23 +493,23 @@ func (e Encoder) encodeMapStringString(m map[string]string) (err error) {
 	i := 0
 
 	if err = e.Emitter.EmitMapBegin(n); err != nil {
-		return
+		return err
 	}
 
 	for k, v := range m {
 		if i != 0 {
 			if err = e.Emitter.EmitMapNext(); err != nil {
-				return
+				return err
 			}
 		}
 		if err = e.Emitter.EmitString(k); err != nil {
-			return
+			return err
 		}
 		if err = e.Emitter.EmitMapValue(); err != nil {
-			return
+			return err
 		}
 		if err = e.Emitter.EmitString(v); err != nil {
-			return
+			return err
 		}
 		i++
 	}
@@ -531,7 +532,7 @@ func (e Encoder) encodeStructWith(v reflect.Value, s *structType) (err error) {
 	}
 
 	if err = e.Emitter.EmitMapBegin(n); err != nil {
-		return
+		return err
 	}
 	n = 0
 
@@ -540,17 +541,17 @@ func (e Encoder) encodeStructWith(v reflect.Value, s *structType) (err error) {
 		if fv := v.FieldByIndex(f.index); !f.omit(fv) {
 			if n != 0 {
 				if err = e.Emitter.EmitMapNext(); err != nil {
-					return
+					return err
 				}
 			}
 			if err = e.Emitter.EmitString(f.name); err != nil {
-				return
+				return err
 			}
 			if err = e.Emitter.EmitMapValue(); err != nil {
-				return
+				return err
 			}
 			if err = f.encode(e, fv); err != nil {
-				return
+				return err
 			}
 			n++
 		}
@@ -620,19 +621,19 @@ func (e Encoder) encodeUnsupported(v reflect.Value) error {
 func (e Encoder) EncodeArray(n int, f func(Encoder) error) (err error) {
 	if e.key {
 		if e.key, err = false, e.Emitter.EmitMapValue(); err != nil {
-			return
+			return err
 		}
 	}
 
 	if err = e.Emitter.EmitArrayBegin(n); err != nil {
-		return
+		return err
 	}
 
 encodeArray:
 	for i := 0; n < 0 || i < n; i++ {
 		if i != 0 {
-			if e.Emitter.EmitArrayNext(); err != nil {
-				return
+			if err = e.Emitter.EmitArrayNext(); err != nil {
+				return err
 			}
 		}
 		switch err = f(e); err {
@@ -640,7 +641,7 @@ encodeArray:
 		case End:
 			break encodeArray
 		default:
-			return
+			return err
 		}
 	}
 
@@ -658,39 +659,50 @@ encodeArray:
 // The f function is called to encode each element of the map, it is expected to
 // encode two values, the first one being the key, follow by the associated value.
 // The first encoder must be used to encode the key, the second for the value.
-func (e Encoder) EncodeMap(n int, f func(Encoder, Encoder) error) (err error) {
-	if e.key {
-		if e.key, err = false, e.Emitter.EmitMapValue(); err != nil {
-			return
+func (e Encoder) EncodeMap(n int, f func(Encoder, Encoder) error) error {
+	// NB! For like five years, this was broken - it tried to set `e.key`,
+	// completely ineffectually, because the method does not have a pointer
+	// receiver.
+	//
+	// In May 2025, tried fixing this by making the method take a pointer
+	// receiver, but this broke the tests (and the code was clearly broken - for
+	// a url.Values map, the code emitted two consecutive colons for encode.)
+	//
+	// Given the tests work without it, use a "localEKey" to track what it is
+	// actually doing.
+	localEKey := e.key
+	if localEKey {
+		if err := e.Emitter.EmitMapValue(); err != nil {
+			return err
 		}
 	}
 
-	if err = e.Emitter.EmitMapBegin(n); err != nil {
-		return
+	if err := e.Emitter.EmitMapBegin(n); err != nil {
+		return err
 	}
 
 encodeMap:
 	for i := 0; n < 0 || i < n; i++ {
 		if i != 0 {
-			if err = e.Emitter.EmitMapNext(); err != nil {
-				return
+			if err := e.Emitter.EmitMapNext(); err != nil {
+				return err
 			}
 		}
-		e.key = true
-		err = f(
+		// there was an ineffectual assignment e.key = true here
+		err := f(
 			Encoder{Emitter: e.Emitter, SortMapKeys: e.SortMapKeys},
 			Encoder{Emitter: e.Emitter, SortMapKeys: e.SortMapKeys, key: true},
 		)
 		// Because internal calls don't use the exported methods they may not
 		// reset this flag to false when expected, forcing the value here.
-		e.key = false
+		// There was an ineffectual assignment e.key = false here
 
 		switch err {
 		case nil:
 		case End:
 			break encodeMap
 		default:
-			return
+			return err
 		}
 	}
 

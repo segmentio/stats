@@ -18,15 +18,15 @@ func ParseInt(b []byte) (int64, error) {
 	}
 
 	if b[0] == '-' {
-		const max = Int64Min
-		const lim = max / 10
+		const maxInt = Int64Min
+		const lim = maxInt / 10
 
 		if b = b[1:]; len(b) == 0 {
 			return 0, errorInvalidUint64(b)
 		}
 
 		for _, d := range b {
-			if !(d >= '0' && d <= '9') {
+			if d < '0' || d > '9' {
 				return 0, errorInvalidInt64(b)
 			}
 
@@ -37,18 +37,18 @@ func ParseInt(b []byte) (int64, error) {
 			val *= 10
 			x := int64(d - '0')
 
-			if val < (max + x) {
+			if val < (maxInt + x) {
 				return 0, errorOverflowInt64(b)
 			}
 
 			val -= x
 		}
 	} else {
-		const max = Int64Max
-		const lim = max / 10
+		const maxInt = Int64Max
+		const lim = maxInt / 10
 
 		for _, d := range b {
-			if !(d >= '0' && d <= '9') {
+			if d < '0' || d > '9' {
 				return 0, errorInvalidInt64(b)
 			}
 			x := int64(d - '0')
@@ -57,7 +57,7 @@ func ParseInt(b []byte) (int64, error) {
 				return 0, errorOverflowInt64(b)
 			}
 
-			if val *= 10; val > (max - x) {
+			if val *= 10; val > (maxInt - x) {
 				return 0, errorOverflowInt64(b)
 			}
 
@@ -68,7 +68,7 @@ func ParseInt(b []byte) (int64, error) {
 	return val, nil
 }
 
-// ParseUintHex parses a hexadecimanl representation of a uint64 from b.
+// ParseUintHex parses a hexadecimal representation of a uint64 from b.
 //
 // The function is equivalent to calling strconv.ParseUint(string(b), 16, 64) but
 // it prevents Go from making a memory allocation for converting a byte slice to
@@ -77,8 +77,8 @@ func ParseInt(b []byte) (int64, error) {
 // Because it only works with base 16 the function is also significantly faster
 // than strconv.ParseUint.
 func ParseUintHex(b []byte) (uint64, error) {
-	const max = Uint64Max
-	const lim = max / 0x10
+	const maxInt = Uint64Max
+	const lim = maxInt / 0x10
 	var val uint64
 
 	if len(b) == 0 {
@@ -106,7 +106,7 @@ func ParseUintHex(b []byte) (uint64, error) {
 			return 0, errorOverflowUint64(b)
 		}
 
-		if val *= 0x10; val > (max - x) {
+		if val *= 0x10; val > (maxInt - x) {
 			return 0, errorOverflowUint64(b)
 		}
 

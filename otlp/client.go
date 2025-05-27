@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 
@@ -58,7 +58,7 @@ func (c *HTTPClient) do(req *http.Request) error {
 	}
 	defer resp.Body.Close()
 
-	msg, err := ioutil.ReadAll(resp.Body)
+	msg, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
@@ -87,6 +87,6 @@ func newRequest(ctx context.Context, endpoint string, data []byte) (*http.Reques
 	req.Header.Set("Content-Type", "application/x-protobuf")
 	req.Header.Set("User-Agent", "segmentio/stats")
 
-	req.Body = ioutil.NopCloser(bytes.NewReader(data))
+	req.Body = io.NopCloser(bytes.NewReader(data))
 	return req, nil
 }

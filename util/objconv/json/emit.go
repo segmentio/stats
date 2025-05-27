@@ -50,7 +50,7 @@ func (e *Emitter) Reset(w io.Writer) {
 
 func (e *Emitter) EmitNil() (err error) {
 	_, err = e.w.Write(nullBytes[:])
-	return
+	return err
 }
 
 func (e *Emitter) EmitBool(v bool) (err error) {
@@ -59,17 +59,17 @@ func (e *Emitter) EmitBool(v bool) (err error) {
 	} else {
 		_, err = e.w.Write(falseBytes[:])
 	}
-	return
+	return err
 }
 
 func (e *Emitter) EmitInt(v int64, _ int) (err error) {
 	_, err = e.w.Write(strconv.AppendInt(e.s[:0], v, 10))
-	return
+	return err
 }
 
 func (e *Emitter) EmitUint(v uint64, _ int) (err error) {
 	_, err = e.w.Write(strconv.AppendUint(e.s[:0], v, 10))
-	return
+	return err
 }
 
 func (e *Emitter) EmitFloat(v float64, bitSize int) (err error) {
@@ -86,7 +86,7 @@ func (e *Emitter) EmitFloat(v float64, bitSize int) (err error) {
 	default:
 		_, err = e.w.Write(strconv.AppendFloat(e.s[:0], v, 'g', -1, bitSize))
 	}
-	return
+	return err
 }
 
 func (e *Emitter) EmitString(v string) (err error) {
@@ -132,7 +132,7 @@ func (e *Emitter) EmitString(v string) (err error) {
 	e.s = s[:0] // in case the buffer was reallocated
 
 	_, err = e.w.Write(s)
-	return
+	return err
 }
 
 func (e *Emitter) EmitBytes(v []byte) (err error) {
@@ -150,7 +150,7 @@ func (e *Emitter) EmitBytes(v []byte) (err error) {
 	s[n-1] = '"'
 
 	_, err = e.w.Write(s)
-	return
+	return err
 }
 
 func (e *Emitter) EmitTime(v time.Time) (err error) {
@@ -162,7 +162,7 @@ func (e *Emitter) EmitTime(v time.Time) (err error) {
 
 	e.s = s[:0]
 	_, err = e.w.Write(s)
-	return
+	return err
 }
 
 func (e *Emitter) EmitDuration(v time.Duration) (err error) {
@@ -174,7 +174,7 @@ func (e *Emitter) EmitDuration(v time.Duration) (err error) {
 
 	e.s = s[:0]
 	_, err = e.w.Write(s)
-	return
+	return err
 }
 
 func (e *Emitter) EmitError(v error) (err error) {
@@ -183,37 +183,37 @@ func (e *Emitter) EmitError(v error) (err error) {
 
 func (e *Emitter) EmitArrayBegin(_ int) (err error) {
 	_, err = e.w.Write(arrayOpen[:])
-	return
+	return err
 }
 
 func (e *Emitter) EmitArrayEnd() (err error) {
 	_, err = e.w.Write(arrayClose[:])
-	return
+	return err
 }
 
 func (e *Emitter) EmitArrayNext() (err error) {
 	_, err = e.w.Write(comma[:])
-	return
+	return err
 }
 
 func (e *Emitter) EmitMapBegin(_ int) (err error) {
 	_, err = e.w.Write(mapOpen[:])
-	return
+	return err
 }
 
 func (e *Emitter) EmitMapEnd() (err error) {
 	_, err = e.w.Write(mapClose[:])
-	return
+	return err
 }
 
 func (e *Emitter) EmitMapValue() (err error) {
 	_, err = e.w.Write(column[:])
-	return
+	return err
 }
 
 func (e *Emitter) EmitMapNext() (err error) {
 	_, err = e.w.Write(comma[:])
-	return
+	return err
 }
 
 func (e *Emitter) TextEmitter() bool {
@@ -224,7 +224,7 @@ func (e *Emitter) PrettyEmitter() objconv.Emitter {
 	return NewPrettyEmitter(e.w)
 }
 
-func align(n int, a int) int {
+func align(n, a int) int {
 	if (n % a) == 0 {
 		return n
 	}
@@ -254,18 +254,18 @@ func (e *PrettyEmitter) Reset(w io.Writer) {
 
 func (e *PrettyEmitter) EmitArrayBegin(n int) (err error) {
 	if err = e.Emitter.EmitArrayBegin(n); err != nil {
-		return
+		return err
 	}
 	if e.push(n) != 0 {
 		err = e.indent()
 	}
-	return
+	return err
 }
 
 func (e *PrettyEmitter) EmitArrayEnd() (err error) {
 	if e.pop() != 0 {
 		if err = e.indent(); err != nil {
-			return
+			return err
 		}
 	}
 	return e.Emitter.EmitArrayEnd()
@@ -273,25 +273,25 @@ func (e *PrettyEmitter) EmitArrayEnd() (err error) {
 
 func (e *PrettyEmitter) EmitArrayNext() (err error) {
 	if err = e.Emitter.EmitArrayNext(); err != nil {
-		return
+		return err
 	}
 	return e.indent()
 }
 
 func (e *PrettyEmitter) EmitMapBegin(n int) (err error) {
 	if err = e.Emitter.EmitMapBegin(n); err != nil {
-		return
+		return err
 	}
 	if e.push(n) != 0 {
 		err = e.indent()
 	}
-	return
+	return err
 }
 
 func (e *PrettyEmitter) EmitMapEnd() (err error) {
 	if e.pop() != 0 {
 		if err = e.indent(); err != nil {
-			return
+			return err
 		}
 	}
 	return e.Emitter.EmitMapEnd()
@@ -299,15 +299,15 @@ func (e *PrettyEmitter) EmitMapEnd() (err error) {
 
 func (e *PrettyEmitter) EmitMapValue() (err error) {
 	if err = e.Emitter.EmitMapValue(); err != nil {
-		return
+		return err
 	}
 	_, err = e.w.Write(spaces[:1])
-	return
+	return err
 }
 
 func (e *PrettyEmitter) EmitMapNext() (err error) {
 	if err = e.Emitter.EmitMapNext(); err != nil {
-		return
+		return err
 	}
 	return e.indent()
 }
@@ -318,7 +318,7 @@ func (e *PrettyEmitter) TextEmitter() bool {
 
 func (e *PrettyEmitter) indent() (err error) {
 	if _, err = e.w.Write(newline[:]); err != nil {
-		return
+		return err
 	}
 
 	for n := 2 * e.i; n != 0; {
@@ -330,13 +330,13 @@ func (e *PrettyEmitter) indent() (err error) {
 		}
 
 		if _, err = e.w.Write(spaces[:n1]); err != nil {
-			return
+			return err
 		}
 
 		n -= n1
 	}
 
-	return
+	return err
 }
 
 func (e *PrettyEmitter) push(n int) int {
