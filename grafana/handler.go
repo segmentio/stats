@@ -8,8 +8,8 @@ import (
 	"net/url"
 	"path"
 
-	"github.com/segmentio/objconv"
-	"github.com/segmentio/objconv/json"
+	"github.com/segmentio/stats/v5/util/objconv"
+	"github.com/segmentio/stats/v5/util/objconv/json"
 )
 
 // Handler is an interface that must be implemented by types that intend to act

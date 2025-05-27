@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/segmentio/objconv/json"
+	"github.com/segmentio/stats/v5/util/objconv/json"
 )
 
 func TestQueryHandler(t *testing.T) {

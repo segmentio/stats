@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"path"
 
-	"github.com/segmentio/objconv"
+	"github.com/segmentio/stats/v5/util/objconv"
 )
 
 // SearchHandler is the handler for the /search endpoint in the

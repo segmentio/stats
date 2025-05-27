@@ -7,7 +7,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/segmentio/objconv"
+	"github.com/segmentio/stats/v5/util/objconv"
 )
 
 // QueryHandler is the handler for the /query endpoint in the

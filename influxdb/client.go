@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/segmentio/objconv/json"
+	"github.com/segmentio/stats/v5/util/objconv/json"
 
 	stats "github.com/segmentio/stats/v5"
 )

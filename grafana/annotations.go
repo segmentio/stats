@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/segmentio/objconv"
+	"github.com/segmentio/stats/v5/util/objconv"
 )
 
 // AnnotationsHandler is the handler for the /annotations endpoint in the
