@@ -127,14 +127,10 @@ func elemTypeOf(v interface{}) reflect.Type {
 }
 
 func stringNoCopy(b []byte) string {
-	n := len(b)
-	if n == 0 {
+	if len(b) == 0 {
 		return ""
 	}
-	return *(*string)(unsafe.Pointer(&reflect.StringHeader{
-		Data: uintptr(unsafe.Pointer(&b[0])),
-		Len:  n,
-	}))
+	return unsafe.String(unsafe.SliceData(b), len(b))
 }
 
 // ValueParser is parser that uses "natural" in-memory representation of data

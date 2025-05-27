@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"reflect"
 	"strconv"
 	"time"
 	"unicode/utf16"
@@ -487,12 +486,8 @@ func (p *Parser) fill() (err error) {
 }
 
 func stringNoCopy(b []byte) string {
-	n := len(b)
-	if n == 0 {
+	if len(b) == 0 {
 		return ""
 	}
-	return *(*string)(unsafe.Pointer(&reflect.StringHeader{
-		Data: uintptr(unsafe.Pointer(&b[0])),
-		Len:  n,
-	}))
+	return unsafe.String(unsafe.SliceData(b), len(b))
 }

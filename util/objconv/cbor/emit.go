@@ -3,7 +3,6 @@ package cbor
 import (
 	"io"
 	"math"
-	"reflect"
 	"time"
 	"unsafe"
 
@@ -81,13 +80,8 @@ func (e *Emitter) EmitString(v string) (err error) {
 	if err = e.emitUint(majorType3, uint64(len(v))); err != nil {
 		return
 	}
-	s := *(*reflect.StringHeader)(unsafe.Pointer(&v))
-	b := reflect.SliceHeader{
-		Data: s.Data,
-		Len:  s.Len,
-		Cap:  s.Len,
-	}
-	_, err = e.w.Write(*((*[]byte)(unsafe.Pointer(&b))))
+	b := unsafe.Slice(unsafe.StringData(v), len(v))
+	_, err = e.w.Write(b)
 	return
 }
 

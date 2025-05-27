@@ -538,7 +538,7 @@ func (d Decoder) decodeTimeFromType(t Type, to reflect.Value) (err error) {
 			v, err = time.Parse(time.RFC3339Nano, unsafeString(s))
 			// if an error is received, reparse with a "safe" string in case it is retained in the error
 			if err != nil {
-				_, err = time.Parse(time.RFC3339Nano, string(t))
+				_, err = time.Parse(time.RFC3339Nano, string(s))
 			}
 		}
 		*(to.Addr().Interface().(*time.Time)) = v
