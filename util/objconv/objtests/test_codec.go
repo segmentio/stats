@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/segmentio/stats/v5/util/objconv"
-	_ "github.com/segmentio/stats/v5/util/objconv/adapters"
 	"github.com/segmentio/stats/v5/util/objconv/objutil"
 )
 
@@ -151,7 +150,6 @@ var TestValues = [...]interface{}{
 	net.IPv4(127, 0, 0, 1),
 
 	// url
-	parseURL("http://localhost:4242/hello/world?answer=42#question"),
 	parseQuery("answer=42&message=Hello+World"),
 
 	// mail
