@@ -1,0 +1,67 @@
+{
+  "formatters": {
+    "enable": [
+      "gofumpt",
+      "goimports"
+    ],
+    "exclusions": {
+      "generated": "lax",
+      "paths": [
+        "^.*\\.(pb|y)\\.go$",
+        "third_party$",
+        "builtin$",
+        "examples$"
+      ]
+    },
+    "settings": {
+      "gofumpt": {
+        "extra-rules": true
+      },
+      "goimports": {
+        "local-prefixes": [
+          "github.com/segmentio/stats"
+        ]
+      }
+    }
+  },
+  "linters": {
+    "disable": [
+      "depguard"
+    ],
+    "enable": [
+      "godot",
+      "misspell",
+      "revive",
+      "whitespace"
+    ],
+    "exclusions": {
+      "generated": "lax",
+      "paths": [
+        "^.*\\.(pb|y)\\.go$",
+        "third_party$",
+        "builtin$",
+        "examples$"
+      ],
+      "presets": [
+        "comments",
+        "common-false-positives",
+        "legacy",
+        "std-error-handling"
+      ],
+      "rules": [
+        {
+          "linters": [
+            "errcheck"
+          ],
+          "path": "_test.go"
+        }
+      ]
+    },
+    "settings": {
+      "misspell": {
+        "locale": "US"
+      }
+    }
+  },
+  "version": "2"
+}
