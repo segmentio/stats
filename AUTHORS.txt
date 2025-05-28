@@ -1,4 +1,4 @@
-ABHINAV SUREKA <7731608+ABHINAV-SUREKA@users.noreply.github.com>
+Abhinav Sureka <7731608+ABHINAV-SUREKA@users.noreply.github.com>
 Achille Roussel <achille.roussel@segment.com>
 Alan Braithwaite <alan@segment.com>
 Amir Abu Shareb <yields@icloud.com>
@@ -20,6 +20,7 @@ Julien Fabre <julien@segment.com>
 Kevin Burke <kevin.burke@segment.com>
 Kevin Gillette <kgillette@twilio.com>
 Matt Layher <mdlayher@gmail.com>
+Matthew Hooker <mwhooker@gmail.com>
 Michael S. Fischer <michael.fischer@segment.com>
 Mike Nichols <nichols.mike.s@gmail.com>
 Prateek Srivastava <f2prateek@gmail.com>

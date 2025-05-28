@@ -232,8 +232,8 @@ func (entry *metricEntry) cleanup(exp time.Time, empty func()) {
 
 	// now call back into store (taking store.mutex) only after releasing entry.mutex
 	if shouldDelete {
-       empty()
-    }
+		empty()
+	}
 }
 
 type metricState struct {
