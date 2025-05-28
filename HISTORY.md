@@ -1,5 +1,27 @@
 # History
 
+### v5.6.0 (May 27, 2025)
+
+- In the `datadog` library: invalid characters in metric names, field
+names, or tag keys/values will be replaced with underscores. Accents and
+other diacritics will be removed (e.g. é will be replaced with 'e').
+This change also improves performance of HandleMeasures by about 15-20%.
+[#192](https://github.com/segmentio/stats/pull/192)
+
+- External calls to github.com/segmentio/objconv were replaced by imports of
+  github.com/segmentio/stats/v5/util/objconv, which is a fork of the library (it
+  has since been archived). This allowed to to substantially reduce the surface
+  we import.
+
+    - `influxdb`: calls to objconv/json were replaced with
+    github.com/segmentio/encoding/json (a library with
+    substantially more production experience and test coverage).
+    [#193](https://github.com/segmentio/stats/pull/193)
+
+- `prometheus`: Fix a deadlock from concurrent calls to collect() and cleanup().
+  Thank you Matthew Hooker for this contribution.
+  [#194](https://github.com/segmentio/stats/pull/194)
+
 ### v5.5.0 (March 26, 2025)
 
 - Add logic to replace invalid unicode in the serialized datadog payload with '\ufffd'.
