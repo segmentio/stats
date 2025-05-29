@@ -1,5 +1,10 @@
 # History
 
+### v5.6.1 (May 29, 2025)
+
+Fix an error in the v5.6.0 release related to metric names with a longer buffer
+size.
+
 ### v5.6.0 (May 27, 2025)
 
 - In the `datadog` library: invalid characters in metric names, field
