@@ -203,8 +203,8 @@ func init() {
 }
 
 const (
-	replacement = '_' // what we substitute bad chars with
-	maxLen      = 250 // guard for the StatsD UDP packet size
+	replacement = byte('_') // what we substitute bad chars with
+	maxLen      = 250       // guard for the StatsD UDP packet size
 )
 
 // isTrim returns true if the byte is to be trimmed at the ends.
@@ -213,6 +213,7 @@ func isTrim(b byte) bool { return b == '.' || b == '_' || b == '-' }
 // appendSanitizedMetricName converts *any* string into something that StatsD / Graphite
 // accepts without complaints.
 func appendSanitizedMetricName(dst []byte, raw string) []byte {
+	nameLen := 0
 	orig := len(dst)
 	if raw == "" {
 		if len(dst) == 0 {
@@ -231,6 +232,7 @@ func appendSanitizedMetricName(dst []byte, raw string) []byte {
 		if c < 128 && valid[c] {
 			// ASCII valid chars
 			dst = append(dst, c)
+			nameLen++
 			lastWasRepl = false
 		} else if c >= 0xC2 && c <= 0xC3 && i+1 < len(raw) {
 			// Check for 2-byte UTF-8 sequences that are common accented letters
@@ -244,6 +246,7 @@ func appendSanitizedMetricName(dst []byte, raw string) []byte {
 					mapped := accentMap[codepoint]
 					if valid[mapped] {
 						dst = append(dst, mapped)
+						nameLen++
 						lastWasRepl = false
 						i++ // Skip the second byte
 						continue
@@ -253,15 +256,17 @@ func appendSanitizedMetricName(dst []byte, raw string) []byte {
 			// If we get here, treat as invalid
 			if !lastWasRepl {
 				dst = append(dst, replacement)
+				nameLen++
 				lastWasRepl = true
 			}
 		} else if !lastWasRepl {
 			// Everything else (3-byte, 4-byte sequences, invalid chars)
 			dst = append(dst, replacement)
+			nameLen++
 			lastWasRepl = true
 		}
 
-		if len(dst) >= maxLen {
+		if nameLen >= maxLen {
 			break
 		}
 	}
