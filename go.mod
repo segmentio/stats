@@ -2,8 +2,6 @@ module github.com/segmentio/stats/v4
 
 go 1.23.0
 
-toolchain go1.24.4
-
 require (
 	github.com/mdlayher/taskstats v0.0.0-20241219020249-a291fa5f5a69
 	github.com/segmentio/fasthash v1.0.3
