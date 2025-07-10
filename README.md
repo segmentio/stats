@@ -340,69 +340,6 @@ func main() {
 }
 ```
 
-### Redis
-
-The [github.com/segmentio/stats/redisstats](https://godoc.org/github.com/segmentio/stats/redisstats)
-package exposes:
-
-* a decorator of
-  [`redis.RoundTripper`](https://godoc.org/github.com/segmentio/redis-go#RoundTripper)
-  which collects metrics for client requests, and
-* a decorator or
-  [`redis.ServeRedis`](https://godoc.org/github.com/segmentio/redis-go#HandlerFunc.ServeRedis)
-  which collects metrics for server requests.
-
-Here's an example of how to use the decorator on the client side:
-
-```go
-package main
-
-import (
-    "github.com/segmentio/redis-go"
-    "github.com/segmentio/stats/v5/redisstats"
-)
-
-func main() {
-    stats.Register(datadog.NewClient("localhost:8125"))
-    defer stats.Flush()
-
-    client := redis.Client{
-        Addr:      "127.0.0.1:6379",
-        Transport: redisstats.NewTransport(&redis.Transport{}),
-    }
-
-    // ...
-}
-```
-
-And on the server side:
-
-```go
-package main
-
-import (
-    "github.com/segmentio/redis-go"
-    "github.com/segmentio/stats/v5/redisstats"
-)
-
-func main() {
-    stats.Register(datadog.NewClient("localhost:8125"))
-    defer stats.Flush()
-
-    handler := redis.HandlerFunc(func(res redis.ResponseWriter, req *redis.Request) {
-      // Implement handler function here
-    })
-
-    server := redis.Server{
-        Handler: redisstats.NewHandler(&handler),
-    }
-
-    server.ListenAndServe()
-
-    // ...
-}
-```
-
 ### Addendum
 
 By default, the stats library will report the running go version when you
