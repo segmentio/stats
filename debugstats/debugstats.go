@@ -1,8 +1,50 @@
-// Package debugstats simplifies metric troubleshooting by sending metrics to
-// any io.Writer.
+// Package debugstats is a very small helper that makes it easy to **see** the
+// raw metrics produced by github.com/segmentio/stats/v5 while you are debugging
+// or developing a new instrumentation strategy.
 //
-// By default, metrics will be printed to os.Stdout. Use the Dst and Grep fields
-// to customize the output as appropriate.
+//   - It implements the stats.Handler interface.
+//   - Every metric that reaches the handler is written as a single line in a
+//     StatsD-like format (metric name, value, type, tags) followed by '\n'.
+//   - A time-stamp (RFC-3339) is prepended so that the stream can later be
+//     correlated with logs if desired.
+//
+// # Destination
+//
+// By default the lines are written to os.Stdout, but any io.Writer can be
+// supplied through the Client’s Dst field:
+//
+//	var buf bytes.Buffer
+//	stats.Register(&debugstats.Client{Dst: &buf}) // write into a buffer
+//
+// # Grep-like filtering
+//
+// When you are only interested in a subset of your metrics you can pass a
+// regular expression via the Grep field.  Only the lines whose *full textual
+// representation* match the regexp are emitted:
+//
+//	stats.Register(&debugstats.Client{
+//	    Grep: regexp.MustCompile(`^my_service\.http_requests_total`),
+//	})
+//
+// Quick example
+//
+//	func main() {
+//	    stats.Register(&debugstats.Client{})    // defaults to stdout
+//
+//	    stats.Set("active_users", 42)
+//	    stats.Observe("compression_ratio", 0.28,
+//	        stats.T("codec", "zstd"),
+//	        stats.T("bucket", "10-100 kB"),
+//	    )
+//
+//	    // Flush whenever you need a consistent snapshot:
+//	    stats.Flush()
+//	}
+//
+// Typical output (wrapped for readability):
+//
+//	2024-04-18T09:45:00Z active_users:42|g
+//	2024-04-18T09:45:00Z compression_ratio:0.28|d|#bucket:10-100 kB,codec:zstd
 package debugstats
 
 import (

@@ -181,9 +181,15 @@ func main() {
 Use the `debugstats` package to print all stats to the console.
 
 ```go
-handler := debugstats.Client{Dst: os.Stdout}
+handler := &debugstats.Client{Dst: os.Stdout}
+// to use as a standalone engine:
 engine := stats.NewEngine("engine-name", handler)
 engine.Incr("server.start")
+// or, register on the default stats engine:
+stats.Register(handler)
+
+// Sample output:
+// server.start:1|c
 ```
 
 You can use the `Grep` property to filter the printed metrics for only ones you
@@ -203,7 +209,7 @@ Monitoring
 > `go_version` in v4.6.0.
 
 The
-[github.com/segmentio/stats/procstats](https://godoc.org/github.com/segmentio/stats/procstats)
+[github.com/segmentio/stats/v5/procstats](https://godoc.org/github.com/segmentio/stats/v5/procstats)
 package exposes an API for creating a statistics collector on local processes.
 Statistics are collected for the current process and metrics including Goroutine
 count and memory usage are reported.
@@ -249,7 +255,7 @@ func main() {
 
 ### HTTP Servers
 
-The [github.com/segmentio/stats/httpstats](https://godoc.org/github.com/segmentio/stats/httpstats)
+The [github.com/segmentio/stats/v5/httpstats](https://godoc.org/github.com/segmentio/stats/v5/httpstats)
 package exposes a decorator of `http.Handler` that automatically adds metric
 collection to a HTTP handler, reporting things like request processing time,
 error counters, header and body sizes...
@@ -284,7 +290,7 @@ func main() {
 
 ### HTTP Clients
 
-The [github.com/segmentio/stats/httpstats](https://godoc.org/github.com/segmentio/stats/httpstats)
+The [github.com/segmentio/stats/v5/httpstats](https://godoc.org/github.com/segmentio/stats/v5/httpstats)
 package exposes a decorator of `http.RoundTripper` which collects and reports
 metrics for client requests the same way it's done on the server side.
 
