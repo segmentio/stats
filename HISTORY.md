@@ -1,5 +1,9 @@
 # History
 
+### v5.6.2 (July 10, 2025)
+
+Remove outdated README content and add debugstats examples.
+
 ### v5.6.1 (May 29, 2025)
 
 Fix an error in the v5.6.0 release related to metric names with a longer buffer
