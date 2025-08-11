@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	stats "github.com/segmentio/stats/v5"
 )
@@ -27,8 +28,12 @@ func (s *serializer) Write(b []byte) (int, error) {
 		return 0, io.ErrClosedPipe
 	}
 
-	// Ensure the serialized metric payload has valid UTF-8 encoded bytes
-	b = bytes.ToValidUTF8(b, []byte("\uFFFD"))
+	// Ensure the serialized metric payload has valid UTF-8 encoded bytes.
+	// Because ToValidUTF8 makes a copy make one pass through to ensure we
+	// actually need to change anything.
+	if !utf8.Valid(b) {
+		b = bytes.ToValidUTF8(b, []byte("\uFFFD"))
+	}
 	if len(b) <= s.bufferSize {
 		return s.conn.Write(b)
 	}
@@ -207,86 +212,105 @@ const (
 	maxLen      = 250       // guard for the StatsD UDP packet size
 )
 
-// isTrim returns true if the byte is to be trimmed at the ends.
-func isTrim(b byte) bool { return b == '.' || b == '_' || b == '-' }
+var shouldTrim [256]bool = [256]bool{
+	'.': true,
+	'_': true,
+	'-': true,
+}
 
 // appendSanitizedMetricName converts *any* string into something that StatsD / Graphite
 // accepts without complaints.
 func appendSanitizedMetricName(dst []byte, raw string) []byte {
-	nameLen := 0
-	orig := len(dst)
 	if raw == "" {
 		if len(dst) == 0 {
 			return append(dst, "_unnamed_"...)
 		}
 		return dst
 	}
-	// ── 1. accent folding (creates one temporary ↴)
-	// tmp := stripUnicodeAccents([]byte(raw))
+	orig := len(dst)
 
-	// ── 2. run the same ASCII sanitizer, but write into dst
-	lastWasRepl := false
-	for i := 0; i < len(raw); i++ {
-		c := byte(raw[i])
+	// Pre-grow
+	need := len(raw)
+	if need > maxLen {
+		need = maxLen
+	}
+	if cap(dst)-len(dst) < need {
+		nd := make([]byte, len(dst), len(dst)+need)
+		copy(nd, dst)
+		dst = nd
+	}
 
-		if c < 128 && valid[c] {
-			// ASCII valid chars
-			dst = append(dst, c)
-			nameLen++
-			lastWasRepl = false
-		} else if c >= 0xC2 && c <= 0xC3 && i+1 < len(raw) {
-			// Check for 2-byte UTF-8 sequences that are common accented letters
-			c2 := byte(raw[i+1])
-			if c2 >= 0x80 && c2 <= 0xBF { // Valid second byte
-				// Decode the 2-byte sequence
-				codepoint := uint16(c&0x1F)<<6 | uint16(c2&0x3F)
+	n := len(raw)
+	i := 0
+	lastWasReplacement := false
 
-				// Map common accented characters (U+00C0-U+00FF range)
-				if codepoint >= 0xC0 && codepoint <= 0xFF {
-					mapped := accentMap[codepoint]
-					if valid[mapped] {
+	// Skip leading trim while building
+	for i < n {
+		c := raw[i]
+		if !shouldTrim[c] {
+			break
+		}
+		i++
+	}
+
+	for i < n && (len(dst)-orig) < maxLen {
+		// Batch ASCII-valid run
+		remaining := maxLen - (len(dst) - orig)
+		j := i
+		limit := i + remaining
+		if limit > n {
+			limit = n
+		}
+		for j < limit {
+			c := raw[j]
+			if c >= 128 || !valid[c] {
+				break
+			}
+			j++
+		}
+		if j > i {
+			dst = append(dst, raw[i:j]...)
+			lastWasReplacement = false
+			i = j
+			continue
+		}
+
+		// 2-byte common accent folding
+		c0 := raw[i]
+		if c0 >= 0xC2 && c0 <= 0xC3 && i+1 < n {
+			c1 := raw[i+1]
+			if c1 >= 0x80 && c1 <= 0xBF {
+				code := uint16(c0&0x1F)<<6 | uint16(c1&0x3F)
+				if code >= 0xC0 && code <= 0xFF {
+					mapped := accentMap[code]
+					if valid[mapped] && (len(dst)-orig) < maxLen {
 						dst = append(dst, mapped)
-						nameLen++
-						lastWasRepl = false
-						i++ // Skip the second byte
+						lastWasReplacement = false
+						i += 2
 						continue
 					}
 				}
 			}
-			// If we get here, treat as invalid
-			if !lastWasRepl {
-				dst = append(dst, replacement)
-				nameLen++
-				lastWasRepl = true
-			}
-		} else if !lastWasRepl {
-			// Everything else (3-byte, 4-byte sequences, invalid chars)
-			dst = append(dst, replacement)
-			nameLen++
-			lastWasRepl = true
 		}
 
-		if nameLen >= maxLen {
+		// Replacement for everything else
+		if !lastWasReplacement && len(dst) > orig && (len(dst)-orig) < maxLen {
+			dst = append(dst, replacement)
+			lastWasReplacement = true
+		}
+		i++
+	}
+
+	// Trim trailing '.' '_' '-'
+	for l := len(dst); l > orig; {
+		c := dst[l-1]
+		if !shouldTrim[c] {
 			break
 		}
+		l--
+		dst = dst[:l]
 	}
 
-	// 3. trim leading / trailing '.', '_' or '-'
-	start, end := orig, len(dst)
-	for start < end && isTrim(dst[start]) {
-		start++
-	}
-	for end > start && isTrim(dst[end-1]) {
-		end--
-	}
-
-	// 4. compact if we trimmed something
-	if start > orig || end < len(dst) {
-		copy(dst[orig:], dst[start:end])
-		dst = dst[:orig+(end-start)]
-	}
-
-	// 5. fallback if everything vanished
 	if len(dst) == orig {
 		return append(dst, "_truncated_"...)
 	}
