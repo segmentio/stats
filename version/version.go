@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-const Version = "5.6.2"
+const Version = "5.6.3"
 
 var (
 	vsnOnce sync.Once
