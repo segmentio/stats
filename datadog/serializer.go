@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	stats "github.com/segmentio/stats/v5"
 )
@@ -28,7 +29,9 @@ func (s *serializer) Write(b []byte) (int, error) {
 	}
 
 	// Ensure the serialized metric payload has valid UTF-8 encoded bytes
-	b = bytes.ToValidUTF8(b, []byte("\uFFFD"))
+	if !utf8.Valid(b) {
+		b = bytes.ToValidUTF8(b, []byte("\uFFFD"))
+	}
 	if len(b) <= s.bufferSize {
 		return s.conn.Write(b)
 	}
