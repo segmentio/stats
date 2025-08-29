@@ -1,5 +1,10 @@
 # History
 
+### v5.6.3 (August 29, 2025)
+
+The Datadog client should have faster performance, by copying less metric data
+before writing it to the socket.
+
 ### v5.6.2 (July 10, 2025)
 
 Remove outdated README content and add debugstats examples.
