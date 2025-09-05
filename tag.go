@@ -1,9 +1,8 @@
 package stats
 
 import (
+	"slices"
 	"sync"
-
-	"golang.org/x/exp/slices"
 )
 
 // A Tag is a pair of a string key and value set on measures to define the

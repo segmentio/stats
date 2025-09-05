@@ -3,10 +3,9 @@ package stats
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"sort"
 	"testing"
-
-	"golang.org/x/exp/slices"
 )
 
 func Test_copyTags(t *testing.T) {
