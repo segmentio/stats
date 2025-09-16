@@ -83,6 +83,17 @@ func (e *Engine) WithPrefix(prefix string, tags ...Tag) *Engine {
 	}
 }
 
+// SetPrefix returns a copy of the engine with prefix replacing the eng's current
+// prefix and tags set to the merge of eng's current tags and those passed as
+// argument. Both eng and the returned engine share the same handler.
+func (e *Engine) SetPrefix(prefix string, tags ...Tag) *Engine {
+	return &Engine{
+		Handler: e.Handler,
+		Prefix:  prefix,
+		Tags:    mergeTags(e.Tags, tags),
+	}
+}
+
 // WithTags returns a copy of the engine with tags set to the merge of eng's
 // current tags and those passed as arguments. Both eng and the returned engine
 // share the same handler.

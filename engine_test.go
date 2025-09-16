@@ -72,6 +72,10 @@ func TestEngine(t *testing.T) {
 			scenario: "calling Engine.Incr produces expected tags when AllowDuplicateTags is set",
 			function: testEngineAllowDuplicateTags,
 		},
+		{
+			scenario: "calling Engine.SetPrefix returns a copy of the engine with the prefix replaced and tags inherited from the original",
+			function: testEngineSetPrefix,
+		},
 	}
 
 	initValue := stats.GoVersionReportingEnabled
@@ -95,6 +99,21 @@ func testEngineWithPrefix(t *testing.T, eng *stats.Engine) {
 	e2 := eng.WithPrefix("subtest", stats.T("command", "hello world"))
 
 	if e2.Prefix != "test.subtest" {
+		t.Error("bad prefix:", e2.Prefix)
+	}
+
+	if !reflect.DeepEqual(e2.Tags, []stats.Tag{
+		stats.T("command", "hello world"),
+		stats.T("service", "test-service"),
+	}) {
+		t.Error("bad tags:", e2.Tags)
+	}
+}
+
+func testEngineSetPrefix(t *testing.T, eng *stats.Engine) {
+	e2 := eng.SetPrefix("replacedPrefix", stats.T("command", "hello world"))
+
+	if e2.Prefix != "replacedPrefix" {
 		t.Error("bad prefix:", e2.Prefix)
 	}
 
