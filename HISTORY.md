@@ -1,5 +1,10 @@
 # History
 
+### v5.6.4 (September 16, 2025)
+
+Remove golang.org/x/exp from the list of dependencies, in favor of the "slices"
+standard library package. This bumps the minimum supported Go version to 1.23.
+
 ### v5.6.3 (August 29, 2025)
 
 The Datadog client should have faster performance, by copying less metric data
