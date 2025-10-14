@@ -87,7 +87,7 @@ func (s *serializer) AppendMeasures(b []byte, _ time.Time, measures ...stats.Mea
 var accentMap [256]byte
 
 // valid[byte] = 1 if the ASCII char is allowed, 0 otherwise.
-var valid = [128]bool{
+var valid = [256]bool{
 	'.': true, '-': true, '_': true,
 }
 

@@ -298,6 +298,12 @@ func TestAppendSanitizedMetricName(t *testing.T) {
 		{"", "naïve🌍test", "naive_test"},             // ï -> i, emoji -> _
 		{"", "umlauts.🤡München", "umlauts._Munchen"}, // emoji + German umlauts
 
+		// Unmapped Latin-1 Supplement characters (regression test for panic)
+		{"", "test÷metric", "test_metric"},                 // ÷ (division sign, U+00F7, byte 247)
+		{"", "value×count", "value_count"},                 // × (multiplication sign, U+00D7, byte 215)
+		{"", "price¤amount", "price_amount"},               // ¤ (currency sign, U+00A4)
+		{"prefix_", "data÷by×time", "prefix_data_by_time"}, // multiple unmapped chars with prefix
+
 		// empty or only illegal
 		{"", "", "_unnamed_"},
 		{"", "!!!", "_truncated_"},
