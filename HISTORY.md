@@ -1,5 +1,11 @@
 # History
 
+### v5.6.5 (October 14, 2025)
+
+The sanitization process introduced in the v5.6.0 release did not properly
+handle characters in the extended Latin-1 supplement, e.g. "÷". This issue has
+been fixed in this release.
+
 ### v5.6.4 (September 16, 2025)
 
 Remove golang.org/x/exp from the list of dependencies, in favor of the "slices"
