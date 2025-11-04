@@ -253,6 +253,7 @@ func TestAppendSanitizedMetricName(t *testing.T) {
 		// consecutive illegal chars collapse
 		{"", "foo!!!@@@###bar", "foo_bar"},
 		{"app.", "foo!!!@@@###bar", "app.foo_bar"},
+		{"", "0_ 0", "0__0"}, // legitimate underscore followed by space -> two underscores (one legit, one replacement)
 
 		// Unicode / accent folding - existing cases
 		{"", "🐳docker.stats", "docker.stats"},
@@ -304,6 +305,26 @@ func TestAppendSanitizedMetricName(t *testing.T) {
 		{"", "price¤amount", "price_amount"},               // ¤ (currency sign, U+00A4)
 		{"prefix_", "data÷by×time", "prefix_data_by_time"}, // multiple unmapped chars with prefix
 
+		// Edge cases for UTF-8 continuation byte handling
+		{"", "test\xC3\xA9\x80suffix", "teste_suffix"},   // é followed by orphaned continuation byte
+		{"", "metric\xE2\x82", "metric"},                 // incomplete 3-byte sequence (skips continuation byte, no replacement at end)
+		{"", "test\xF0\x9F", "test"},                     // incomplete 4-byte emoji (no continuation bytes, no replacement at end)
+		{"", "test\xC0\x80", "test"},                     // overlong encoding of NULL (invalid, skips continuation byte)
+		{"", "\x80\x81\x82\xBF", "_truncated_"},          // all invalid continuation bytes
+		{"", "valid\xC3\xA9\xC3\xA8text", "valideetext"}, // adjacent 2-byte sequences (é è)
+		{"", "test\xED\xA0\x80invalid", "test_invalid"},  // invalid surrogate half (UTF-16 artifact)
+		{"", "hello\xF4\x90\x80\x80", "hello"},           // codepoint beyond U+10FFFF (invalid, skips all continuation bytes)
+
+		// Latin-1 Supplement boundary characters
+		{"", "À", "A"},                     // U+00C0 (first mapped character)
+		{"", "ÿ", "y"},                     // U+00FF (last mapped character)
+		{"", "\u00C0test\u00FF", "Atesty"}, // boundaries with text
+
+		// Mixed valid and invalid sequences
+		{"", "café\xE2\x82résumé", "cafe_resume"},               // valid + incomplete + valid
+		{"", "test\xF0\x9F\x98\x80end", "test_end"},             // valid 4-byte emoji (should become single _)
+		{"", "\xF0\x9F\x98\x80\xF0\x9F\x98\x81", "_truncated_"}, // two valid 4-byte emojis (all invalid, only punctuation)
+
 		// empty or only illegal
 		{"", "", "_unnamed_"},
 		{"", "!!!", "_truncated_"},
@@ -352,6 +373,171 @@ func TestAppendSanitizedMetricName(t *testing.T) {
 		expected := "test_cafe.metrics"
 		if string(buf) != expected {
 			t.Errorf("buffer reuse failed: want %q, got %q", expected, string(buf))
+		}
+	})
+}
+
+// FuzzAppendSanitizedMetricName performs fuzz testing to discover edge cases
+// in metric name sanitization, particularly around UTF-8 handling.
+func FuzzAppendSanitizedMetricName(f *testing.F) {
+	// Seed corpus with interesting test cases
+	f.Add("")
+	f.Add("simple")
+	f.Add("café")
+	f.Add("🤡test")
+	f.Add("\xff\xfe")
+	f.Add("test\xC3\xA9\x80suffix")
+	f.Add("\xF0\x9F\x98\x80") // valid emoji
+	f.Add("\xED\xA0\x80")     // invalid surrogate
+	f.Add("naïve.users")
+	f.Add(strings.Repeat("x", 300)) // over maxLen
+
+	f.Fuzz(func(t *testing.T, input string) {
+		buf := appendSanitizedMetricName(nil, input)
+		result := string(buf)
+
+		// Invariant 1: Output must be valid UTF-8
+		// (Note: The serializer.Write() method also validates, but sanitization should produce valid UTF-8)
+		if !utf8.ValidString(result) {
+			t.Errorf("Output is not valid UTF-8 for input %q: got %q", input, result)
+		}
+
+		// Invariant 2: Output length must not exceed maxLen (except special fallback cases)
+		if len(result) > maxLen && result != "_unnamed_" && result != "_truncated_" {
+			t.Errorf("Output exceeds maxLen: %d > %d for input %q", len(result), maxLen, input)
+		}
+
+		// Invariant 3: Output must not start/end with trim chars (except special cases)
+		if len(result) > 0 && result != "_unnamed_" && result != "_truncated_" {
+			if isTrim(result[0]) {
+				t.Errorf("Output starts with trim char for input %q: %q", input, result)
+			}
+			if isTrim(result[len(result)-1]) {
+				t.Errorf("Output ends with trim char for input %q: %q", input, result)
+			}
+		}
+
+		// Invariant 4: Every ASCII byte in output must be valid or replacement
+		for i := 0; i < len(result); i++ {
+			b := result[i]
+			// Only check ASCII range (< 128), as valid UTF-8 multi-byte sequences are allowed
+			if b < 128 && !valid[b] && b != replacement {
+				t.Errorf("Invalid ASCII byte in output at position %d: 0x%02X for input %q", i, b, input)
+			}
+		}
+
+		// Invariant 5: Empty input should produce "_unnamed_"
+		if input == "" && result != "_unnamed_" {
+			t.Errorf("Empty input should produce '_unnamed_', got %q", result)
+		}
+	})
+}
+
+// TestSanitizationPreservesUTF8Validity ensures that the full pipeline
+// (sanitize → Write → output) maintains UTF-8 validity, even with problematic inputs.
+func TestSanitizationPreservesUTF8Validity(t *testing.T) {
+	testCases := []struct {
+		name  string
+		input string
+	}{
+		{"normal metric", "normal.metric"},
+		{"Latin-1 accents", "café.résumé"},
+		{"orphaned continuation byte", "test\xC3\xA9\x80suffix"},
+		{"incomplete 3-byte", "metric\xE2\x82"},
+		{"valid emoji", string([]byte{0xF0, 0x9F, 0x98, 0x80})},
+		{"incomplete emoji", string([]byte{0xF0, 0x9F})},
+		{"overlong encoding", "test\xC0\x80"},
+		{"invalid surrogate", "test\xED\xA0\x80invalid"},
+		{"mixed valid/invalid", "café\xE2\x82résumé"},
+		{"all continuation bytes", "\x80\x81\x82\xBF"},
+		{"multiple emojis", "test🤡and🎯more"},
+		{"Chinese characters", "测试.metrics"},
+		{"Cyrillic text", "тест.data"},
+		{"mixed scripts", "café测试résumé🤡тест"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockBuffer := &MockWriteCloser{Buffer: &bytes.Buffer{}}
+			s := &serializer{
+				conn:       mockBuffer,
+				bufferSize: MaxBufferSize,
+			}
+
+			measure := stats.Measure{
+				Name: tc.input,
+				Fields: []stats.Field{
+					stats.MakeField("count", 1, stats.Counter),
+				},
+				Tags: []stats.Tag{
+					stats.T("tagname", tc.input),
+				},
+			}
+
+			buf := s.AppendMeasure(nil, measure)
+			_, err := s.Write(buf)
+			if err != nil {
+				t.Fatalf("Write failed: %v", err)
+			}
+
+			output := mockBuffer.String()
+			if !utf8.ValidString(output) {
+				t.Errorf("Final output is not valid UTF-8: %q", output)
+			}
+
+			// Additional check: ensure output doesn't contain raw invalid bytes
+			for i, r := range output {
+				if r == utf8.RuneError {
+					_, size := utf8.DecodeRuneInString(output[i:])
+					if size == 1 {
+						// This is an actual decoding error, not the valid U+FFFD character
+						t.Errorf("Output contains invalid UTF-8 at position %d", i)
+					}
+				}
+			}
+		})
+	}
+}
+
+// BenchmarkAppendSanitizedMetricName measures performance of metric name sanitization
+// across different input types to ensure the implementation is efficient.
+func BenchmarkAppendSanitizedMetricName(b *testing.B) {
+	benchmarks := []struct {
+		name  string
+		input string
+	}{
+		{"simple ASCII", "simple.metric.name"},
+		{"with dashes and underscores", "my_app-server.request_count"},
+		{"Latin-1 accents", "café.résumé.münchen"},
+		{"mixed accents", "naïve.señor.Zürich"},
+		{"emoji in middle", "performance🚀metrics🎯data"},
+		{"Chinese characters", "测试.metrics.数据"},
+		{"Cyrillic text", "тест.данные.метрики"},
+		{"mixed scripts", "app.测试.тест.café"},
+		{"invalid UTF-8", "test\xC3\xA9\x80\xE2\x82invalid"},
+		{"over maxLen", strings.Repeat("x", 300)},
+		{"special chars", "foo!!!@@@###bar|||:::"},
+		{"mostly trim chars", "...___---...___---"},
+	}
+
+	for _, bm := range benchmarks {
+		b.Run(bm.name, func(b *testing.B) {
+			buf := make([]byte, 0, 512)
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				buf = appendSanitizedMetricName(buf[:0], bm.input)
+			}
+		})
+	}
+
+	// Benchmark with prefix (common use case)
+	b.Run("with prefix", func(b *testing.B) {
+		buf := make([]byte, 0, 512)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			buf = buf[:0]
+			buf = append(buf, "myapp."...)
+			buf = appendSanitizedMetricName(buf, "café.metrics")
 		}
 	})
 }

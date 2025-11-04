@@ -29,3 +29,5 @@ _testmain.go
 
 # Commands
 /dogstatsd
+
+/datadog/testdata/fuzz

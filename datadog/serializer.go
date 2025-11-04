@@ -84,7 +84,14 @@ func (s *serializer) AppendMeasures(b []byte, _ time.Time, measures ...stats.Mea
 	return b
 }
 
-var accentMap [256]byte
+// latin1SupplementMap maps Unicode codepoints U+00C0-U+00FF (Latin-1 Supplement)
+// to their unaccented ASCII equivalents. This is used to handle common accented
+// characters in metric names.
+//
+// Note: This array is indexed by codepoint values (e.g., U+00E9 for é), which
+// numerically match the byte values in the Latin-1 encoding. The mapping handles
+// 2-byte UTF-8 sequences that decode to these codepoints.
+var latin1SupplementMap [256]byte
 
 // valid[byte] = 1 if the ASCII char is allowed, 0 otherwise.
 var valid = [256]bool{
@@ -93,106 +100,106 @@ var valid = [256]bool{
 
 func init() {
 	// Initialize all to identity mapping
-	for i := range accentMap {
-		accentMap[i] = byte(i)
+	for i := range latin1SupplementMap {
+		latin1SupplementMap[i] = byte(i)
 	}
 
 	// Latin-1 Supplement mappings (0xC0-0xFF)
 	// Uppercase A variants
-	accentMap[0xC0] = 'A' // À
-	accentMap[0xC1] = 'A' // Á
-	accentMap[0xC2] = 'A' // Â
-	accentMap[0xC3] = 'A' // Ã
-	accentMap[0xC4] = 'A' // Ä
-	accentMap[0xC5] = 'A' // Å
-	accentMap[0xC6] = 'A' // Æ -> A (could be "AE" but single char is simpler)
+	latin1SupplementMap[0xC0] = 'A' // À
+	latin1SupplementMap[0xC1] = 'A' // Á
+	latin1SupplementMap[0xC2] = 'A' // Â
+	latin1SupplementMap[0xC3] = 'A' // Ã
+	latin1SupplementMap[0xC4] = 'A' // Ä
+	latin1SupplementMap[0xC5] = 'A' // Å
+	latin1SupplementMap[0xC6] = 'A' // Æ -> A (could be "AE" but single char is simpler)
 
 	// Uppercase C
-	accentMap[0xC7] = 'C' // Ç
+	latin1SupplementMap[0xC7] = 'C' // Ç
 
 	// Uppercase E variants
-	accentMap[0xC8] = 'E' // È
-	accentMap[0xC9] = 'E' // É
-	accentMap[0xCA] = 'E' // Ê
-	accentMap[0xCB] = 'E' // Ë
+	latin1SupplementMap[0xC8] = 'E' // È
+	latin1SupplementMap[0xC9] = 'E' // É
+	latin1SupplementMap[0xCA] = 'E' // Ê
+	latin1SupplementMap[0xCB] = 'E' // Ë
 
 	// Uppercase I variants
-	accentMap[0xCC] = 'I' // Ì
-	accentMap[0xCD] = 'I' // Í
-	accentMap[0xCE] = 'I' // Î
-	accentMap[0xCF] = 'I' // Ï
+	latin1SupplementMap[0xCC] = 'I' // Ì
+	latin1SupplementMap[0xCD] = 'I' // Í
+	latin1SupplementMap[0xCE] = 'I' // Î
+	latin1SupplementMap[0xCF] = 'I' // Ï
 
 	// Uppercase D, N
-	accentMap[0xD0] = 'D' // Ð
-	accentMap[0xD1] = 'N' // Ñ
+	latin1SupplementMap[0xD0] = 'D' // Ð
+	latin1SupplementMap[0xD1] = 'N' // Ñ
 
 	// Uppercase O variants
-	accentMap[0xD2] = 'O' // Ò
-	accentMap[0xD3] = 'O' // Ó
-	accentMap[0xD4] = 'O' // Ô
-	accentMap[0xD5] = 'O' // Õ
-	accentMap[0xD6] = 'O' // Ö
-	accentMap[0xD8] = 'O' // Ø
+	latin1SupplementMap[0xD2] = 'O' // Ò
+	latin1SupplementMap[0xD3] = 'O' // Ó
+	latin1SupplementMap[0xD4] = 'O' // Ô
+	latin1SupplementMap[0xD5] = 'O' // Õ
+	latin1SupplementMap[0xD6] = 'O' // Ö
+	latin1SupplementMap[0xD8] = 'O' // Ø
 
 	// Uppercase U variants
-	accentMap[0xD9] = 'U' // Ù
-	accentMap[0xDA] = 'U' // Ú
-	accentMap[0xDB] = 'U' // Û
-	accentMap[0xDC] = 'U' // Ü
+	latin1SupplementMap[0xD9] = 'U' // Ù
+	latin1SupplementMap[0xDA] = 'U' // Ú
+	latin1SupplementMap[0xDB] = 'U' // Û
+	latin1SupplementMap[0xDC] = 'U' // Ü
 
 	// Uppercase Y
-	accentMap[0xDD] = 'Y' // Ý
-	accentMap[0xDE] = 'T' // Þ (Thorn)
+	latin1SupplementMap[0xDD] = 'Y' // Ý
+	latin1SupplementMap[0xDE] = 'T' // Þ (Thorn)
 
 	// Lowercase sharp s
-	accentMap[0xDF] = 's' // ß
+	latin1SupplementMap[0xDF] = 's' // ß
 
 	// Lowercase a variants
-	accentMap[0xE0] = 'a' // à
-	accentMap[0xE1] = 'a' // á
-	accentMap[0xE2] = 'a' // â
-	accentMap[0xE3] = 'a' // ã
-	accentMap[0xE4] = 'a' // ä
-	accentMap[0xE5] = 'a' // å
-	accentMap[0xE6] = 'a' // æ -> a (could be "ae" but single char is simpler)
+	latin1SupplementMap[0xE0] = 'a' // à
+	latin1SupplementMap[0xE1] = 'a' // á
+	latin1SupplementMap[0xE2] = 'a' // â
+	latin1SupplementMap[0xE3] = 'a' // ã
+	latin1SupplementMap[0xE4] = 'a' // ä
+	latin1SupplementMap[0xE5] = 'a' // å
+	latin1SupplementMap[0xE6] = 'a' // æ -> a (could be "ae" but single char is simpler)
 
 	// Lowercase c
-	accentMap[0xE7] = 'c' // ç
+	latin1SupplementMap[0xE7] = 'c' // ç
 
 	// Lowercase e variants
-	accentMap[0xE8] = 'e' // è
-	accentMap[0xE9] = 'e' // é
-	accentMap[0xEA] = 'e' // ê
-	accentMap[0xEB] = 'e' // ë
+	latin1SupplementMap[0xE8] = 'e' // è
+	latin1SupplementMap[0xE9] = 'e' // é
+	latin1SupplementMap[0xEA] = 'e' // ê
+	latin1SupplementMap[0xEB] = 'e' // ë
 
 	// Lowercase i variants
-	accentMap[0xEC] = 'i' // ì
-	accentMap[0xED] = 'i' // í
-	accentMap[0xEE] = 'i' // î
-	accentMap[0xEF] = 'i' // ï
+	latin1SupplementMap[0xEC] = 'i' // ì
+	latin1SupplementMap[0xED] = 'i' // í
+	latin1SupplementMap[0xEE] = 'i' // î
+	latin1SupplementMap[0xEF] = 'i' // ï
 
 	// Lowercase d, n
-	accentMap[0xF0] = 'd' // ð
-	accentMap[0xF1] = 'n' // ñ
+	latin1SupplementMap[0xF0] = 'd' // ð
+	latin1SupplementMap[0xF1] = 'n' // ñ
 
 	// Lowercase o variants
-	accentMap[0xF2] = 'o' // ò
-	accentMap[0xF3] = 'o' // ó
-	accentMap[0xF4] = 'o' // ô
-	accentMap[0xF5] = 'o' // õ
-	accentMap[0xF6] = 'o' // ö
-	accentMap[0xF8] = 'o' // ø
+	latin1SupplementMap[0xF2] = 'o' // ò
+	latin1SupplementMap[0xF3] = 'o' // ó
+	latin1SupplementMap[0xF4] = 'o' // ô
+	latin1SupplementMap[0xF5] = 'o' // õ
+	latin1SupplementMap[0xF6] = 'o' // ö
+	latin1SupplementMap[0xF8] = 'o' // ø
 
 	// Lowercase u variants
-	accentMap[0xF9] = 'u' // ù
-	accentMap[0xFA] = 'u' // ú
-	accentMap[0xFB] = 'u' // û
-	accentMap[0xFC] = 'u' // ü
+	latin1SupplementMap[0xF9] = 'u' // ù
+	latin1SupplementMap[0xFA] = 'u' // ú
+	latin1SupplementMap[0xFB] = 'u' // û
+	latin1SupplementMap[0xFC] = 'u' // ü
 
 	// Lowercase y
-	accentMap[0xFD] = 'y' // ý
-	accentMap[0xFE] = 't' // þ (thorn)
-	accentMap[0xFF] = 'y' // ÿ
+	latin1SupplementMap[0xFD] = 'y' // ý
+	latin1SupplementMap[0xFE] = 't' // þ (thorn)
+	latin1SupplementMap[0xFF] = 'y' // ÿ
 
 	for c := '0'; c <= '9'; c++ {
 		valid[c] = true
@@ -246,7 +253,7 @@ func appendSanitizedMetricName(dst []byte, raw string) []byte {
 
 				// Map common accented characters (U+00C0-U+00FF range)
 				if codepoint >= 0xC0 && codepoint <= 0xFF {
-					mapped := accentMap[codepoint]
+					mapped := latin1SupplementMap[codepoint]
 					if valid[mapped] {
 						dst = append(dst, mapped)
 						nameLen++
@@ -262,11 +269,17 @@ func appendSanitizedMetricName(dst []byte, raw string) []byte {
 				nameLen++
 				lastWasRepl = true
 			}
-		} else if !lastWasRepl {
+		} else {
 			// Everything else (3-byte, 4-byte sequences, invalid chars)
-			dst = append(dst, replacement)
-			nameLen++
-			lastWasRepl = true
+			// Skip continuation bytes (0x80-0xBF) to avoid creating invalid UTF-8
+			for i+1 < len(raw) && (raw[i+1]&0xC0) == 0x80 {
+				i++
+			}
+			if !lastWasRepl {
+				dst = append(dst, replacement)
+				nameLen++
+				lastWasRepl = true
+			}
 		}
 
 		if nameLen >= maxLen {

@@ -35,3 +35,6 @@ jobs:
 
       - name: Run Tests
         run: go test -trimpath -race ./...
+
+      - name: Run Fuzz Tests
+        run: go test -fuzz=FuzzAppendSanitizedMetricName -fuzztime=5s ./datadog
