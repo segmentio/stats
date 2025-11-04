@@ -93,9 +93,16 @@ func (s *serializer) AppendMeasures(b []byte, _ time.Time, measures ...stats.Mea
 // 2-byte UTF-8 sequences that decode to these codepoints.
 var latin1SupplementMap [256]byte
 
-// valid[byte] = 1 if the ASCII char is allowed, 0 otherwise.
+// valid[byte] = true if the ASCII char is allowed in metric/tag names, false otherwise.
 var valid = [256]bool{
 	'.': true, '-': true, '_': true,
+}
+
+// validTagValue[byte] = true if the ASCII char is allowed in tag values, false otherwise.
+// Tag values are more lenient than metric names - they can contain most characters
+// except commas (which separate tags) and a few control characters.
+var validTagValue = [256]bool{
+	'.': true, '-': true, '_': true, '/': true, ':': true, '|': true,
 }
 
 func init() {
@@ -203,12 +210,15 @@ func init() {
 
 	for c := '0'; c <= '9'; c++ {
 		valid[c] = true
+		validTagValue[c] = true
 	}
 	for c := 'A'; c <= 'Z'; c++ {
 		valid[c] = true
+		validTagValue[c] = true
 	}
 	for c := 'a'; c <= 'z'; c++ {
 		valid[c] = true
+		validTagValue[c] = true
 	}
 }
 
@@ -309,6 +319,91 @@ func appendSanitizedMetricName(dst []byte, raw string) []byte {
 	return dst
 }
 
+// appendSanitizedTagValue sanitizes tag values for DogStatsD format.
+// Tag values are more lenient than metric names - they can contain colons, slashes,
+// pipes, etc. The main restriction is that commas are not allowed since they
+// separate tags in the protocol.
+func appendSanitizedTagValue(dst []byte, raw string) []byte {
+	nameLen := 0
+	orig := len(dst)
+	if raw == "" {
+		return dst
+	}
+
+	lastWasRepl := false
+	for i := 0; i < len(raw); i++ {
+		c := byte(raw[i])
+
+		if c < 128 && validTagValue[c] {
+			// ASCII valid chars
+			dst = append(dst, c)
+			nameLen++
+			lastWasRepl = false
+		} else if c >= 0xC2 && c <= 0xC3 && i+1 < len(raw) {
+			// Check for 2-byte UTF-8 sequences that are common accented letters
+			c2 := byte(raw[i+1])
+			if c2 >= 0x80 && c2 <= 0xBF { // Valid second byte
+				// Decode the 2-byte sequence
+				codepoint := uint16(c&0x1F)<<6 | uint16(c2&0x3F)
+
+				// Map common accented characters (U+00C0-U+00FF range)
+				if codepoint >= 0xC0 && codepoint <= 0xFF {
+					mapped := latin1SupplementMap[codepoint]
+					if validTagValue[mapped] {
+						dst = append(dst, mapped)
+						nameLen++
+						lastWasRepl = false
+						i++ // Skip the second byte
+						continue
+					}
+				}
+			}
+			// If we get here, treat as invalid
+			if !lastWasRepl {
+				dst = append(dst, replacement)
+				nameLen++
+				lastWasRepl = true
+			}
+		} else {
+			// Everything else (3-byte, 4-byte sequences, invalid chars)
+			// Skip continuation bytes (0x80-0xBF) to avoid creating invalid UTF-8
+			for i+1 < len(raw) && (raw[i+1]&0xC0) == 0x80 {
+				i++
+			}
+			if !lastWasRepl {
+				dst = append(dst, replacement)
+				nameLen++
+				lastWasRepl = true
+			}
+		}
+
+		if nameLen >= maxLen {
+			break
+		}
+	}
+
+	// trim leading / trailing '.', '_' or '-'
+	start, end := orig, len(dst)
+	for start < end && isTrim(dst[start]) {
+		start++
+	}
+	for end > start && isTrim(dst[end-1]) {
+		end--
+	}
+
+	// compact if we trimmed something
+	if start > orig || end < len(dst) {
+		copy(dst[orig:], dst[start:end])
+		dst = dst[:orig+(end-start)]
+	}
+
+	// fallback if everything vanished (unlikely for tag values but handle it)
+	if len(dst) == orig {
+		return append(dst, "_truncated_"...)
+	}
+	return dst
+}
+
 // AppendMeasure is a formatting routine to append the dogstatsd protocol
 // representation of a measure to a memory buffer.
 // Tags listed in the s.filters are removed. (some tags may not be suitable for submission to DataDog)
@@ -365,7 +460,7 @@ func (s *serializer) AppendMeasure(b []byte, m stats.Measure) []byte {
 				}
 				b = appendSanitizedMetricName(b, t.Name)
 				b = append(b, ':')
-				b = appendSanitizedMetricName(b, t.Value)
+				b = appendSanitizedTagValue(b, t.Value)
 			}
 		}
 		b = append(b, '\n')
