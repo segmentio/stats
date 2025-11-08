@@ -265,7 +265,7 @@ func BenchmarkLE(b *testing.B) {
 		stats.ValueOf(math.Inf(+1)),
 	}
 
-	for i := 0; i != b.N; i++ {
+	for b.Loop() {
 		le(buckets)
 	}
 }

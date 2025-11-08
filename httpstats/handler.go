@@ -85,7 +85,7 @@ func (w *responseWriter) Write(b []byte) (n int, err error) {
 		w.bytes += n
 	}
 
-	return
+	return n, err
 }
 
 func (w *responseWriter) Hijack() (conn net.Conn, buf *bufio.ReadWriter, err error) {
@@ -93,7 +93,7 @@ func (w *responseWriter) Hijack() (conn net.Conn, buf *bufio.ReadWriter, err err
 		w.wroteHeader = true
 		w.complete()
 	}
-	return
+	return conn, buf, err
 }
 
 func (w *responseWriter) complete() {

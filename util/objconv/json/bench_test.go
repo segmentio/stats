@@ -1,5 +1,4 @@
 //go:build ignore
-// +build ignore
 
 // Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -39,9 +38,11 @@ type codeNode struct {
 	MeanT    int64       `json:"mean_t"`
 }
 
-var codeOnce sync.Once
-var codeJSON []byte
-var codeStruct codeResponse
+var (
+	codeOnce   sync.Once
+	codeJSON   []byte
+	codeStruct codeResponse
+)
 
 func codeInit() {
 	codeOnce.Do(func() {
@@ -71,7 +72,7 @@ func BenchmarkCodeEncoder(b *testing.B) {
 	codeInit()
 	b.ResetTimer()
 	enc := NewEncoder(io.Discard)
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if err := enc.Encode(&codeStruct); err != nil {
 			b.Fatal("Encode:", err)
 		}
@@ -82,7 +83,7 @@ func BenchmarkCodeEncoder(b *testing.B) {
 func BenchmarkCodeMarshal(b *testing.B) {
 	codeInit()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if _, err := Marshal(&codeStruct); err != nil {
 			b.Fatal("Marshal:", err)
 		}
@@ -96,7 +97,7 @@ func BenchmarkCodeDecoder(b *testing.B) {
 	var buf bytes.Buffer
 	dec := NewDecoder(&buf)
 	var r codeResponse
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		buf.Write(codeJSON)
 		// hide EOF
 		buf.WriteByte('\n')
@@ -119,7 +120,8 @@ func BenchmarkDecoderStream(b *testing.B) {
 	}
 	ones := strings.Repeat(" 1\n", 300000) + "\n\n\n"
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	i := 0
+	for b.Loop() {
 		if i%300000 == 0 {
 			buf.WriteString(ones)
 		}
@@ -127,13 +129,14 @@ func BenchmarkDecoderStream(b *testing.B) {
 		if err := dec.Decode(&x); err != nil || x != int64(1) {
 			b.Fatalf("Decode: %v after %d", err, i)
 		}
+		i++
 	}
 }
 
 func BenchmarkCodeUnmarshal(b *testing.B) {
 	codeInit()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		var r codeResponse
 		if err := Unmarshal(codeJSON, &r); err != nil {
 			b.Fatal("Unmarshal:", err)
@@ -146,7 +149,7 @@ func BenchmarkCodeUnmarshalReuse(b *testing.B) {
 	codeInit()
 	b.ResetTimer()
 	var r codeResponse
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if err := Unmarshal(codeJSON, &r); err != nil {
 			b.Fatal("Unmarshal:", err)
 		}
@@ -158,7 +161,7 @@ func BenchmarkUnmarshalString(b *testing.B) {
 	data := []byte(`"hello, world"`)
 	var s string
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if err := Unmarshal(data, &s); err != nil {
 			b.Fatal("Unmarshal:", err)
 		}
@@ -169,7 +172,7 @@ func BenchmarkUnmarshalFloat64(b *testing.B) {
 	var f float64
 	data := []byte(`3.14`)
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if err := Unmarshal(data, &f); err != nil {
 			b.Fatal("Unmarshal:", err)
 		}
@@ -180,7 +183,7 @@ func BenchmarkUnmarshalInt64(b *testing.B) {
 	var x int64
 	data := []byte(`3`)
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if err := Unmarshal(data, &x); err != nil {
 			b.Fatal("Unmarshal:", err)
 		}
@@ -191,7 +194,7 @@ func BenchmarkIssue10335(b *testing.B) {
 	b.ReportAllocs()
 	var s struct{}
 	j := []byte(`{"a":{ }}`)
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		if err := Unmarshal(j, &s); err != nil {
 			b.Fatal(err)
 		}

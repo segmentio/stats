@@ -39,7 +39,7 @@ func Marshal(v interface{}) (b []byte, err error) {
 	}
 
 	marshalerPool.Put(m)
-	return
+	return b, err
 }
 
 var marshalerPool = sync.Pool{

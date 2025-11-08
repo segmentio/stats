@@ -46,7 +46,7 @@ func AdapterOf(typ reflect.Type) (a Adapter, ok bool) {
 	adapterMutex.RLock()
 	a, ok = adapterStore[typ]
 	adapterMutex.RUnlock()
-	return
+	return a, ok
 }
 
 var (

@@ -258,7 +258,7 @@ func BenchmarkEncoder(b *testing.B) {
 
 	for _, test := range tests {
 		b.Run(fmt.Sprintf("%T", test), func(b *testing.B) {
-			for i := 0; i != b.N; i++ {
+			for b.Loop() {
 				enc.Encode(test)
 			}
 		})

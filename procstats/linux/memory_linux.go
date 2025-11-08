@@ -13,21 +13,21 @@ func readMemoryLimit(pid int) (limit uint64, err error) {
 	if limit = readCGroupMemoryLimit(pid); limit == unlimitedMemoryLimit {
 		limit, err = readSysinfoMemoryLimit()
 	}
-	return
+	return limit, err
 }
 
 func readCGroupMemoryLimit(pid int) (limit uint64) {
 	if cgroups, err := ReadProcCGroup(pid); err == nil {
 		limit = readProcCGroupMemoryLimit(cgroups)
 	}
-	return
+	return limit
 }
 
 func readProcCGroupMemoryLimit(cgroups ProcCGroup) (limit uint64) {
 	if memory, ok := cgroups.Lookup("memory"); ok {
 		limit = readMemoryCGroupMemoryLimit(memory)
 	}
-	return
+	return limit
 }
 
 func readMemoryCGroupMemoryLimit(cgroup CGroup) (limit uint64) {
@@ -39,7 +39,7 @@ func readMemoryCGroupMemoryLimit(cgroup CGroup) (limit uint64) {
 		}
 	}
 
-	return
+	return limit
 }
 
 func readMemoryCGroupMemoryLimitFilePath(cgroupPath string) string {
@@ -62,5 +62,5 @@ func readSysinfoMemoryLimit() (limit uint64, err error) {
 		limit = uint64(sysinfo.Unit) * uint64(sysinfo.Totalram)
 	}
 
-	return
+	return limit, err
 }

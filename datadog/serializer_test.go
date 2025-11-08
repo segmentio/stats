@@ -331,6 +331,18 @@ func TestAppendSanitizedMetricName(t *testing.T) {
 		{"prefix_", "", "prefix_"},
 		{"prefix_", "!!!", "prefix__truncated_"},
 
+		// only trim characters (dots, underscores, dashes) - fast path edge case
+		{"", "...", "_truncated_"},
+		{"", "___", "_truncated_"},
+		{"", "---", "_truncated_"},
+		{"", "._-._-", "_truncated_"},
+		{"", "......", "_truncated_"},
+		{"", "______", "_truncated_"},
+		{"", "------", "_truncated_"},
+		{"prefix_", "...", "prefix__truncated_"},
+		{"prefix_", "___", "prefix__truncated_"},
+		{"prefix_", "._-", "prefix__truncated_"},
+
 		// over-long → truncated (but preserve prefix if it fits)
 		{"", long, strings.Repeat("x", maxLen)},
 		{"short_", long, "short_" + strings.Repeat("x", maxLen)}, // 6 = len("short_")
@@ -524,7 +536,7 @@ func BenchmarkAppendSanitizedMetricName(b *testing.B) {
 		b.Run(bm.name, func(b *testing.B) {
 			buf := make([]byte, 0, 512)
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				buf = appendSanitizedMetricName(buf[:0], bm.input)
 			}
 		})
@@ -534,10 +546,76 @@ func BenchmarkAppendSanitizedMetricName(b *testing.B) {
 	b.Run("with prefix", func(b *testing.B) {
 		buf := make([]byte, 0, 512)
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			buf = buf[:0]
 			buf = append(buf, "myapp."...)
 			buf = appendSanitizedMetricName(buf, "café.metrics")
 		}
 	})
+}
+
+// BenchmarkTrimComparison compares manual trimming vs bytes.TrimFunc.
+func BenchmarkTrimComparison(b *testing.B) {
+	testCases := []struct {
+		name   string
+		prefix string
+		input  string
+	}{
+		{"no trim needed", "prefix.", "simple.metric"},
+		{"trim leading", "prefix.", "...trimmed"},
+		{"trim trailing", "prefix.", "trimmed..."},
+		{"trim both", "prefix.", "...trimmed..."},
+		{"trim all", "prefix.", "......"},
+		{"mixed trim chars", "prefix.", "._-test._-"},
+		{"typical metric", "myapp.", "http.server.duration"},
+	}
+
+	for _, tc := range testCases {
+		// Benchmark current manual approach
+		b.Run(tc.name+"/manual", func(b *testing.B) {
+			buf := make([]byte, 0, 512)
+			b.ResetTimer()
+			for b.Loop() {
+				buf = buf[:0]
+				buf = append(buf, tc.prefix...)
+				origLen := len(buf)
+
+				// Copy input
+				buf = append(buf, tc.input...)
+
+				// Manual trim (current approach)
+				start, end := origLen, len(buf)
+				for start < end && isTrim(buf[start]) {
+					start++
+				}
+				for end > start && isTrim(buf[end-1]) {
+					end--
+				}
+
+				if start > origLen || end < len(buf) {
+					copy(buf[origLen:], buf[start:end])
+					buf = buf[:origLen+(end-start)]
+				}
+			}
+		})
+
+		// Benchmark bytes.Trim* approach
+		b.Run(tc.name+"/bytesTrim", func(b *testing.B) {
+			buf := make([]byte, 0, 512)
+			cutset := "._-"
+			b.ResetTimer()
+			for b.Loop() {
+				buf = buf[:0]
+				buf = append(buf, tc.prefix...)
+				origLen := len(buf)
+
+				// Copy input
+				buf = append(buf, tc.input...)
+
+				// bytes.Trim approach (TrimLeft then TrimRight)
+				trimmed := bytes.Trim(buf[origLen:], cutset)
+				buf = append(buf[:origLen], trimmed...)
+			}
+		})
+	}
 }

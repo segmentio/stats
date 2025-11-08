@@ -223,87 +223,47 @@ func isTrim(b byte) bool { return b == '.' || b == '_' || b == '-' }
 // appendSanitizedMetricName converts *any* string into something that StatsD / Graphite
 // accepts without complaints.
 func appendSanitizedMetricName(dst []byte, raw string) []byte {
-	nameLen := 0
-	orig := len(dst)
+	origLen := len(dst)
 	if raw == "" {
 		if len(dst) == 0 {
 			return append(dst, "_unnamed_"...)
 		}
 		return dst
 	}
-	// ── 1. accent folding (creates one temporary ↴)
-	// tmp := stripUnicodeAccents([]byte(raw))
 
-	// ── 2. run the same ASCII sanitizer, but write into dst
+	// Simple transformation: iterate through runes and convert/replace as needed
 	lastWasRepl := false
-	for i := 0; i < len(raw); i++ {
-		c := byte(raw[i])
-
-		if c < 128 && valid[c] {
-			// ASCII valid chars
-			dst = append(dst, c)
-			nameLen++
-			lastWasRepl = false
-		} else if c >= 0xC2 && c <= 0xC3 && i+1 < len(raw) {
-			// Check for 2-byte UTF-8 sequences that are common accented letters
-			c2 := byte(raw[i+1])
-			if c2 >= 0x80 && c2 <= 0xBF { // Valid second byte
-				// Decode the 2-byte sequence
-				codepoint := uint16(c&0x1F)<<6 | uint16(c2&0x3F)
-
-				// Map common accented characters (U+00C0-U+00FF range)
-				if codepoint >= 0xC0 && codepoint <= 0xFF {
-					mapped := latin1SupplementMap[codepoint]
-					if valid[mapped] {
-						dst = append(dst, mapped)
-						nameLen++
-						lastWasRepl = false
-						i++ // Skip the second byte
-						continue
-					}
-				}
-			}
-			// If we get here, treat as invalid
-			if !lastWasRepl {
-				dst = append(dst, replacement)
-				nameLen++
-				lastWasRepl = true
-			}
-		} else {
-			// Everything else (3-byte, 4-byte sequences, invalid chars)
-			// Skip continuation bytes (0x80-0xBF) to avoid creating invalid UTF-8
-			for i+1 < len(raw) && (raw[i+1]&0xC0) == 0x80 {
-				i++
-			}
-			if !lastWasRepl {
-				dst = append(dst, replacement)
-				nameLen++
-				lastWasRepl = true
-			}
-		}
-
-		if nameLen >= maxLen {
+	for i, r := range raw {
+		if i >= maxLen {
 			break
 		}
+
+		if r < utf8.RuneSelf && valid[byte(r)] {
+			// Valid ASCII character
+			dst = append(dst, byte(r))
+			lastWasRepl = false
+		} else if r >= 0xC0 && r <= 0xFF {
+			// Latin-1 Supplement block (common accented characters like À, É, ñ)
+			mapped := latin1SupplementMap[r]
+			if valid[mapped] {
+				dst = append(dst, mapped)
+				lastWasRepl = false
+			} else if !lastWasRepl {
+				dst = append(dst, replacement)
+				lastWasRepl = true
+			}
+		} else if !lastWasRepl {
+			// Invalid or unsupported character - only append if we didn't just add a replacement
+			dst = append(dst, replacement)
+			lastWasRepl = true
+		}
 	}
 
-	// 3. trim leading / trailing '.', '_' or '-'
-	start, end := orig, len(dst)
-	for start < end && isTrim(dst[start]) {
-		start++
-	}
-	for end > start && isTrim(dst[end-1]) {
-		end--
-	}
+	// Trim leading/trailing '.', '_' or '-'
+	trimmed := bytes.Trim(dst[origLen:], "._-")
+	dst = append(dst[:origLen], trimmed...)
 
-	// 4. compact if we trimmed something
-	if start > orig || end < len(dst) {
-		copy(dst[orig:], dst[start:end])
-		dst = dst[:orig+(end-start)]
-	}
-
-	// 5. fallback if everything vanished
-	if len(dst) == orig {
+	if len(dst) == origLen {
 		return append(dst, "_truncated_"...)
 	}
 	return dst

@@ -20,7 +20,7 @@ func parseEvent(s string) (e Event, err error) {
 	header, next = nextToken(next, ':')
 	if len(header) < 7 {
 		err = fmt.Errorf("datadog: %#v has a malformed event header", s)
-		return
+		return e, err
 	}
 
 	header = header[3 : len(header)-1] // Strip off '_e{' and '}'
@@ -30,13 +30,13 @@ func parseEvent(s string) (e Event, err error) {
 	titleLen, err = strconv.ParseInt(rawTitleLen, 10, 64)
 	if err != nil {
 		err = fmt.Errorf("datadog: %#v has a malformed title length", s)
-		return
+		return e, err
 	}
 
 	textLen, err = strconv.ParseInt(rawTextLen, 10, 64)
 	if err != nil {
 		err = fmt.Errorf("datadog: %#v has a malformed text length", s)
-		return
+		return e, err
 	}
 
 	rawTitle := next[:titleLen]
@@ -45,12 +45,12 @@ func parseEvent(s string) (e Event, err error) {
 
 	if len(rawTitle) == 0 {
 		err = fmt.Errorf("datadog: %#v has a malformed title", s)
-		return
+		return e, err
 	}
 
 	if len(rawText) == 0 {
 		err = fmt.Errorf("datadog: %#v has malformed text", s)
-		return
+		return e, err
 	}
 
 	e = Event{
@@ -72,7 +72,7 @@ func parseEvent(s string) (e Event, err error) {
 				ts, err = strconv.ParseInt(rawMetadataFields[i][2:], 10, 64)
 				if err != nil {
 					err = fmt.Errorf("datadog: %#v has a malformed timestamp", s)
-					return
+					return e, err
 				}
 				e.Ts = ts
 			case 'p':
@@ -89,7 +89,7 @@ func parseEvent(s string) (e Event, err error) {
 				tags = rawMetadataFields[i][1:]
 			default:
 				err = fmt.Errorf("datadog: %#v has unexpected metadata field", s)
-				return
+				return e, err
 			}
 		}
 	}
@@ -107,7 +107,7 @@ func parseEvent(s string) (e Event, err error) {
 		}
 	}
 
-	return
+	return e, err
 }
 
 func parseMetric(s string) (m Metric, err error) {
@@ -125,17 +125,17 @@ func parseMetric(s string) (m Metric, err error) {
 
 	if len(name) == 0 {
 		err = fmt.Errorf("datadog: %#v is missing a metric name", s)
-		return
+		return m, err
 	}
 
 	if len(val) == 0 {
 		err = fmt.Errorf("datadog: %#v is missing a metric value", s)
-		return
+		return m, err
 	}
 
 	if len(typ) == 0 {
 		err = fmt.Errorf("datadog: %#v is missing a metric type", s)
-		return
+		return m, err
 	}
 
 	if len(rate) != 0 {
@@ -146,7 +146,7 @@ func parseMetric(s string) (m Metric, err error) {
 			rate = rate[1:]
 		default:
 			err = fmt.Errorf("datadog: %#v has a malformed sample rate", s)
-			return
+			return m, err
 		}
 	}
 
@@ -156,7 +156,7 @@ func parseMetric(s string) (m Metric, err error) {
 			tags = tags[1:]
 		default:
 			err = fmt.Errorf("datadog: %#v has malformed tags", s)
-			return
+			return m, err
 		}
 	}
 
@@ -165,13 +165,13 @@ func parseMetric(s string) (m Metric, err error) {
 
 	if value, err = strconv.ParseFloat(val, 64); err != nil {
 		err = fmt.Errorf("datadog: %#v has a malformed value", s)
-		return
+		return m, err
 	}
 
 	if len(rate) != 0 {
 		if sampleRate, err = strconv.ParseFloat(rate, 64); err != nil {
 			err = fmt.Errorf("datadog: %#v has a malformed sample rate", s)
-			return
+			return m, err
 		}
 	}
 
@@ -199,7 +199,7 @@ func parseMetric(s string) (m Metric, err error) {
 		}
 	}
 
-	return
+	return m, err
 }
 
 func nextToken(s string, b byte) (token, next string) {
@@ -208,7 +208,7 @@ func nextToken(s string, b byte) (token, next string) {
 	} else {
 		token = s
 	}
-	return
+	return token, next
 }
 
 func split(s string, b byte) (head, tail string) {
@@ -217,7 +217,7 @@ func split(s string, b byte) (head, tail string) {
 	} else {
 		head = s
 	}
-	return
+	return head, tail
 }
 
 func count(s string, b byte) (n int) {
@@ -231,5 +231,5 @@ func count(s string, b byte) (n int) {
 		s = s[off+1:]
 	}
 
-	return
+	return n
 }

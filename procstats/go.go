@@ -232,7 +232,7 @@ func makePauses(head, tail []uint64) (pauses []time.Duration) {
 	pauses = make([]time.Duration, 0, len(head)+len(tail))
 	pauses = appendPauses(pauses, head)
 	pauses = appendPauses(pauses, tail)
-	return
+	return pauses
 }
 
 func appendPauses(pauses []time.Duration, values []uint64) []time.Duration {

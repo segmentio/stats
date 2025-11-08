@@ -39,14 +39,14 @@ type ProcLimits struct {
 func ReadProcLimits(pid int) (proc ProcLimits, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
 	proc = parseProcLimits(readProcFile(pid, "limits"))
-	return
+	return proc, err
 }
 
 // ParseProcLimits parses system process limits and returns a ProcLimits and error, if any.
 func ParseProcLimits(s string) (proc ProcLimits, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
 	proc = parseProcLimits(s)
-	return
+	return proc, err
 }
 
 func parseProcLimits(s string) (proc ProcLimits) {
@@ -98,7 +98,7 @@ func parseProcLimits(s string) (proc ProcLimits) {
 		}
 	})
 
-	return
+	return proc
 }
 
 func parseLimitUint(s string) uint64 {

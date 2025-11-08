@@ -27,7 +27,7 @@ func (pcg ProcCGroup) Lookup(name string) (cgroup CGroup, ok bool) {
 			})
 		}
 	})
-	return
+	return cgroup, ok
 }
 
 // ReadProcCGroup takes an int argument representing a PID
@@ -35,14 +35,14 @@ func (pcg ProcCGroup) Lookup(name string) (cgroup CGroup, ok bool) {
 func ReadProcCGroup(pid int) (proc ProcCGroup, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
 	proc = parseProcCGroup(readProcFile(pid, "cgroup"))
-	return
+	return proc, err
 }
 
 // ParseProcCGroup parses Linux system cgroup data and returns a ProcCGroup and error, if any is encountered.
 func ParseProcCGroup(s string) (proc ProcCGroup, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
 	proc = parseProcCGroup(s)
-	return
+	return proc, err
 }
 
 func parseProcCGroup(s string) (proc ProcCGroup) {
@@ -62,7 +62,7 @@ func parseProcCGroup(s string) (proc ProcCGroup) {
 			name = next
 		}
 	})
-	return
+	return proc
 }
 
 // ReadCPUPeriod takes a string representing a Linux cgroup and returns
@@ -70,7 +70,7 @@ func parseProcCGroup(s string) (proc ProcCGroup) {
 func ReadCPUPeriod(cgroup string) (period time.Duration, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
 	period = readCPUPeriod(cgroup)
-	return
+	return period, err
 }
 
 // ReadCPUQuota takes a string representing a Linux cgroup and returns
@@ -78,7 +78,7 @@ func ReadCPUPeriod(cgroup string) (period time.Duration, err error) {
 func ReadCPUQuota(cgroup string) (quota time.Duration, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
 	quota = readCPUQuota(cgroup)
-	return
+	return quota, err
 }
 
 // ReadCPUShares takes a string representing a Linux cgroup and returns
@@ -86,7 +86,7 @@ func ReadCPUQuota(cgroup string) (quota time.Duration, err error) {
 func ReadCPUShares(cgroup string) (shares int64, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
 	shares = readCPUShares(cgroup)
-	return
+	return shares, err
 }
 
 func readCPUPeriod(cgroup string) time.Duration {

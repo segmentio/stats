@@ -41,11 +41,11 @@ func ListenAndServe(addr string, handler Handler) (err error) {
 	var conn net.PacketConn
 
 	if conn, err = net.ListenPacket("udp", addr); err != nil {
-		return
+		return err
 	}
 
 	err = Serve(conn, handler)
-	return
+	return err
 }
 
 // Serve runs a dogstatsd server, listening for datagrams on conn and forwarding

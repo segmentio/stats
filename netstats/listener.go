@@ -37,7 +37,7 @@ func (l *listener) Accept() (conn net.Conn, err error) {
 		conn = NewConnWith(l.eng, conn)
 	}
 
-	return
+	return conn, err
 }
 
 func (l *listener) Close() (err error) {

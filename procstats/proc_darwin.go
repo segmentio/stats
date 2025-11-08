@@ -63,7 +63,7 @@ func collectProcInfo(pid int) (info ProcInfo, err error) {
 
 	info.Threads.Num = threadCount(task)
 	info.Threads.InvoluntaryContextSwitches = suspend
-	return
+	return info, err
 }
 
 func memoryAvailable() uint64 {

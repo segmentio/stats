@@ -14,7 +14,7 @@ func (r *CountReader) Read(b []byte) (n int, err error) {
 	if n, err = r.R.Read(b); n > 0 {
 		r.N += n
 	}
-	return
+	return n, err
 }
 
 // CountWriter is an io.Writer that counts how many bytes are written by calls
@@ -29,7 +29,7 @@ func (w *CountWriter) Write(b []byte) (n int, err error) {
 	if n, err = w.W.Write(b); n > 0 {
 		w.N += n
 	}
-	return
+	return n, err
 }
 
 // ReaderFunc makes it possible for function types to be used as io.Reader.

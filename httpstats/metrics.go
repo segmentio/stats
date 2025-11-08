@@ -73,14 +73,14 @@ type requestBody struct {
 func (r *requestBody) Close() (err error) {
 	err = r.body.Close()
 	r.close()
-	return
+	return err
 }
 
 func (r *requestBody) Read(b []byte) (n int, err error) {
 	if n, err = r.body.Read(b); n > 0 {
 		r.bytes += n
 	}
-	return
+	return n, err
 }
 
 func (r *requestBody) close() {
@@ -105,14 +105,14 @@ type responseBody struct {
 func (r *responseBody) Close() (err error) {
 	err = r.body.Close()
 	r.close()
-	return
+	return err
 }
 
 func (r *responseBody) Read(b []byte) (n int, err error) {
 	if n, err = r.body.Read(b); n > 0 {
 		r.bytes += n
 	}
-	return
+	return n, err
 }
 
 func (r *responseBody) close() {
@@ -322,7 +322,7 @@ func requestHost(req *http.Request) (host string) {
 			host = req.URL.Host
 		}
 	}
-	return
+	return host
 }
 
 func responseStatusBucket(status int) string {
@@ -375,7 +375,7 @@ func parseContentType(s string) (contentType, charset string) {
 			contentType = t
 		}
 	}
-	return
+	return contentType, charset
 }
 
 func parseHeaderToken(s string) (token, next string) {
@@ -384,7 +384,7 @@ func parseHeaderToken(s string) (token, next string) {
 	} else {
 		token = strings.TrimSpace(s)
 	}
-	return
+	return token, next
 }
 
 // headerValues is equivalent to http.Header.Get but assumes that the keys and

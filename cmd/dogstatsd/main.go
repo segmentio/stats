@@ -148,7 +148,7 @@ func split(args []string, sep string) (head, tail []string) {
 	} else {
 		head, tail = args[:i], args[i+1:]
 	}
-	return
+	return head, tail
 }
 
 func indexOf(args []string, s string) int {
@@ -187,5 +187,5 @@ func (tags *tags) Set(s string) (err error) {
 		}
 		*tags = append(*tags, tag)
 	}
-	return
+	return err
 }

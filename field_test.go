@@ -19,7 +19,7 @@ func BenchmarkAssign40BytesStruct(b *testing.B) {
 
 	var s S
 
-	for i := 0; i != b.N; i++ {
+	for b.Loop() {
 		s = S{a: "hello", b: "", c: 0}
 		_ = s
 	}
@@ -33,7 +33,7 @@ func BenchmarkAssign32BytesStruct(b *testing.B) {
 
 	var s S
 
-	for i := 0; i != b.N; i++ {
+	for b.Loop() {
 		s = S{a: "hello", b: ""}
 		_ = s
 	}

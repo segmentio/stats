@@ -8,7 +8,7 @@ import "os"
 func ReadOpenFileCount(pid int) (n uint64, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
 	n = readOpenFileCount(pid)
-	return
+	return n, err
 }
 
 func readOpenFileCount(pid int) uint64 {

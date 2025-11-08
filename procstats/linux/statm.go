@@ -30,5 +30,5 @@ func ParseProcStatm(s string) (proc ProcStatm, err error) {
 		&proc.Data,
 		&proc.Dt,
 	)
-	return
+	return proc, err
 }

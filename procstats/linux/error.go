@@ -11,7 +11,7 @@ func convertPanicToError(v interface{}) (err error) {
 			err = fmt.Errorf("%v", e)
 		}
 	}
-	return
+	return err
 }
 
 func check(err error) {

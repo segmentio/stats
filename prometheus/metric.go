@@ -417,7 +417,7 @@ func nextLe(s string) (head, tail string) {
 	} else {
 		head = s
 	}
-	return
+	return head, tail
 }
 
 func appendFloat(b []byte, f float64) []byte {

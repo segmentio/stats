@@ -165,5 +165,5 @@ func collectProcInfo(pid int) (info ProcInfo, err error) {
 		},
 	}
 
-	return
+	return info, err
 }

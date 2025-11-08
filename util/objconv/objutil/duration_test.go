@@ -33,7 +33,7 @@ func BenchmarkAppendDuration(b *testing.B) {
 	for _, test := range durationTests {
 		b.Run(test.String(), func(b *testing.B) {
 			var a [32]byte
-			for i := 0; i != b.N; i++ {
+			for b.Loop() {
 				AppendDuration(a[:0], test)
 			}
 		})

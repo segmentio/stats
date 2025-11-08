@@ -30,7 +30,7 @@ func (ps *ProcState) Scan(s fmt.ScanState, _ rune) (err error) {
 		*ps = ProcState(c)
 	}
 
-	return
+	return err
 }
 
 // ProcStat contains statistics associated with a process.
@@ -151,5 +151,5 @@ func ParseProcStat(s string) (proc ProcStat, err error) {
 		&proc.EnvEnd,
 		&proc.ExitCode,
 	)
-	return
+	return proc, err
 }

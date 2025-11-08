@@ -151,7 +151,7 @@ func BenchmarkHandleMetric(b *testing.B) {
 				Buckets: buckets,
 			}
 
-			for i := 0; i != b.N; i++ {
+			for b.Loop() {
 				handler.HandleMeasures(now, metric)
 			}
 		})

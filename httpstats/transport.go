@@ -62,7 +62,7 @@ func (t *transport) RoundTrip(req *http.Request) (res *http.Response, err error)
 	if err != nil {
 		m.observeError(time.Since(start))
 		eng.ReportAt(start, m)
-		return
+		return res, err
 	}
 
 	res.Body = &responseBody{
@@ -74,5 +74,5 @@ func (t *transport) RoundTrip(req *http.Request) (res *http.Response, err error)
 		start:   start,
 	}
 
-	return
+	return res, err
 }

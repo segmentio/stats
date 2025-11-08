@@ -161,7 +161,7 @@ func (s *serializer) Write(b []byte) (n int, err error) {
 			case <-time.After(s.http.Timeout):
 			case <-s.done:
 				err = context.Canceled
-				return
+				return n, err
 			}
 		}
 
@@ -181,7 +181,7 @@ func (s *serializer) Write(b []byte) (n int, err error) {
 	}
 
 	n = len(b)
-	return
+	return n, err
 }
 
 func makeURL(address, database string) *url.URL {

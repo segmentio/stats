@@ -35,7 +35,7 @@ func BenchmarkParseInt(b *testing.B) {
 		b.Run(test.s, func(b *testing.B) {
 			s := []byte(test.s)
 
-			for i := 0; i != b.N; i++ {
+			for b.Loop() {
 				ParseInt(s)
 			}
 		})
@@ -76,7 +76,7 @@ func BenchmarkParseUintHex(b *testing.B) {
 		b.Run(test.s, func(b *testing.B) {
 			s := []byte(test.s)
 
-			for i := 0; i != b.N; i++ {
+			for b.Loop() {
 				ParseUintHex(s)
 			}
 		})

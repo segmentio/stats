@@ -17,14 +17,14 @@ type ProcSched struct {
 func ReadProcSched(pid int) (proc ProcSched, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
 	proc = parseProcSched(readProcFile(pid, "sched"))
-	return
+	return proc, err
 }
 
 // ParseProcSched processes system process scheduling data and returns a ProcSched and error, if any.
 func ParseProcSched(s string) (proc ProcSched, err error) {
 	defer func() { err = convertPanicToError(recover()) }()
 	proc = parseProcSched(s)
-	return
+	return proc, err
 }
 
 func parseProcSched(s string) (proc ProcSched) {
@@ -53,5 +53,5 @@ func parseProcSched(s string) (proc ProcSched) {
 		}
 	})
 
-	return
+	return proc
 }

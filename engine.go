@@ -364,5 +364,5 @@ func progname() (name string) {
 	if args := os.Args; len(args) != 0 {
 		name = filepath.Base(args[0])
 	}
-	return
+	return name
 }

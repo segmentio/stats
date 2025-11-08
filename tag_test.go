@@ -207,7 +207,7 @@ func benchmarkTagsOrder(b *testing.B, isSorted func([]Tag) bool) {
 		{"some longer tag name", "1234"},
 	}
 
-	for i := 0; i != b.N; i++ {
+	for b.Loop() {
 		isSorted(tags)
 	}
 }
@@ -289,7 +289,7 @@ func benchmarkSortTagsFunc(b *testing.B, t0 []Tag, fn func([]Tag)) {
 
 	t1 := make([]Tag, len(t0))
 
-	for i := 0; i != b.N; i++ {
+	for b.Loop() {
 		copy(t1, t0)
 		fn(t1)
 	}
@@ -315,7 +315,7 @@ func BenchmarkTagsBufferSortSorted(b *testing.B) {
 		tags: make([]Tag, len(tags)),
 	}
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		copy(buf.tags, tags)
 		buf.sort()
 	}
@@ -341,7 +341,7 @@ func BenchmarkTagsBufferSortUnsorted(b *testing.B) {
 		tags: make([]Tag, len(tags)),
 	}
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		copy(buf.tags, tags)
 		buf.sort()
 	}
@@ -380,7 +380,7 @@ func BenchmarkMergeTags(b *testing.B) {
 	t1 := make([]Tag, len(origT1))
 	t2 := make([]Tag, len(origT2))
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		copy(t1, origT1)
 		copy(t2, origT2)
 

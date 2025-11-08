@@ -39,5 +39,5 @@ func splitMeasureField(s string) (measure, field string) {
 	} else {
 		field = s
 	}
-	return
+	return measure, field
 }

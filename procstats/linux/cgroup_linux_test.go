@@ -27,7 +27,6 @@ func TestParseProcCGroup(t *testing.T) {
 `
 
 	proc, err := ParseProcCGroup(text)
-
 	if err != nil {
 		t.Error(err)
 		return

@@ -65,7 +65,7 @@ func (reg *Registry) Lookup(mimetype string) (codec Codec, ok bool) {
 	reg.mutex.RLock()
 	codec, ok = reg.codecs[mimetype]
 	reg.mutex.RUnlock()
-	return
+	return codec, ok
 }
 
 // Codecs returns a map of all codecs registered in reg.
@@ -76,7 +76,7 @@ func (reg *Registry) Codecs() (codecs map[string]Codec) {
 		codecs[mimetype] = codec
 	}
 	reg.mutex.RUnlock()
-	return
+	return codecs
 }
 
 // The global registry to which packages add their codecs.

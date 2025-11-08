@@ -85,7 +85,7 @@ func BenchmarkAppendMetric(b *testing.B) {
 
 	for _, test := range testMetrics {
 		b.Run(test.scenario, func(b *testing.B) {
-			for i := 0; i != b.N; i++ {
+			for b.Loop() {
 				appendMetric(a[:0], test.metric)
 			}
 		})

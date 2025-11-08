@@ -304,7 +304,7 @@ type counter struct {
 func (c *counter) Write(b []byte) (n int, err error) {
 	n = len(b)
 	c.n += n
-	return
+	return n, err
 }
 
 // BenchmarkCodec implements a benchmark suite for codecs, making it easy to get
@@ -323,7 +323,7 @@ func benchmarkEncoder(b *testing.B, codec objconv.Codec) {
 			c := &counter{}
 			e := objconv.NewEncoder(codec.NewEmitter(c))
 
-			for i := 0; i != b.N; i++ {
+			for b.Loop() {
 				if err := e.Encode(v); err != nil {
 					b.Fatal(err)
 				}
@@ -350,7 +350,7 @@ func benchmarkDecoder(b *testing.B, codec objconv.Codec) {
 		b.Run(testName(v), func(b *testing.B) {
 			d := objconv.NewDecoder(codec.NewParser(r))
 
-			for i := 0; i != b.N; i++ {
+			for b.Loop() {
 				var x interface{}
 				if err := d.Decode(&x); err != nil {
 					b.Fatal(err)
@@ -371,7 +371,7 @@ func benchmarkStreamEncoder(b *testing.B, codec objconv.Codec) {
 			c := &counter{}
 			e := objconv.NewStreamEncoder(codec.NewEmitter(c))
 
-			for i := 0; i != b.N; i++ {
+			for b.Loop() {
 				if err := e.Encode(v); err != nil {
 					b.Fatal(err)
 				}
@@ -404,7 +404,7 @@ func benchmarkStreamDecoder(b *testing.B, codec objconv.Codec) {
 		b.Run(testName(v), func(b *testing.B) {
 			d := objconv.NewStreamDecoder(codec.NewParser(r))
 
-			for i := 0; i != b.N; i++ {
+			for b.Loop() {
 				var x interface{}
 				if err := d.Decode(&x); err != nil {
 					b.Fatal(err)

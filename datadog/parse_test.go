@@ -42,7 +42,7 @@ func TestParseMetricFailure(t *testing.T) {
 func BenchmarkParseMetric(b *testing.B) {
 	for _, test := range testMetrics {
 		b.Run(test.m.Name, func(b *testing.B) {
-			for i := 0; i != b.N; i++ {
+			for b.Loop() {
 				parseMetric(test.s)
 			}
 		})
@@ -64,7 +64,7 @@ func TestParseEventSuccess(t *testing.T) {
 func BenchmarkParseEvent(b *testing.B) {
 	for _, test := range testEvents {
 		b.Run(test.e.Title, func(b *testing.B) {
-			for i := 0; i != b.N; i++ {
+			for b.Loop() {
 				parseEvent(test.s)
 			}
 		})

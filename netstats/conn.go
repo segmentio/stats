@@ -91,7 +91,7 @@ func (c *conn) Close() (err error) {
 			c.error("close", err)
 		}
 	})
-	return
+	return err
 }
 
 func (c *conn) Read(b []byte) (n int, err error) {
@@ -113,7 +113,7 @@ func (c *conn) Read(b []byte) (n int, err error) {
 		c.error("read", err)
 	}
 
-	return
+	return n, err
 }
 
 func (c *conn) Write(b []byte) (n int, err error) {
@@ -135,28 +135,28 @@ func (c *conn) Write(b []byte) (n int, err error) {
 		c.error("write", err)
 	}
 
-	return
+	return n, err
 }
 
 func (c *conn) SetDeadline(t time.Time) (err error) {
 	if err = c.Conn.SetDeadline(t); err != nil {
 		c.error("set-deadline", err)
 	}
-	return
+	return err
 }
 
 func (c *conn) SetReadDeadline(t time.Time) (err error) {
 	if err = c.Conn.SetReadDeadline(t); err != nil {
 		c.error("set-read-deadline", err)
 	}
-	return
+	return err
 }
 
 func (c *conn) SetWriteDeadline(t time.Time) (err error) {
 	if err = c.Conn.SetWriteDeadline(t); err != nil {
 		c.error("set-write-deadline", err)
 	}
-	return
+	return err
 }
 
 func (c *conn) error(op string, err error) {

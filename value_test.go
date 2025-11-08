@@ -87,7 +87,7 @@ func TestValueOf(t *testing.T) {
 }
 
 func BenchmarkValueOf(b *testing.B) {
-	for i := 0; i != b.N; i++ {
+	for b.Loop() {
 		ValueOf(42)
 	}
 }

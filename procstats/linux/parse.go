@@ -69,7 +69,7 @@ func split(text string, sep byte) (head, tail string) {
 	}
 	head = strings.TrimSpace(head)
 	tail = strings.TrimSpace(tail)
-	return
+	return head, tail
 }
 
 func skipSpaces(text string) string {
