@@ -241,7 +241,7 @@ func isTrim(b byte) bool { return b == '.' || b == '_' || b == '-' }
 // Result: 2.7x faster on typical workloads (25ns → 9.5ns per metric name). The fast-path
 // check costs ~2-3ns even when transformation is needed, making it always beneficial.
 func appendSanitizedMetricName(dst []byte, raw string) []byte {
-	orig := len(dst)
+	origLen := len(dst)
 	if raw == "" {
 		if len(dst) == 0 {
 			return append(dst, "_unnamed_"...)
@@ -252,9 +252,9 @@ func appendSanitizedMetricName(dst []byte, raw string) []byte {
 	// Fast path: check if string is pure valid ASCII (common case)
 	// Most metric names like "http.server.request.duration" hit this path
 	needsTransform := false
-	for i := 0; i < len(raw); i++ {
+	for i := range len(raw) {
 		c := raw[i]
-		if c >= 128 || !valid[c] {
+		if c >= utf8.RuneSelf || !valid[c] {
 			needsTransform = true
 			break
 		}
@@ -263,14 +263,11 @@ func appendSanitizedMetricName(dst []byte, raw string) []byte {
 	// If no transformation needed, just copy and trim
 	if !needsTransform {
 		// Respect maxLen
-		copyLen := len(raw)
-		if copyLen > maxLen {
-			copyLen = maxLen
-		}
+		copyLen := min(len(raw), maxLen)
 		dst = append(dst, raw[:copyLen]...)
 
 		// Trim leading/trailing '.', '_' or '-'
-		start, end := orig, len(dst)
+		start, end := origLen, len(dst)
 		for start < end && isTrim(dst[start]) {
 			start++
 		}
@@ -278,12 +275,12 @@ func appendSanitizedMetricName(dst []byte, raw string) []byte {
 			end--
 		}
 
-		if start > orig || end < len(dst) {
-			copy(dst[orig:], dst[start:end])
-			dst = dst[:orig+(end-start)]
+		if start > origLen || end < len(dst) {
+			copy(dst[origLen:], dst[start:end])
+			dst = dst[:origLen+(end-start)]
 		}
 
-		if len(dst) == orig {
+		if len(dst) == origLen {
 			return append(dst, "_truncated_"...)
 		}
 		return dst
@@ -292,32 +289,31 @@ func appendSanitizedMetricName(dst []byte, raw string) []byte {
 	// Slow path: needs transformation (has unicode, invalid chars, etc)
 	nameLen := 0
 	lastWasRepl := false
-	b := []byte(raw)
-	for i := 0; i < len(b); {
-		c := b[i]
-
-		if c < 128 && valid[c] {
-			dst = append(dst, c)
-			nameLen++
-			lastWasRepl = false
-			i++
-		} else if c < 128 {
-			if !lastWasRepl {
-				dst = append(dst, replacement)
+	for _, r := range raw {
+		if r < utf8.RuneSelf {
+			// ASCII byte
+			if valid[byte(r)] {
+				dst = append(dst, byte(r))
 				nameLen++
-				lastWasRepl = true
+				lastWasRepl = false
+			} else {
+				// Invalid ASCII character
+				if !lastWasRepl {
+					dst = append(dst, replacement)
+					nameLen++
+					lastWasRepl = true
+				}
 			}
-			i++
 		} else {
-			r, size := utf8.DecodeRune(b[i:])
-
+			// Non-ASCII rune
+			// Check if rune is in Latin-1 Supplement block (U+00C0 to U+00FF)
+			// This includes common accented characters like À, É, ñ, etc.
 			if r >= 0xC0 && r <= 0xFF {
 				mapped := latin1SupplementMap[r]
 				if valid[mapped] {
 					dst = append(dst, mapped)
 					nameLen++
 					lastWasRepl = false
-					i += size
 					if nameLen >= maxLen {
 						break
 					}
@@ -330,7 +326,6 @@ func appendSanitizedMetricName(dst []byte, raw string) []byte {
 				nameLen++
 				lastWasRepl = true
 			}
-			i += size
 		}
 
 		if nameLen >= maxLen {
@@ -339,7 +334,7 @@ func appendSanitizedMetricName(dst []byte, raw string) []byte {
 	}
 
 	// Trim
-	start, end := orig, len(dst)
+	start, end := origLen, len(dst)
 	for start < end && isTrim(dst[start]) {
 		start++
 	}
@@ -347,12 +342,12 @@ func appendSanitizedMetricName(dst []byte, raw string) []byte {
 		end--
 	}
 
-	if start > orig || end < len(dst) {
-		copy(dst[orig:], dst[start:end])
-		dst = dst[:orig+(end-start)]
+	if start > origLen || end < len(dst) {
+		copy(dst[origLen:], dst[start:end])
+		dst = dst[:origLen+(end-start)]
 	}
 
-	if len(dst) == orig {
+	if len(dst) == origLen {
 		return append(dst, "_truncated_"...)
 	}
 	return dst
