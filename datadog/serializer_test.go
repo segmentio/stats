@@ -331,6 +331,18 @@ func TestAppendSanitizedMetricName(t *testing.T) {
 		{"prefix_", "", "prefix_"},
 		{"prefix_", "!!!", "prefix__truncated_"},
 
+		// only trim characters (dots, underscores, dashes) - fast path edge case
+		{"", "...", "_truncated_"},
+		{"", "___", "_truncated_"},
+		{"", "---", "_truncated_"},
+		{"", "._-._-", "_truncated_"},
+		{"", "......", "_truncated_"},
+		{"", "______", "_truncated_"},
+		{"", "------", "_truncated_"},
+		{"prefix_", "...", "prefix__truncated_"},
+		{"prefix_", "___", "prefix__truncated_"},
+		{"prefix_", "._-", "prefix__truncated_"},
+
 		// over-long → truncated (but preserve prefix if it fits)
 		{"", long, strings.Repeat("x", maxLen)},
 		{"short_", long, "short_" + strings.Repeat("x", maxLen)}, // 6 = len("short_")

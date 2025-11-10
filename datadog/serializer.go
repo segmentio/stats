@@ -280,7 +280,10 @@ func appendSanitizedMetricName(dst []byte, raw string) []byte {
 			dst = dst[:origLen+(end-start)]
 		}
 
-		if len(dst) == origLen {
+		if len(dst) == origLen && len(raw) > 0 {
+			// We didn't append any characters to dst - basically this means we
+			// truncated every single character from raw because it was a dot or
+			// underscore or hyphen.
 			return append(dst, "_truncated_"...)
 		}
 		return dst
