@@ -67,7 +67,7 @@ request.rtt:0.1|h|#answer:42,hello:world
 				stats.T("hello", "world"),
 			},
 		},
-		s: `request.count:5|c|#ans_wer_blah:also_pipe_colon_comma,hello:world
+		s: `request.count:5|c|#ans_wer_blah:also|pipe:colon_comma,hello:world
 `,
 		dp: []string{},
 	},
@@ -86,6 +86,24 @@ request.rtt:0.1|h|#answer:42,hello:world
 		s: `request.dist_rtt:0.1|d|#answer:42,hello:world
 `,
 		dp: []string{"dist_"},
+	},
+
+	// Test lenient tag values - URLs, paths, colons, pipes
+	{
+		m: stats.Measure{
+			Name: "api.request",
+			Fields: []stats.Field{
+				stats.MakeField("count", 1, stats.Counter),
+			},
+			Tags: []stats.Tag{
+				stats.T("url", "http://api.example.com/v1/users"),
+				stats.T("path", "/api/v1/users"),
+				stats.T("env", "prod:us-east-1"),
+			},
+		},
+		s: `api.request.count:1|c|#url:http://api.example.com/v1/users,path:/api/v1/users,env:prod:us-east-1
+`,
+		dp: []string{},
 	},
 }
 
@@ -509,6 +527,109 @@ func TestSanitizationPreservesUTF8Validity(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAppendSanitizedTagValue(t *testing.T) {
+	long := strings.Repeat("x", 300) // longer than maxLen
+	cases := []struct {
+		prefix   string // existing data in buffer
+		in, want string
+	}{
+		// Basic cases - tag values should be more lenient
+		{"", "simple", "simple"},
+		{"", "with-dashes_underscores.dots", "with-dashes_underscores.dots"},
+
+		// Tag values can contain colons and pipes (unlike the protocol separators)
+		{"", "http://example.com", "http://example.com"},
+		{"", "path/to/resource", "path/to/resource"},
+		{"", "key:value:pair", "key:value:pair"},
+		{"", "pipe|separated|values", "pipe|separated|values"},
+		{"", "mixed:pipe|slash/colon", "mixed:pipe|slash/colon"},
+
+		// Commas must be sanitized (they separate tags in the protocol)
+		{"", "value,with,commas", "value_with_commas"},
+		{"", "item1,item2,item3", "item1_item2_item3"},
+
+		// Special characters that should be sanitized
+		{"", "value@sign#hash", "value_sign_hash"},
+		{"", "brackets[test]", "brackets_test"},
+		{"", "parens(test)", "parens_test"},
+
+		// Accented characters should be normalized
+		{"", "café", "cafe"},
+		{"", "naïve", "naive"},
+		{"", "señor", "senor"},
+
+		// Leading/trailing special chars should be trimmed
+		{"", "-leading-dash", "leading-dash"},
+		{"", "trailing-dash-", "trailing-dash"},
+		{"", "...dots...", "dots"},
+		{"", "__underscores__", "underscores"},
+
+		// Empty string handling
+		{"", "", ""},
+		{"prefix:", "", "prefix:"},
+
+		// Multiple consecutive special chars collapse
+		{"", "foo!!!bar", "foo_bar"},
+		{"", "test@@@value", "test_value"},
+
+		// Mixed valid and invalid characters
+		{"", "env:prod|region:us-east-1", "env:prod|region:us-east-1"},
+		{"", "url:http://api.example.com/v1", "url:http://api.example.com/v1"},
+		{"", "list:item1,item2,item3", "list:item1_item2_item3"},
+
+		// Emojis and other multi-byte sequences
+		{"", "test🤡emoji", "test_emoji"},
+		{"", "hello🌍world", "hello_world"},
+		{"", "测试值", "_truncated_"}, // Chinese -> _truncated_ (all invalid)
+
+		// Over-long values should be truncated
+		{"", long, strings.Repeat("x", maxLen)},
+
+		// With prefix
+		{"tagname:", "http://example.com", "tagname:http://example.com"},
+		{"key:", "value,with,comma", "key:value_with_comma"},
+		{"env:", "production", "env:production"},
+	}
+
+	for _, c := range cases {
+		// Start with prefix data in buffer
+		buf := []byte(c.prefix)
+		originalLen := len(buf)
+
+		// Append sanitized tag value
+		buf = appendSanitizedTagValue(buf, c.in)
+		got := string(buf)
+
+		if got != c.want {
+			t.Fatalf("prefix=%q in=%q want=%q (len %v) got=%q (len %v)", c.prefix, c.in, c.want, len(c.want), got, len(got))
+		}
+
+		// Verify prefix is preserved
+		if len(c.prefix) > 0 && !strings.HasPrefix(got, c.prefix) {
+			t.Errorf("prefix %q not preserved in result %q", c.prefix, got)
+		}
+
+		// Verify we only modified the buffer from the original length onward
+		if originalLen > 0 && originalLen <= len(buf) {
+			originalPart := string(buf[:originalLen])
+			if originalPart != c.prefix {
+				t.Errorf("original buffer data corrupted: want %q, got %q", c.prefix, originalPart)
+			}
+		}
+	}
+
+	// Additional test: verify behavior with various buffer capacities
+	t.Run("BufferReuse", func(t *testing.T) {
+		buf := make([]byte, 0, 100) // pre-allocated capacity
+		buf = append(buf, "tag:"...)
+		buf = appendSanitizedTagValue(buf, "http://café.com/path")
+		expected := "tag:http://cafe.com/path"
+		if string(buf) != expected {
+			t.Errorf("buffer reuse failed: want %q, got %q", expected, string(buf))
+		}
+	})
 }
 
 // BenchmarkAppendSanitizedMetricName measures performance of metric name sanitization

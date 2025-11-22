@@ -55,13 +55,16 @@ func TestClientSanitizesMetricNames(t *testing.T) {
 			{Name: "colon:atsign@pipe|end", Value: stats.ValueOf(5)},
 		},
 		Tags: []stats.Tag{
-			stats.T("colon:atsign@pipe|end", "42"),
+			stats.T("colon:atsign@pipe|end", "http://example.com/path|with:special"),
+			stats.T("env", "prod"),
 		},
 	}
 	client.HandleMeasures(time.Time{}, testMeasure)
 	client.Flush()
 
-	expectedPacket1 := "request_colon_atsign_laughing_end.colon_atsign_pipe_end:5|c|#colon_atsign_pipe_end:42\n"
+	// Note: Tag names are strictly sanitized, but tag values are lenient
+	// The tag value can contain colons, pipes, slashes (but not commas)
+	expectedPacket1 := "request_colon_atsign_laughing_end.colon_atsign_pipe_end:5|c|#colon_atsign_pipe_end:http://example.com/path|with:special,env:prod\n"
 	select {
 	case packet := <-packets:
 		assert.EqualValues(t, expectedPacket1, string(packet))

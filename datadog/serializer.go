@@ -93,9 +93,16 @@ func (s *serializer) AppendMeasures(b []byte, _ time.Time, measures ...stats.Mea
 // 2-byte UTF-8 sequences that decode to these codepoints.
 var latin1SupplementMap [256]byte
 
-// valid[byte] = 1 if the ASCII char is allowed, 0 otherwise.
+// valid[byte] = true if the ASCII char is allowed in metric/tag names, false otherwise.
 var valid = [256]bool{
 	'.': true, '-': true, '_': true,
+}
+
+// validTagValue[byte] = true if the ASCII char is allowed in tag values, false otherwise.
+// Tag values are more lenient than metric names - they can contain most characters
+// except commas (which separate tags) and a few control characters.
+var validTagValue = [256]bool{
+	'.': true, '-': true, '_': true, '/': true, ':': true, '|': true,
 }
 
 func init() {
@@ -203,12 +210,15 @@ func init() {
 
 	for c := '0'; c <= '9'; c++ {
 		valid[c] = true
+		validTagValue[c] = true
 	}
 	for c := 'A'; c <= 'Z'; c++ {
 		valid[c] = true
+		validTagValue[c] = true
 	}
 	for c := 'a'; c <= 'z'; c++ {
 		valid[c] = true
+		validTagValue[c] = true
 	}
 }
 
@@ -246,6 +256,54 @@ func appendSanitizedMetricName(dst []byte, raw string) []byte {
 			// Latin-1 Supplement block (common accented characters like À, É, ñ)
 			mapped := latin1SupplementMap[r]
 			if valid[mapped] {
+				dst = append(dst, mapped)
+				lastWasRepl = false
+			} else if !lastWasRepl {
+				dst = append(dst, replacement)
+				lastWasRepl = true
+			}
+		} else if !lastWasRepl {
+			// Invalid or unsupported character - only append if we didn't just add a replacement
+			dst = append(dst, replacement)
+			lastWasRepl = true
+		}
+	}
+
+	// Trim leading/trailing '.', '_' or '-'
+	trimmed := bytes.Trim(dst[origLen:], "._-")
+	dst = append(dst[:origLen], trimmed...)
+
+	if len(dst) == origLen {
+		return append(dst, "_truncated_"...)
+	}
+	return dst
+}
+
+// appendSanitizedTagValue sanitizes tag values for DogStatsD format.
+// Tag values are more lenient than metric names - they can contain colons, slashes,
+// pipes, etc. The main restriction is that commas are not allowed since they
+// separate tags in the protocol.
+func appendSanitizedTagValue(dst []byte, raw string) []byte {
+	origLen := len(dst)
+	if raw == "" {
+		return dst
+	}
+
+	// Simple transformation: iterate through runes and convert/replace as needed
+	lastWasRepl := false
+	for i, r := range raw {
+		if i >= maxLen {
+			break
+		}
+
+		if r < utf8.RuneSelf && validTagValue[byte(r)] {
+			// Valid ASCII character
+			dst = append(dst, byte(r))
+			lastWasRepl = false
+		} else if r >= 0xC0 && r <= 0xFF {
+			// Latin-1 Supplement block (common accented characters like À, É, ñ)
+			mapped := latin1SupplementMap[r]
+			if validTagValue[mapped] {
 				dst = append(dst, mapped)
 				lastWasRepl = false
 			} else if !lastWasRepl {
@@ -325,7 +383,7 @@ func (s *serializer) AppendMeasure(b []byte, m stats.Measure) []byte {
 				}
 				b = appendSanitizedMetricName(b, t.Name)
 				b = append(b, ':')
-				b = appendSanitizedMetricName(b, t.Value)
+				b = appendSanitizedTagValue(b, t.Value)
 			}
 		}
 		b = append(b, '\n')
