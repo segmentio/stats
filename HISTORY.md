@@ -1,5 +1,10 @@
 # History
 
+### v5.7.0 (November 24, 2025)
+
+More lenient sanitization for tag values, which can contain commas, slashes, and
+other characters that are not allowed in a metric name.
+
 ### v5.6.5 (October 14, 2025)
 
 The sanitization process introduced in the v5.6.0 release did not properly
