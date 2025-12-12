@@ -561,3 +561,140 @@ func (t *discardTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 		Request:    req,
 	}, nil
 }
+
+// TestVersionMetricsIncludeEngineTags verifies that version metrics include
+// the engine's configured tags for service correlation.
+func TestVersionMetricsIncludeEngineTags(t *testing.T) {
+	initValue := stats.GoVersionReportingEnabled
+	stats.GoVersionReportingEnabled = true
+	defer func() { stats.GoVersionReportingEnabled = initValue }()
+
+	h := &statstest.Handler{}
+	e := stats.NewEngine("test", h, stats.T("service", "my-app"), stats.T("env", "prod"))
+
+	// Trigger version reporting by sending a metric
+	e.Incr("trigger")
+
+	measures := h.Measures()
+
+	// Find version metrics
+	var statsVersionMeasure, goVersionMeasure *stats.Measure
+	for i := range measures {
+		switch measures[i].Name {
+		case "stats_version":
+			statsVersionMeasure = &measures[i]
+		case "go_version":
+			goVersionMeasure = &measures[i]
+		}
+	}
+
+	if statsVersionMeasure == nil {
+		t.Fatal("stats_version metric not found")
+	}
+
+	// Check that engine tags are present in stats_version
+	hasServiceTag := false
+	hasEnvTag := false
+	hasVersionTag := false
+	for _, tag := range statsVersionMeasure.Tags {
+		switch tag.Name {
+		case "service":
+			if tag.Value == "my-app" {
+				hasServiceTag = true
+			}
+		case "env":
+			if tag.Value == "prod" {
+				hasEnvTag = true
+			}
+		case "stats_version":
+			hasVersionTag = true
+		}
+	}
+
+	if !hasServiceTag {
+		t.Errorf("stats_version missing service tag, got tags: %v", statsVersionMeasure.Tags)
+	}
+	if !hasEnvTag {
+		t.Errorf("stats_version missing env tag, got tags: %v", statsVersionMeasure.Tags)
+	}
+	if !hasVersionTag {
+		t.Errorf("stats_version missing stats_version tag, got tags: %v", statsVersionMeasure.Tags)
+	}
+
+	// Check go_version if present (may be skipped for devel versions)
+	if goVersionMeasure != nil {
+		hasServiceTag = false
+		hasEnvTag = false
+		hasGoVersionTag := false
+		for _, tag := range goVersionMeasure.Tags {
+			switch tag.Name {
+			case "service":
+				if tag.Value == "my-app" {
+					hasServiceTag = true
+				}
+			case "env":
+				if tag.Value == "prod" {
+					hasEnvTag = true
+				}
+			case "go_version":
+				hasGoVersionTag = true
+			}
+		}
+
+		if !hasServiceTag {
+			t.Errorf("go_version missing service tag, got tags: %v", goVersionMeasure.Tags)
+		}
+		if !hasEnvTag {
+			t.Errorf("go_version missing env tag, got tags: %v", goVersionMeasure.Tags)
+		}
+		if !hasGoVersionTag {
+			t.Errorf("go_version missing go_version tag, got tags: %v", goVersionMeasure.Tags)
+		}
+	}
+}
+
+// TestVersionMetricsPrometheusNoTimestamp verifies that version metrics
+// are reported with zero time so Prometheus doesn't include a stale timestamp.
+func TestVersionMetricsPrometheusNoTimestamp(t *testing.T) {
+	initValue := stats.GoVersionReportingEnabled
+	stats.GoVersionReportingEnabled = true
+	defer func() { stats.GoVersionReportingEnabled = initValue }()
+
+	h := &prometheus.Handler{}
+	e := stats.NewEngine("", h)
+
+	// Trigger version reporting
+	e.Incr("trigger")
+
+	// Get prometheus output
+	var buf strings.Builder
+	h.WriteStats(&buf)
+	output := buf.String()
+
+	// The prometheus output should NOT contain timestamps for version metrics.
+	// Timestamps in Prometheus format appear as a number after the value, e.g.:
+	// metric_name 1 1496614320000
+	// If there's no timestamp, it's just:
+	// metric_name 1
+
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		// Skip empty lines, comments, and TYPE/HELP lines
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		// Check version metric lines
+		if strings.HasPrefix(line, "stats_version") || strings.HasPrefix(line, "go_version") {
+			// Count space-separated parts. With timestamp: "name{labels} value timestamp"
+			// Without timestamp: "name{labels} value"
+			parts := strings.Fields(line)
+			// After removing the metric name (possibly with labels), we should have just the value
+			// The metric line format is: name{label="value"} value [timestamp]
+			// So we expect 2 parts without timestamp, 3 with timestamp
+			if len(parts) > 2 {
+				t.Errorf("version metric appears to have timestamp: %q", line)
+			}
+		}
+	}
+}

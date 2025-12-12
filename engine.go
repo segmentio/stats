@@ -159,7 +159,7 @@ var truthyValues = map[string]bool{
 
 var GoVersionReportingEnabled = !truthyValues[os.Getenv("STATS_DISABLE_GO_VERSION_REPORTING")]
 
-func (e *Engine) reportVersionOnce(t time.Time) {
+func (e *Engine) reportVersionOnce() {
 	if !GoVersionReportingEnabled {
 		return
 	}
@@ -167,6 +167,8 @@ func (e *Engine) reportVersionOnce(t time.Time) {
 	// configure it after creation time with e.g. the Register function. So
 	// instead we try to do it at the moment you try to send your first metric.
 	e.once.Do(func() {
+		// Include engine tags so version metrics can be correlated with
+		// service-identifying tags (e.g. service:myapp).
 		measures := []Measure{
 			{
 				Name: "stats_version",
@@ -174,9 +176,7 @@ func (e *Engine) reportVersionOnce(t time.Time) {
 					Name:  "value",
 					Value: intValue(1),
 				}},
-				Tags: []Tag{
-					{"stats_version", version.Version},
-				},
+				Tags: mergeTags(e.Tags, []Tag{{"stats_version", version.Version}}),
 			},
 		}
 		// We don't want to report weird compiled Go versions like "devel" with
@@ -189,17 +189,17 @@ func (e *Engine) reportVersionOnce(t time.Time) {
 					Name:  "value",
 					Value: intValue(1),
 				}},
-				Tags: []Tag{
-					{"go_version", version.GoVersion()},
-				},
+				Tags: mergeTags(e.Tags, []Tag{{"go_version", version.GoVersion()}}),
 			})
 		}
-		e.Handler.HandleMeasures(t, measures...)
+		// Use zero time so Prometheus doesn't include a stale timestamp.
+		// Prometheus will use scrape time instead. Datadog ignores timestamps.
+		e.Handler.HandleMeasures(time.Time{}, measures...)
 	})
 }
 
 func (e *Engine) measure(t time.Time, name string, value interface{}, ftype FieldType, tags ...Tag) {
-	e.reportVersionOnce(t)
+	e.reportVersionOnce()
 	e.measureOne(t, name, value, ftype, tags...)
 }
 
@@ -248,7 +248,7 @@ func (e *Engine) Report(metrics interface{}, tags ...Tag) {
 // type struct, pointer to struct, or a slice or array to one of those. See
 // MakeMeasures for details about how to make struct types exposing metrics.
 func (e *Engine) ReportAt(t time.Time, metrics interface{}, tags ...Tag) {
-	e.reportVersionOnce(t)
+	e.reportVersionOnce()
 	var tb *tagsBuffer
 
 	if len(tags) == 0 {
