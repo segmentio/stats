@@ -1,5 +1,14 @@
 # History
 
+### v5.8.0 (December 15, 2025)
+
+When reporting go/stats versions, ensure that any user provided tags are
+included with the go-version and stats version reporting tags, to ensure
+better correlation on the Datadog side.
+
+At the same time, don't report a timestamp with this metric, to avoid problems
+where Prometheus says that the metric is too old (we only report it one time).
+
 ### v5.7.0 (November 24, 2025)
 
 More lenient sanitization for tag values, which can contain commas, slashes, and
