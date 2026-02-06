@@ -1,5 +1,60 @@
 # History
 
+### v5.9.0 (February 6, 2026)
+
+Add full OpenTelemetry OTLP exporter support with official SDK integration.
+
+**New Feature: OpenTelemetry OTLP Exporter**
+
+The `otlp` package now includes a production-ready `SDKHandler` that uses the
+official OpenTelemetry SDK with comprehensive support for modern observability
+requirements:
+
+- **Dual Transport Support**: Both gRPC and HTTP/Protobuf protocols
+- **Environment Variables**: Full support for all standard `OTEL_*` environment
+  variables including `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL`,
+  `OTEL_RESOURCE_ATTRIBUTES`, etc.
+- **Automatic Resource Detection**: Built-in support for AWS (EC2, ECS, EKS, Lambda),
+  GCP (Compute Engine), Azure (VM), Kubernetes, host, and process metadata
+- **All Metric Types**: Counter, Gauge, and Histogram with proper semantics
+- **Tag Preservation**: Automatic conversion of stats tags to OpenTelemetry attributes
+- **Production Ready**: Thread-safe instrument caching, proper context handling,
+  and comprehensive error handling
+
+**Usage Example:**
+
+```go
+import (
+    "context"
+    "github.com/segmentio/stats/v5"
+    "github.com/segmentio/stats/v5/otlp"
+)
+
+// Simple usage with environment variables
+handler, err := otlp.NewSDKHandlerFromEnv(ctx)
+if err != nil {
+    log.Fatal(err)
+}
+defer handler.Shutdown(ctx)
+stats.Register(handler)
+
+// Or with explicit configuration
+handler, err := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
+    Protocol: otlp.ProtocolGRPC,
+    Endpoint: "localhost:4317",
+})
+```
+
+**Implementation Details:**
+
+- Gauges use `UpDownCounter` with delta calculation to maintain absolute value
+  semantics (workaround until stable OTel SDK adds Gauge instrument)
+- Background context for metric recording to prevent context cancellation issues
+- Lock-free reads for instrument lookup in the hot path
+- Comprehensive documentation including cloud resource detector examples
+
+See the [otlp package documentation](./otlp/README.md) for complete details and examples.
+
 ### v5.8.0 (December 15, 2025)
 
 When reporting go/stats versions, ensure that any user provided tags are
