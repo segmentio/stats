@@ -1,5 +1,78 @@
 # History
 
+### v5.9.0 (February 19, 2026)
+
+Add full OpenTelemetry OTLP exporter support with official SDK integration.
+
+**New Feature: OpenTelemetry OTLP Exporter (SDKHandler)**
+
+The `otlp` package now includes a production-ready `SDKHandler` that uses the
+official OpenTelemetry SDK with comprehensive support for modern observability
+requirements:
+
+- **Dual Transport Support**: Both gRPC and HTTP/Protobuf protocols
+- **Environment Variables**: Full support for all standard `OTEL_*` environment
+  variables including `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL`,
+  `OTEL_RESOURCE_ATTRIBUTES`, etc.
+- **Automatic Resource Detection**: Built-in support for AWS (EC2, ECS, EKS, Lambda),
+  GCP (Compute Engine), Azure (VM), Kubernetes, host, and process metadata
+- **All Metric Types**: Counter, Gauge, and Histogram with proper semantics
+- **Exponential Histograms**: Optional support for exponential histogram aggregation
+  with configurable bucket size and scale
+- **Temporality Configuration**: Configurable metric temporality (cumulative or delta)
+  with cumulative as the default for Prometheus compatibility
+- **Tag Preservation**: Automatic conversion of stats tags to OpenTelemetry attributes
+- **Production Ready**: Thread-safe instrument caching, proper context handling,
+  and comprehensive error handling
+
+**Usage Example:**
+
+```go
+import (
+    "context"
+    "github.com/segmentio/stats/v5"
+    "github.com/segmentio/stats/v5/otlp"
+)
+
+// Simple usage with environment variables
+handler, err := otlp.NewSDKHandlerFromEnv(ctx)
+if err != nil {
+    log.Fatal(err)
+}
+defer handler.Shutdown(ctx)
+stats.Register(handler)
+
+// Or with explicit configuration
+handler, err := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
+    Protocol:    otlp.ProtocolGRPC,
+    EndpointURL: "http://localhost:4317",
+})
+```
+
+**Implementation Details:**
+
+- Gauges use native `Float64Gauge` instrument for instantaneous value recording
+- Background context for metric recording to prevent context cancellation issues
+- Efficient two-level locking pattern for instrument caching (read locks in hot path)
+- Cumulative temporality by default (Prometheus-compatible)
+- Comprehensive documentation including cloud resource detector examples
+
+**Breaking Changes:**
+
+- Config field renamed: `Endpoint` → `EndpointURL` (must include `http://` or `https://` scheme)
+- SDK defaults are now used instead of hardcoded values (ExportInterval: 60s, ExportTimeout: 30s)
+
+**Deprecated:**
+
+- `otlp.Handler` is now deprecated in favor of `otlp.SDKHandler` (will be removed in v6.0.0)
+- `otlp.HTTPClient` is now deprecated in favor of `otlp.SDKHandler` with `ProtocolHTTPProtobuf` (will be removed in v6.0.0)
+- `otlp.NewHTTPClient()` is now deprecated (will be removed in v6.0.0)
+
+The legacy `Handler` has been marked as Alpha since 2022 and has minimal to zero usage.
+Migration is straightforward - see deprecation notices in code for examples.
+
+See the [otlp package documentation](./otlp/README.md) for complete details and examples.
+
 ### v5.8.0 (December 15, 2025)
 
 When reporting go/stats versions, ensure that any user provided tags are

@@ -12,10 +12,28 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// Deprecated: Client is deprecated and will be removed in v6.
+// It is only used by the deprecated Handler. Use SDKHandler instead.
 type Client interface {
 	Handle(context.Context, *colmetricpb.ExportMetricsServiceRequest) error
 }
 
+// Deprecated: HTTPClient is deprecated and will be removed in v6.
+// Use SDKHandler with ProtocolHTTPProtobuf instead, which provides the official
+// OpenTelemetry SDK with retry logic, proper timeout handling, and full OTLP support.
+//
+// Migration example:
+//
+//	// Old (deprecated)
+//	client := otlp.NewHTTPClient("http://localhost:4318/v1/metrics")
+//	handler := &otlp.Handler{Client: client}
+//
+//	// New (recommended)
+//	handler, err := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
+//	    Protocol: otlp.ProtocolHTTPProtobuf,
+//	    EndpointURL: "http://localhost:4318",
+//	})
+//
 // HTTPClient implements the Client interface and is used to export metrics to
 // an OpenTelemetry Collector through the HTTP interface.
 //
@@ -26,6 +44,8 @@ type HTTPClient struct {
 	endpoint string
 }
 
+// Deprecated: NewHTTPClient is deprecated. Use SDKHandler with ProtocolHTTPProtobuf instead.
+// See HTTPClient documentation for migration example.
 func NewHTTPClient(endpoint string) *HTTPClient {
 	return &HTTPClient{
 		// TODO: add sane default timeout configuration.

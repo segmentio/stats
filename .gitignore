@@ -31,3 +31,4 @@ _testmain.go
 /dogstatsd
 
 /datadog/testdata/fuzz
+.claude/settings.local.json
