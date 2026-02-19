@@ -28,6 +28,24 @@ const (
 	DefaultFlushInterval = 10 * time.Second
 )
 
+// Deprecated: Handler is deprecated and will be removed in v6.
+// Use SDKHandler instead, which provides the official OpenTelemetry SDK
+// with full gRPC and HTTP support, environment variable configuration,
+// and automatic resource detection.
+//
+// Migration example:
+//
+//	// Old (deprecated)
+//	handler := &otlp.Handler{
+//	    Client: otlp.NewHTTPClient("http://localhost:4318"),
+//	}
+//
+//	// New (recommended)
+//	handler, err := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
+//	    Protocol: otlp.ProtocolHTTPProtobuf,
+//	    EndpointURL: "http://localhost:4318",
+//	})
+//
 // Status: Alpha. This Handler is still in heavy development phase. Do not use
 // in production.
 //

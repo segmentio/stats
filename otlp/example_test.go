@@ -19,7 +19,7 @@ func Example_gRPC() {
 	// Create handler with gRPC transport
 	handler, err := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
 		Protocol: otlp.ProtocolGRPC,
-		Endpoint: "localhost:4317",
+		EndpointURL: "http://localhost:4317",
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -42,7 +42,7 @@ func Example_hTTP() {
 	// Create handler with HTTP transport
 	handler, err := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
 		Protocol: otlp.ProtocolHTTPProtobuf,
-		Endpoint: "http://localhost:4318",
+		EndpointURL: "http://localhost:4318",
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -81,6 +81,47 @@ func Example_fromEnv() {
 	stats.Incr("app.started")
 }
 
+// Example_fullyConfiguredByEnvironment demonstrates relying entirely on OTEL environment variables
+// without specifying any configuration in code. This provides maximum flexibility for deployment
+// environments to control OpenTelemetry configuration without code changes.
+func Example_fullyConfiguredByEnvironment() {
+	// The SDK will use these standard OpenTelemetry environment variables:
+	//
+	// Required/Common:
+	//   OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 (full URL with scheme)
+	//   OTEL_EXPORTER_OTLP_PROTOCOL=grpc (or http/protobuf)
+	//   OTEL_SERVICE_NAME=my-service
+	//
+	// Optional:
+	//   OTEL_EXPORTER_OTLP_HEADERS=key1=value1,key2=value2
+	//   OTEL_EXPORTER_OTLP_TIMEOUT=30s
+	//   OTEL_RESOURCE_ATTRIBUTES=deployment.environment=production
+	//   OTEL_METRIC_EXPORT_INTERVAL=60s
+	//   OTEL_METRIC_EXPORT_TIMEOUT=30s
+	//
+	// If no environment variables are set, the SDK uses these defaults:
+	//   - Endpoint: http://localhost:4317 (gRPC) or http://localhost:4318 (HTTP)
+	//   - Protocol: grpc
+	//   - Export Interval: 60 seconds
+	//   - Export Timeout: 30 seconds
+
+	ctx := context.Background()
+
+	// Pass an empty config - SDK will read all configuration from environment
+	handler, err := otlp.NewSDKHandler(ctx, otlp.SDKConfig{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer handler.Shutdown(ctx)
+
+	stats.Register(handler)
+	defer stats.Flush()
+
+	// Your application code remains environment-agnostic
+	stats.Incr("requests.count", stats.T("method", "GET"))
+	stats.Observe("request.duration", 0.125)
+}
+
 // Example_gRPCWithOptions demonstrates advanced gRPC configuration.
 func Example_gRPCWithOptions() {
 	ctx := context.Background()
@@ -88,7 +129,7 @@ func Example_gRPCWithOptions() {
 	// Create handler with custom gRPC options
 	handler, err := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
 		Protocol: otlp.ProtocolGRPC,
-		Endpoint: "localhost:4317",
+		EndpointURL: "http://localhost:4317",
 		GRPCOptions: []otlpmetricgrpc.Option{
 			otlpmetricgrpc.WithInsecure(),
 			otlpmetricgrpc.WithTimeout(30 * time.Second),
@@ -120,7 +161,7 @@ func Example_hTTPWithOptions() {
 	// Create handler with custom HTTP options
 	handler, err := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
 		Protocol: otlp.ProtocolHTTPProtobuf,
-		Endpoint: "http://localhost:4318",
+		EndpointURL: "http://localhost:4318",
 		HTTPOptions: []otlpmetrichttp.Option{
 			otlpmetrichttp.WithInsecure(),
 			otlpmetrichttp.WithTimeout(30 * time.Second),
@@ -153,7 +194,7 @@ func Example_multipleHandlers() {
 	// Send metrics to both gRPC and HTTP endpoints
 	grpcHandler, err := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
 		Protocol: otlp.ProtocolGRPC,
-		Endpoint: "localhost:4317",
+		EndpointURL: "http://localhost:4317",
 		GRPCOptions: []otlpmetricgrpc.Option{
 			otlpmetricgrpc.WithTLSCredentials(insecure.NewCredentials()),
 		},
@@ -165,7 +206,7 @@ func Example_multipleHandlers() {
 
 	httpHandler, err := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
 		Protocol: otlp.ProtocolHTTPProtobuf,
-		Endpoint: "http://localhost:4318",
+		EndpointURL: "http://localhost:4318",
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -187,7 +228,7 @@ func Example_structBased() {
 
 	handler, err := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
 		Protocol: otlp.ProtocolGRPC,
-		Endpoint: "localhost:4317",
+		EndpointURL: "http://localhost:4317",
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -221,7 +262,7 @@ func ExampleSDKHandler_exponentialHistogram() {
 	// Exponential histograms provide better accuracy and lower memory overhead
 	handler, err := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
 		Protocol:             otlp.ProtocolGRPC,
-		Endpoint:             "localhost:4317",
+		EndpointURL:          "http://localhost:4317",
 		ExponentialHistogram: true, // Enable exponential histograms
 	})
 	if err != nil {
@@ -250,7 +291,7 @@ func ExampleSDKHandler_exponentialHistogramAdvanced() {
 	// Advanced exponential histogram configuration
 	handler, err := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
 		Protocol:                      otlp.ProtocolGRPC,
-		Endpoint:                      "localhost:4317",
+		EndpointURL:                   "http://localhost:4317",
 		ExponentialHistogram:          true,
 		ExponentialHistogramMaxSize:   160, // Max buckets (higher = more accuracy)
 		ExponentialHistogramMaxScale:  20,  // Max resolution (higher = finer granularity)

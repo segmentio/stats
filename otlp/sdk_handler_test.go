@@ -15,7 +15,7 @@ func TestSDKHandler_HandleMeasures(t *testing.T) {
 	// Create handler with gRPC protocol
 	handler, err := NewSDKHandler(ctx, SDKConfig{
 		Protocol:       ProtocolGRPC,
-		Endpoint:       "localhost:4317",
+		EndpointURL:    "http://localhost:4317",
 		ExportInterval: 1 * time.Second,
 	})
 	if err != nil {
@@ -62,7 +62,7 @@ func TestSDKHandler_HTTP(t *testing.T) {
 	// Create handler with HTTP protocol
 	handler, err := NewSDKHandler(ctx, SDKConfig{
 		Protocol:       ProtocolHTTPProtobuf,
-		Endpoint:       "localhost:4318",
+		EndpointURL:    "http://localhost:4318",
 		ExportInterval: 1 * time.Second,
 	})
 	if err != nil {
@@ -109,7 +109,7 @@ func TestSDKHandler_MultipleMetrics(t *testing.T) {
 
 	handler, err := NewSDKHandler(ctx, SDKConfig{
 		Protocol:       ProtocolGRPC,
-		Endpoint:       "localhost:4317",
+		EndpointURL:    "http://localhost:4317",
 		ExportInterval: 1 * time.Second,
 	})
 	if err != nil {
@@ -158,7 +158,7 @@ func TestSDKHandler_ValueConversion(t *testing.T) {
 
 	handler, err := NewSDKHandler(ctx, SDKConfig{
 		Protocol:       ProtocolGRPC,
-		Endpoint:       "localhost:4317",
+		EndpointURL:    "http://localhost:4317",
 		ExportInterval: 1 * time.Second,
 	})
 	if err != nil {
@@ -201,7 +201,7 @@ func TestSDKHandler_GaugeBehavior(t *testing.T) {
 
 	handler, err := NewSDKHandler(ctx, SDKConfig{
 		Protocol:       ProtocolGRPC,
-		Endpoint:       "localhost:4317",
+		EndpointURL:    "http://localhost:4317",
 		ExportInterval: 1 * time.Second,
 	})
 	if err != nil {
@@ -251,7 +251,7 @@ func TestSDKHandler_ExponentialHistogram(t *testing.T) {
 	// Create handler with exponential histogram enabled
 	handler, err := NewSDKHandler(ctx, SDKConfig{
 		Protocol:                      ProtocolGRPC,
-		Endpoint:                      "localhost:4317",
+		EndpointURL:                   "http://localhost:4317",
 		ExportInterval:                1 * time.Second,
 		ExponentialHistogram:          true,
 		ExponentialHistogramMaxSize:   160,
@@ -298,7 +298,7 @@ func TestSDKHandler_CumulativeTemporality(t *testing.T) {
 	// Create handler with default (cumulative) temporality
 	handler, err := NewSDKHandler(ctx, SDKConfig{
 		Protocol:       ProtocolGRPC,
-		Endpoint:       "localhost:4317",
+		EndpointURL:    "http://localhost:4317",
 		ExportInterval: 1 * time.Second,
 		// TemporalitySelector: nil means default cumulative temporality
 	})
@@ -339,7 +339,7 @@ func BenchmarkSDKHandler_HandleMeasures(b *testing.B) {
 
 	handler, err := NewSDKHandler(ctx, SDKConfig{
 		Protocol:       ProtocolGRPC,
-		Endpoint:       "localhost:4317",
+		EndpointURL:    "http://localhost:4317",
 		ExportInterval: 10 * time.Second,
 	})
 	if err != nil {

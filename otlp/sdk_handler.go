@@ -43,7 +43,7 @@ const (
 //
 //	handler, err := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
 //	    Protocol: otlp.ProtocolGRPC,
-//	    Endpoint: "localhost:4317",
+//	    EndpointURL: "http://localhost:4317",
 //	})
 //	if err != nil {
 //	    log.Fatal(err)
@@ -67,25 +67,28 @@ type instrument struct {
 // SDKConfig contains configuration for the OpenTelemetry SDK handler
 type SDKConfig struct {
 	// Protocol specifies the transport protocol (grpc or http/protobuf)
-	// If empty, defaults to ProtocolGRPC
+	// If empty, the SDK will use OTEL_EXPORTER_OTLP_PROTOCOL environment variable
+	// or default to gRPC
 	Protocol Protocol
 
-	// Endpoint specifies the OTLP endpoint
-	// For gRPC: "localhost:4317"
-	// For HTTP: "http://localhost:4318"
+	// EndpointURL specifies the full OTLP endpoint URL
+	// Must include the scheme (http:// or https://)
+	// For gRPC: "http://localhost:4317" or "https://api.example.com:4317"
+	// For HTTP: "http://localhost:4318" or "https://api.example.com:4318"
 	// If empty, uses OTEL_EXPORTER_OTLP_ENDPOINT environment variable
-	Endpoint string
+	// or SDK defaults (http://localhost:4317 for gRPC, http://localhost:4318 for HTTP)
+	EndpointURL string
 
 	// Resource specifies the resource attributes for all metrics
 	// If nil, uses automatic resource detection
 	Resource *resource.Resource
 
 	// ExportInterval specifies how often to export metrics
-	// If zero, defaults to 10 seconds
+	// If zero or not set, uses the SDK default (60 seconds)
 	ExportInterval time.Duration
 
 	// ExportTimeout specifies the timeout for exports
-	// If zero, defaults to 30 seconds
+	// If zero or not set, uses the SDK default (30 seconds)
 	ExportTimeout time.Duration
 
 	// HTTPOptions are additional options for HTTP protocol
@@ -130,16 +133,7 @@ type SDKConfig struct {
 // NewSDKHandler creates a new handler using the OpenTelemetry SDK.
 // It automatically detects resources and supports all standard OTEL environment variables.
 func NewSDKHandler(ctx context.Context, config SDKConfig) (*SDKHandler, error) {
-	// Set defaults
-	if config.Protocol == "" {
-		config.Protocol = ProtocolGRPC
-	}
-	if config.ExportInterval == 0 {
-		config.ExportInterval = 10 * time.Second
-	}
-	if config.ExportTimeout == 0 {
-		config.ExportTimeout = 30 * time.Second
-	}
+	// Set defaults for histogram configuration
 	if config.ExponentialHistogram {
 		if config.ExponentialHistogramMaxSize == 0 {
 			config.ExponentialHistogramMaxSize = 160
@@ -164,15 +158,24 @@ func NewSDKHandler(ctx context.Context, config SDKConfig) (*SDKHandler, error) {
 		}
 	}
 
+	// Determine protocol (allow empty to use SDK default)
+	protocol := config.Protocol
+	if protocol == "" {
+		// Let SDK determine from OTEL_EXPORTER_OTLP_PROTOCOL env var or use its default (gRPC)
+		protocol = ProtocolGRPC
+	}
+
 	// Create exporter based on protocol
 	var exporter sdkmetric.Exporter
 	var err error
 
-	switch config.Protocol {
+	switch protocol {
 	case ProtocolGRPC:
 		opts := config.GRPCOptions
-		if config.Endpoint != "" {
-			opts = append([]otlpmetricgrpc.Option{otlpmetricgrpc.WithEndpoint(config.Endpoint)}, opts...)
+		// Use WithEndpointURL to properly handle http:// scheme
+		// This avoids a known bug when using WithEndpoint with http:// scheme
+		if config.EndpointURL != "" {
+			opts = append([]otlpmetricgrpc.Option{otlpmetricgrpc.WithEndpointURL(config.EndpointURL)}, opts...)
 		}
 		// Configure temporality if provided (default is cumulative, which is Prometheus-compatible)
 		if config.TemporalitySelector != nil {
@@ -185,8 +188,9 @@ func NewSDKHandler(ctx context.Context, config SDKConfig) (*SDKHandler, error) {
 
 	case ProtocolHTTPProtobuf:
 		opts := config.HTTPOptions
-		if config.Endpoint != "" {
-			opts = append([]otlpmetrichttp.Option{otlpmetrichttp.WithEndpoint(config.Endpoint)}, opts...)
+		// Use WithEndpointURL to properly handle the full URL with scheme
+		if config.EndpointURL != "" {
+			opts = append([]otlpmetrichttp.Option{otlpmetrichttp.WithEndpointURL(config.EndpointURL)}, opts...)
 		}
 		// Configure temporality if provided (default is cumulative, which is Prometheus-compatible)
 		if config.TemporalitySelector != nil {
@@ -198,16 +202,22 @@ func NewSDKHandler(ctx context.Context, config SDKConfig) (*SDKHandler, error) {
 		}
 
 	default:
-		return nil, fmt.Errorf("unsupported protocol: %s", config.Protocol)
+		return nil, fmt.Errorf("unsupported protocol: %s", protocol)
 	}
 
 	// Configure histogram aggregation if exponential histograms are enabled
 	var providerOpts []sdkmetric.Option
 	providerOpts = append(providerOpts, sdkmetric.WithResource(res))
-	providerOpts = append(providerOpts, sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exporter,
-		sdkmetric.WithInterval(config.ExportInterval),
-		sdkmetric.WithTimeout(config.ExportTimeout),
-	)))
+
+	// Configure periodic reader with optional interval and timeout
+	readerOpts := []sdkmetric.PeriodicReaderOption{}
+	if config.ExportInterval > 0 {
+		readerOpts = append(readerOpts, sdkmetric.WithInterval(config.ExportInterval))
+	}
+	if config.ExportTimeout > 0 {
+		readerOpts = append(readerOpts, sdkmetric.WithTimeout(config.ExportTimeout))
+	}
+	providerOpts = append(providerOpts, sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exporter, readerOpts...)))
 
 	if config.ExponentialHistogram {
 		// Configure exponential histogram aggregation for all histogram instruments
@@ -237,16 +247,14 @@ func NewSDKHandler(ctx context.Context, config SDKConfig) (*SDKHandler, error) {
 // This is the simplest way to create a handler with full OpenTelemetry support.
 //
 // It respects all standard OTEL environment variables including:
-//   - OTEL_EXPORTER_OTLP_ENDPOINT
-//   - OTEL_EXPORTER_OTLP_PROTOCOL
+//   - OTEL_EXPORTER_OTLP_ENDPOINT (full URL with scheme, e.g., http://localhost:4317)
+//   - OTEL_EXPORTER_OTLP_PROTOCOL (grpc or http/protobuf)
 //   - OTEL_EXPORTER_OTLP_HEADERS
 //   - OTEL_RESOURCE_ATTRIBUTES
 //   - OTEL_SERVICE_NAME
 func NewSDKHandlerFromEnv(ctx context.Context) (*SDKHandler, error) {
 	// The SDK exporters will automatically read all environment variables
-	return NewSDKHandler(ctx, SDKConfig{
-		Protocol: ProtocolGRPC, // Can be overridden by OTEL_EXPORTER_OTLP_PROTOCOL
-	})
+	return NewSDKHandler(ctx, SDKConfig{})
 }
 
 // HandleMeasures implements stats.Handler

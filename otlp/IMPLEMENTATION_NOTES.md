@@ -46,17 +46,19 @@ gauge.Record(ctx, 42.0, opts)
 
 ### 3. Instrument Caching
 
-**Implementation**: Thread-safe two-level locking pattern
+**Note**: This is an internal implementation detail - users don't need to worry about this.
+
+**Implementation**: Thread-safe two-level locking pattern for efficient instrument reuse
 ```go
-// Fast path: read lock for lookup
+// Fast path: read lock for lookup (common case - instrument already exists)
 h.mu.RLock()
 inst, exists := h.instruments[metricName]
 h.mu.RUnlock()
 
-// Slow path: write lock only if creating new instrument
+// Slow path: write lock only if creating new instrument (rare - first time seeing this metric)
 if !exists {
     h.mu.Lock()
-    // Double-check after acquiring write lock
+    // Double-check after acquiring write lock (another goroutine may have created it)
     inst, exists = h.instruments[metricName]
     if !exists {
         inst = h.createInstruments(meter, metricName, field.Type())
@@ -66,7 +68,13 @@ if !exists {
 }
 ```
 
-**Why**: Instruments are created once per metric name and reused. This pattern minimizes lock contention in the hot path (metric recording) while ensuring thread-safety during instrument creation.
+**Why**: OpenTelemetry instruments are expensive to create but cheap to reuse. This pattern:
+
+- **Minimizes lock contention** in the hot path (metric recording uses fast read locks)
+- **Ensures thread-safety** during instrument creation (write locks only when needed)
+- **Scales well** under concurrent load (multiple goroutines can look up instruments simultaneously)
+
+The double-check pattern prevents duplicate instrument creation when multiple goroutines race to create the same instrument for the first time.
 
 ### 4. Attribute Handling
 
@@ -227,38 +235,90 @@ if config.ExponentialHistogram {
 
 ## Temporality Configuration
 
-### Default: Cumulative Temporality
+### What is Temporality?
 
-**Decision**: Use cumulative temporality for all metric instruments (Prometheus-compatible)
+Temporality determines whether metrics are reported as **cumulative totals** (since application start) or **deltas** (change since last export).
 
-**Implementation**: OTLP exporters use `DefaultTemporalitySelector` by default
-```go
-// If no TemporalitySelector is provided, the exporter uses:
-// DefaultTemporalitySelector -> CumulativeTemporality for all instruments
-```
+**Example - Request Counter**:
+- **Cumulative**: Export "1000 total requests" → "1150 total requests" → "1320 total requests"
+- **Delta**: Export "1000 new requests" → "150 new requests" → "170 new requests"
 
-**Why**:
-- **Prometheus compatibility**: Prometheus expects cumulative counters
-- **Standard practice**: Most OTLP backends expect cumulative semantics
-- **Query simplicity**: Easier to query and understand (total since start)
-- **No data loss**: Cumulative data can be converted to delta, but not vice versa
+### Why We Use Cumulative Temporality (Default)
 
-**Cumulative semantics by instrument**:
-- **Counter**: Total count since application start (e.g., total requests)
-- **Histogram**: Cumulative distribution of all observed values
-- **UpDownCounter/Gauge**: Current absolute value (naturally stateful)
+This handler uses **cumulative temporality** for all metrics by default. Here's why:
 
-**User override**: Advanced users can specify custom temporality via `TemporalitySelector`:
+#### Compatibility with Prometheus and Standard Backends
+
+- Prometheus expects cumulative counters and will graph them correctly
+- Most OTLP backends (Grafana, Datadog, etc.) work best with cumulative data
+- Industry standard practice in the OpenTelemetry ecosystem
+
+#### Reliability and Query Simplicity
+
+- **No data loss on export failures**: If an export fails, the next one still has complete data
+- **Easier to query**: "How many total requests?" vs "Sum all deltas"
+- **Converts to delta easily**: Backend can calculate rates from cumulative, but can't reconstruct cumulative from deltas
+
+#### Lower Cognitive Load
+
+- Counters show totals since start - intuitive and matches mental model
+- Histograms show full distribution of all observations
+
+### How It Works
+
+**Cumulative semantics by instrument type**:
+
+- **Counter** (`stats.Incr`, `stats.Add`): Total count since application start
+  - Example: `requests.total` reports 1000, then 1150, then 1320
+
+- **Histogram** (`stats.Observe`): Cumulative distribution of all observed values
+  - Example: Latency histogram includes all requests since start
+
+- **Gauge** (`stats.Set`): Current absolute value (temporality doesn't apply)
+  - Example: `memory.used` always reports current memory usage
+
+### Trade-offs
+
+#### Advantages of Cumulative
+
+- ✅ Prometheus and Grafana work out-of-box
+- ✅ Resilient to export failures (no data loss)
+- ✅ Backend can derive rates automatically
+- ✅ Simpler mental model for most users
+
+#### Disadvantages of Cumulative
+
+- ❌ Slightly higher memory usage for high-cardinality counters
+- ❌ Backend must calculate deltas for rate queries (minor overhead)
+- ❌ Some specialized telemetry systems expect delta temporality
+
+#### When Delta Might Be Better
+
+- Your backend explicitly requires delta temporality (check docs)
+- Extreme cardinality where cumulative memory overhead matters
+- Building a custom metrics pipeline optimized for deltas
+
+### Changing Temporality (Advanced)
+
+If you need delta temporality, you can override the default:
+
 ```go
 handler, err := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
+    Protocol: otlp.ProtocolGRPC,
+    EndpointURL: "http://localhost:4317",
+    // Use delta temporality for all instruments
     TemporalitySelector: sdkmetric.DeltaTemporalitySelector,
 })
 ```
 
-**Trade-offs**:
-- **Memory**: Cumulative uses slightly more memory than delta for high-cardinality counters
-- **Backend requirements**: Some specialized backends prefer delta temporality
-- **Migration**: Changing temporality requires coordinated backend configuration changes
+**Available selectors**:
+
+- `sdkmetric.DefaultTemporalitySelector` - Cumulative for all (default, recommended)
+- `sdkmetric.CumulativeTemporalitySelector` - Cumulative for all (explicit)
+- `sdkmetric.DeltaTemporalitySelector` - Delta for all
+- `sdkmetric.LowMemoryTemporalitySelector` - Delta for Counters/Histograms, Cumulative for UpDownCounters
+
+**⚠️ Warning**: Changing temporality requires updating your backend configuration and queries. Most users should stick with the default cumulative temporality.
 
 ## Future Enhancements
 

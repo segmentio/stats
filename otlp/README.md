@@ -38,7 +38,7 @@ func main() {
     // Create handler with gRPC transport
     handler, err := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
         Protocol: otlp.ProtocolGRPC,
-        Endpoint: "localhost:4317",
+        EndpointURL: "http://localhost:4317",
     })
     if err != nil {
         log.Fatal(err)
@@ -59,7 +59,7 @@ func main() {
 ```go
 handler, err := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
     Protocol: otlp.ProtocolHTTPProtobuf,
-    Endpoint: "http://localhost:4318",
+    EndpointURL: "http://localhost:4318",
 })
 ```
 
@@ -83,7 +83,7 @@ type SDKConfig struct {
     // Protocol: "grpc" or "http/protobuf" (default: "grpc")
     Protocol Protocol
 
-    // Endpoint: OTLP collector endpoint
+    // EndpointURL: Full OTLP collector endpoint URL (with http:// or https:// scheme)
     // gRPC: "localhost:4317"
     // HTTP: "http://localhost:4318"
     Endpoint string
@@ -150,7 +150,7 @@ import (
 
 handler, err := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
     Protocol: otlp.ProtocolGRPC,
-    Endpoint: "collector.example.com:4317",
+    EndpointURL: "http://collector.example.com:4317",
     GRPCOptions: []otlpmetricgrpc.Option{
         // Use TLS
         otlpmetricgrpc.WithTLSCredentials(
@@ -173,7 +173,7 @@ import "go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 
 handler, err := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
     Protocol: otlp.ProtocolHTTPProtobuf,
-    Endpoint: "https://collector.example.com:4318",
+    EndpointURL: "https://collector.example.com:4318",
     HTTPOptions: []otlpmetrichttp.Option{
         // Add custom headers
         otlpmetrichttp.WithHeaders(map[string]string{
@@ -209,7 +209,7 @@ res, err := resource.New(ctx,
 
 handler, err := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
     Protocol: otlp.ProtocolGRPC,
-    Endpoint: "localhost:4317",
+    EndpointURL: "http://localhost:4317",
     Resource: res,
 })
 ```
@@ -377,7 +377,7 @@ res, err := resource.New(ctx,
 
 handler, err := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
     Protocol: otlp.ProtocolGRPC,
-    Endpoint: "localhost:4317",
+    EndpointURL: "http://localhost:4317",
     Resource: res,
 })
 ```
@@ -428,7 +428,7 @@ func main() {
     // Create handler with detected resources
     handler, err := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
         Protocol: otlp.ProtocolGRPC,
-        Endpoint: "collector.us-west-2.amazonaws.com:4317",
+        EndpointURL: "http://collector.us-west-2.amazonaws.com:4317",
         Resource: res,
     })
     if err != nil {
@@ -452,13 +452,13 @@ Send metrics to multiple destinations:
 // Send to local collector
 localHandler, _ := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
     Protocol: otlp.ProtocolGRPC,
-    Endpoint: "localhost:4317",
+    EndpointURL: "http://localhost:4317",
 })
 
 // Send to cloud service
 cloudHandler, _ := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
     Protocol: otlp.ProtocolHTTPProtobuf,
-    Endpoint: "https://api.example.com/v1/metrics",
+    EndpointURL: "https://api.example.com/v1/metrics",
     HTTPOptions: []otlpmetrichttp.Option{
         otlpmetrichttp.WithHeaders(map[string]string{
             "Authorization": "Bearer " + apiKey,
@@ -545,7 +545,7 @@ By default, histograms use explicit bucket aggregation with fixed bucket boundar
 ```go
 handler, err := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
     Protocol:             otlp.ProtocolGRPC,
-    Endpoint:             "localhost:4317",
+    EndpointURL:          "http://localhost:4317",
     ExponentialHistogram: true,  // Enable exponential histograms
 })
 ```
@@ -561,7 +561,7 @@ handler, err := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
 ```go
 handler, err := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
     Protocol:                      otlp.ProtocolGRPC,
-    Endpoint:                      "localhost:4317",
+    EndpointURL:                   "http://localhost:4317",
     ExponentialHistogram:          true,
     ExponentialHistogramMaxSize:   160,  // Max buckets (default: 160)
     ExponentialHistogramMaxScale:  20,   // Max resolution (default: 20)
@@ -596,7 +596,7 @@ For advanced use cases, you can configure custom temporality:
 ```go
 handler, err := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
     Protocol: otlp.ProtocolGRPC,
-    Endpoint: "localhost:4317",
+    EndpointURL: "http://localhost:4317",
     TemporalitySelector: sdkmetric.DeltaTemporalitySelector, // Use delta for all metrics
 })
 ```
@@ -624,7 +624,7 @@ The handler uses **native OpenTelemetry SDK batching** via `PeriodicReader`:
 ```go
 handler, err := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
     Protocol:       otlp.ProtocolGRPC,
-    Endpoint:       "localhost:4317",
+    EndpointURL:    "http://localhost:4317",
     ExportInterval: 5 * time.Second,  // Export every 5 seconds
     ExportTimeout:  15 * time.Second, // 15 second timeout per export
 })

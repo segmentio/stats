@@ -1,10 +1,10 @@
 # History
 
-### v5.9.0 (February 6, 2026)
+### v5.9.0 (February 19, 2026)
 
 Add full OpenTelemetry OTLP exporter support with official SDK integration.
 
-**New Feature: OpenTelemetry OTLP Exporter**
+**New Feature: OpenTelemetry OTLP Exporter (SDKHandler)**
 
 The `otlp` package now includes a production-ready `SDKHandler` that uses the
 official OpenTelemetry SDK with comprehensive support for modern observability
@@ -17,6 +17,10 @@ requirements:
 - **Automatic Resource Detection**: Built-in support for AWS (EC2, ECS, EKS, Lambda),
   GCP (Compute Engine), Azure (VM), Kubernetes, host, and process metadata
 - **All Metric Types**: Counter, Gauge, and Histogram with proper semantics
+- **Exponential Histograms**: Optional support for exponential histogram aggregation
+  with configurable bucket size and scale
+- **Temporality Configuration**: Configurable metric temporality (cumulative or delta)
+  with cumulative as the default for Prometheus compatibility
 - **Tag Preservation**: Automatic conversion of stats tags to OpenTelemetry attributes
 - **Production Ready**: Thread-safe instrument caching, proper context handling,
   and comprehensive error handling
@@ -40,18 +44,32 @@ stats.Register(handler)
 
 // Or with explicit configuration
 handler, err := otlp.NewSDKHandler(ctx, otlp.SDKConfig{
-    Protocol: otlp.ProtocolGRPC,
-    Endpoint: "localhost:4317",
+    Protocol:    otlp.ProtocolGRPC,
+    EndpointURL: "http://localhost:4317",
 })
 ```
 
 **Implementation Details:**
 
-- Gauges use `UpDownCounter` with delta calculation to maintain absolute value
-  semantics (workaround until stable OTel SDK adds Gauge instrument)
+- Gauges use native `Float64Gauge` instrument for instantaneous value recording
 - Background context for metric recording to prevent context cancellation issues
-- Lock-free reads for instrument lookup in the hot path
+- Efficient two-level locking pattern for instrument caching (read locks in hot path)
+- Cumulative temporality by default (Prometheus-compatible)
 - Comprehensive documentation including cloud resource detector examples
+
+**Breaking Changes:**
+
+- Config field renamed: `Endpoint` → `EndpointURL` (must include `http://` or `https://` scheme)
+- SDK defaults are now used instead of hardcoded values (ExportInterval: 60s, ExportTimeout: 30s)
+
+**Deprecated:**
+
+- `otlp.Handler` is now deprecated in favor of `otlp.SDKHandler` (will be removed in v6.0.0)
+- `otlp.HTTPClient` is now deprecated in favor of `otlp.SDKHandler` with `ProtocolHTTPProtobuf` (will be removed in v6.0.0)
+- `otlp.NewHTTPClient()` is now deprecated (will be removed in v6.0.0)
+
+The legacy `Handler` has been marked as Alpha since 2022 and has minimal to zero usage.
+Migration is straightforward - see deprecation notices in code for examples.
 
 See the [otlp package documentation](./otlp/README.md) for complete details and examples.
 
