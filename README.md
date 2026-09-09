@@ -197,10 +197,13 @@ import (
     "github.com/segmentio/stats/v5/prometheus"
 )
 
-handler := prometheus.NewHandler()
-stats.Register(handler)
-http.Handle("/metrics", handler)
+stats.Register(prometheus.DefaultHandler)
+http.Handle("/metrics", prometheus.DefaultHandler)
 ```
+
+`Handler` has no `NewHandler` constructor; `DefaultHandler` is a ready-to-use zero-config
+instance. Construct your own `&prometheus.Handler{}` literal instead if you need to set
+`TrimPrefix`, `MetricTimeout`, or `Buckets`.
 
 ### InfluxDB
 
