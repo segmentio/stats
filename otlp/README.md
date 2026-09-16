@@ -21,7 +21,7 @@ go get github.com/segmentio/stats/v5
 
 This package is part of the main `github.com/segmentio/stats/v5` module, so no
 separate `go get` is needed if you already depend on `stats`. Note that it pulls
-in the OpenTelemetry SDK and gRPC, and requires Go 1.25 or later.
+in the OpenTelemetry SDK and gRPC, and requires Go 1.26 or later.
 
 ## Quick Start
 

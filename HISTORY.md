@@ -1,5 +1,16 @@
 # History
 
+### v5.11.0 (Unreleased)
+
+**The minimum supported Go version is now 1.26.** The `golang.org/x/*` modules
+(`net`, `sys`, `sync`, `text`) all declare `go 1.26.0` as of their latest
+releases, and `stats` depends on them both directly and transitively through
+gRPC, so the whole module requires 1.26.
+
+Update all dependencies. Most notably, gRPC moves to v1.83.2, which addresses
+GHSA-vp52-pcj8-j9qc, GHSA-2v4p-qf9q-27wj, and GHSA-qc2q-p7wx-3px3; the
+OpenTelemetry SDK and exporters move to v1.46.0.
+
 ### v5.10.0 (July 30, 2026)
 
 **The minimum supported Go version is now 1.25.** The `otlp` package, previously
