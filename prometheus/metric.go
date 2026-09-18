@@ -1,6 +1,7 @@
 package prometheus
 
 import (
+	"math"
 	"strconv"
 	"strings"
 	"sync"
@@ -265,7 +266,10 @@ func (state *metricState) update(mtype metricType, value float64, time time.Time
 		state.value = value
 
 	case histogram:
-		if len(state.buckets) != len(buckets) {
+		// makeMetricBuckets appends a +Inf bucket, so the state holds one more
+		// entry than the registry slice. Comparing against len(buckets) here
+		// would rebuild — and zero the counts — on every observation.
+		if len(state.buckets) != len(buckets)+1 {
 			state.buckets = makeMetricBuckets(buckets, state.labels)
 		}
 		state.buckets.update(value)
@@ -361,8 +365,18 @@ type metricBucket struct {
 
 type metricBuckets []metricBucket
 
+// makeMetricBuckets builds the bucket set for a histogram state, with one
+// entry per registered boundary plus a final +Inf bucket.
+//
+// The +Inf bucket is not optional: histogram_quantile returns NaN unless the
+// highest bucket has an upper bound of +Inf, and without it observations above
+// the last registered boundary are counted in _sum and _count but land in no
+// bucket at all.
+//
+// Callers that compare an existing bucket set against the registry slice to
+// decide whether to rebuild must account for the extra entry.
 func makeMetricBuckets(buckets []stats.Value, labels labels) metricBuckets {
-	b := make(metricBuckets, len(buckets))
+	b := make(metricBuckets, len(buckets)+1)
 	s := le(buckets)
 
 	for i := range buckets {
@@ -371,6 +385,9 @@ func makeMetricBuckets(buckets []stats.Value, labels labels) metricBuckets {
 		b[i].limit = valueOf(buckets[i])
 		b[i].labels = labels.copyAppend(label{"le", le})
 	}
+
+	b[len(buckets)].limit = math.Inf(1)
+	b[len(buckets)].labels = labels.copyAppend(label{"le", "+Inf"})
 
 	return b
 }
