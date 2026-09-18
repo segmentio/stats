@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -156,5 +157,41 @@ func BenchmarkHandleMetric(b *testing.B) {
 				handler.HandleMeasures(now, metric)
 			}
 		})
+	}
+}
+
+// TestHistogramWithoutRegisteredBuckets covers the fail-silent case: a
+// histogram with no entry in the bucket registry used to publish _sum and
+// _count with no _bucket series at all, so nothing looked wrong and no
+// percentile could be computed.
+func TestHistogramWithoutRegisteredBuckets(t *testing.T) {
+	now := time.Date(2017, 6, 4, 22, 12, 0, 0, time.UTC)
+
+	handler := &Handler{} // no Buckets registry at all
+
+	handler.HandleMeasures(now,
+		stats.Measure{Fields: []stats.Field{stats.MakeField("D", 0.003, stats.Histogram)}},
+		stats.Measure{Fields: []stats.Field{stats.MakeField("D", 0.4, stats.Histogram)}},
+		stats.Measure{Fields: []stats.Field{stats.MakeField("D", 900, stats.Histogram)}},
+	)
+
+	var buf strings.Builder
+	handler.WriteStats(&buf)
+	out := buf.String()
+
+	for _, want := range []string{
+		`D_bucket{le="0.005"} 1`,
+		`D_bucket{le="0.5"} 2`,
+		`D_bucket{le="+Inf"} 3`,
+		`D_count 3`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in output:\n%s", want, out)
+		}
+	}
+
+	// Every registered boundary plus +Inf must be present.
+	if n := strings.Count(out, "D_bucket{"); n != len(DefaultBuckets)+1 {
+		t.Errorf("found %d bucket series, expected %d", n, len(DefaultBuckets)+1)
 	}
 }

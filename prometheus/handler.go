@@ -43,6 +43,8 @@ type Handler struct {
 
 	// Buckets is the registry of histogram buckets used by the handler,
 	// If nil, stats.Buckets is used instead.
+	//
+	// Histograms with no entry in the registry fall back to DefaultBuckets.
 	Buckets stats.HistogramBuckets
 
 	opcount atomic.Uint64
@@ -70,6 +72,15 @@ func (h *Handler) HandleMeasures(mtime time.Time, measures ...stats.Measure) {
 					buckets = b[k]
 				} else {
 					buckets = stats.Buckets[k]
+				}
+
+				// A registry miss returns a nil slice with no error, which
+				// used to mean the histogram was published with _sum and
+				// _count but no _bucket series at all — nothing looked wrong,
+				// and no percentile could be computed. Fall back so that a
+				// histogram is never silently bucket-less.
+				if buckets == nil {
+					buckets = DefaultBuckets
 				}
 			}
 
@@ -199,6 +210,36 @@ func (cache *handleMetricCache) Less(i, j int) bool {
 // namespace off of metrics that it handles.
 var DefaultHandler = &Handler{
 	TrimPrefix: stats.DefaultEngine.Prefix,
+}
+
+// DefaultBuckets is the bucket set used for histograms that have no boundaries
+// registered in stats.Buckets or in Handler.Buckets.
+//
+// The boundaries are the ones used by the reference Prometheus client, chosen
+// for request latencies measured in seconds. stats.Duration values are
+// converted to seconds before bucketing, so timing histograms land on this
+// range without configuration.
+//
+// They are a starting point, not a substitute for choosing boundaries: a
+// bucketed percentile is only as accurate as the bucket it falls in, and a
+// histogram whose values sit outside this range lands entirely in the +Inf
+// bucket. Register real boundaries with Engine.SetBuckets wherever p99
+// accuracy matters.
+//
+// Programs may replace this during initialization, before any measure is
+// handled.
+var DefaultBuckets = []stats.Value{
+	stats.ValueOf(0.005),
+	stats.ValueOf(0.01),
+	stats.ValueOf(0.025),
+	stats.ValueOf(0.05),
+	stats.ValueOf(0.1),
+	stats.ValueOf(0.25),
+	stats.ValueOf(0.5),
+	stats.ValueOf(1.0),
+	stats.ValueOf(2.5),
+	stats.ValueOf(5.0),
+	stats.ValueOf(10.0),
 }
 
 func typeOf(t stats.FieldType) metricType {
