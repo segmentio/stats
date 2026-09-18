@@ -1,6 +1,8 @@
 package prometheus
 
 import (
+	"strconv"
+
 	"github.com/segmentio/fasthash/jody"
 
 	"github.com/segmentio/stats/v5"
@@ -16,7 +18,24 @@ func (l label) equal(other label) bool {
 }
 
 func (l label) less(other label) bool {
-	return l.name < other.name || (l.name == other.name && l.value < other.value)
+	if l.name != other.name {
+		return l.name < other.name
+	}
+
+	// Histogram bucket boundaries have to come out in increasing numeric
+	// order. Comparing them as strings puts "+Inf" first ('+' is ASCII 43,
+	// digits start at 48) and orders "10" ahead of "2".
+	//
+	// Scoped to "le" so that every other label keeps comparing as a string.
+	if l.name == "le" {
+		v1, err1 := strconv.ParseFloat(l.value, 64)
+		v2, err2 := strconv.ParseFloat(other.value, 64)
+		if err1 == nil && err2 == nil {
+			return v1 < v2
+		}
+	}
+
+	return l.value < other.value
 }
 
 type labels []label

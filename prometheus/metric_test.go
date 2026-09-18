@@ -127,16 +127,14 @@ func TestMetricStore(t *testing.T) {
 		{mtype: counter, scope: "test", name: "A", value: 4, labels: labels{{"id", "123"}}},
 		{mtype: gauge, scope: "test", name: "B", value: 42, labels: labels{{"a", "1"}}},
 		{mtype: gauge, scope: "test", name: "B", value: 21, labels: labels{{"a", "1"}, {"b", "2"}}},
-		// The 10 observation exceeds the highest registered boundary and is
-		// counted here, so C_bucket{le="+Inf"} matches C_count.
-		//
-		// +Inf sorts first because label values compare as raw strings and '+'
-		// precedes every digit in ASCII. Fixed in a follow-up commit.
-		{mtype: histogram, scope: "test", name: "C_bucket", value: 4, labels: labels{{"le", "+Inf"}}},
 		{mtype: histogram, scope: "test", name: "C_bucket", value: 2, labels: labels{{"le", "0.25"}}},
 		{mtype: histogram, scope: "test", name: "C_bucket", value: 3, labels: labels{{"le", "0.5"}}},
 		{mtype: histogram, scope: "test", name: "C_bucket", value: 3, labels: labels{{"le", "0.75"}}},
 		{mtype: histogram, scope: "test", name: "C_bucket", value: 3, labels: labels{{"le", "1"}}},
+		// The 10 observation exceeds the highest registered boundary, so the
+		// +Inf bucket matches C_count. It sorts last because le compares
+		// numerically.
+		{mtype: histogram, scope: "test", name: "C_bucket", value: 4, labels: labels{{"le", "+Inf"}}},
 		{mtype: histogram, scope: "test", name: "C_count", value: 4, labels: labels{}},
 		{mtype: histogram, scope: "test", name: "C_sum", value: 10.7, labels: labels{}},
 	}
