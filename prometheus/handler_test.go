@@ -95,9 +95,9 @@ func TestServeHTTP(t *testing.T) {
 
 	b, _ := io.ReadAll(res.Body)
 
-	const expects = `# TYPE A counter
-A 3
-A{id="123"} 4
+	const expects = `# TYPE A_total counter
+A_total 3
+A_total{id="123"} 4
 
 # TYPE B gauge
 B{a="1"} 42
@@ -225,7 +225,7 @@ func TestTypeDeclarationPerScope(t *testing.T) {
 
 	for _, scope := range scopes {
 		for _, want := range []string{
-			"# TYPE " + scope + "_hits counter",
+			"# TYPE " + scope + "_hits_total counter",
 			"# TYPE " + scope + "_size gauge",
 		} {
 			if n := strings.Count(out, want); n != 1 {
@@ -271,7 +271,7 @@ func TestTypeDeclarationAcrossAdjacentScopes(t *testing.T) {
 
 	for _, scope := range scopes {
 		for _, want := range []string{
-			"# TYPE " + scope + "_hits counter",
+			"# TYPE " + scope + "_hits_total counter",
 			"# TYPE " + scope + "_latency histogram",
 		} {
 			if n := strings.Count(out, want); n != 1 {
@@ -282,5 +282,53 @@ func TestTypeDeclarationAcrossAdjacentScopes(t *testing.T) {
 
 	if n := strings.Count(out, "# TYPE "); n != 2*len(scopes) {
 		t.Errorf("found %d type declarations, expected %d:\n%s", n, 2*len(scopes), out)
+	}
+}
+
+// TestCounterTotalSuffix covers the _total naming rule. Only counters get the
+// suffix, and a counter that already carries it is left alone.
+func TestCounterTotalSuffix(t *testing.T) {
+	now := time.Date(2017, 6, 4, 22, 12, 0, 0, time.UTC)
+
+	handler := &Handler{}
+	handler.HandleMeasures(now, stats.Measure{
+		Name: "svc",
+		Fields: []stats.Field{
+			stats.MakeField("requests", 1, stats.Counter),
+			stats.MakeField("errors_total", 2, stats.Counter),
+			stats.MakeField("queue_depth", 3, stats.Gauge),
+			stats.MakeField("latency", 0.1, stats.Histogram),
+		},
+	})
+
+	var buf strings.Builder
+	handler.WriteStats(&buf)
+	out := buf.String()
+
+	for _, want := range []string{
+		"# TYPE svc_requests_total counter",
+		"svc_requests_total 1",
+		// Already suffixed: must not become errors_total_total.
+		"# TYPE svc_errors_total counter",
+		"svc_errors_total 2",
+		// Gauges and histograms are untouched.
+		"# TYPE svc_queue_depth gauge",
+		"svc_queue_depth 3",
+		"# TYPE svc_latency histogram",
+		"svc_latency_count 1",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in output:\n%s", want, out)
+		}
+	}
+
+	for _, unwanted := range []string{
+		"svc_errors_total_total",
+		"svc_queue_depth_total",
+		"svc_latency_total",
+	} {
+		if strings.Contains(out, unwanted) {
+			t.Errorf("unexpected %q in output:\n%s", unwanted, out)
+		}
 	}
 }

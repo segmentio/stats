@@ -100,7 +100,7 @@ func TestMetricStore(t *testing.T) {
 		{mtype: counter, scope: "test", name: "A", value: 2},
 		{mtype: histogram, scope: "test", name: "C", value: 0.1},
 		{mtype: gauge, scope: "test", name: "B", value: 1, labels: labels{{"a", "1"}, {"b", "2"}}},
-		{mtype: counter, scope: "test", name: "A", value: 4, labels: labels{{"id", "123"}}},
+		{mtype: counter, scope: "test", name: "A_total", value: 4, labels: labels{{"id", "123"}}},
 		{mtype: gauge, scope: "test", name: "B", value: 42, labels: labels{{"a", "1"}}},
 		{mtype: histogram, scope: "test", name: "C", value: 0.1},
 		{mtype: gauge, scope: "test", name: "B", value: 21, labels: labels{{"a", "1"}, {"b", "2"}}},
@@ -123,8 +123,8 @@ func TestMetricStore(t *testing.T) {
 	sort.Sort(byNameAndLabels(metrics))
 
 	expects := []metric{
-		{mtype: counter, scope: "test", name: "A", value: 3, labels: labels{}},
-		{mtype: counter, scope: "test", name: "A", value: 4, labels: labels{{"id", "123"}}},
+		{mtype: counter, scope: "test", name: "A_total", value: 3, labels: labels{}},
+		{mtype: counter, scope: "test", name: "A_total", value: 4, labels: labels{{"id", "123"}}},
 		{mtype: gauge, scope: "test", name: "B", value: 42, labels: labels{{"a", "1"}}},
 		{mtype: gauge, scope: "test", name: "B", value: 21, labels: labels{{"a", "1"}, {"b", "2"}}},
 		{mtype: histogram, scope: "test", name: "C_bucket", value: 2, labels: labels{{"le", "0.25"}}},
@@ -253,7 +253,7 @@ func TestMetricStoreCleanup(t *testing.T) {
 	sort.Sort(byNameAndLabels(metrics))
 
 	if !reflect.DeepEqual(metrics, []metric{
-		{mtype: counter, name: "E", value: 1, time: now.Add(time.Second), labels: labels{}},
+		{mtype: counter, name: "E_total", value: 1, time: now.Add(time.Second), labels: labels{}},
 	}) {
 		t.Errorf("bad metrics: %#v", metrics)
 	}

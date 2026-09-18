@@ -151,9 +151,23 @@ func newMetricEntry(mtype metricType, scope, name, help string) *metricEntry {
 		states: make(metricStateMap),
 	}
 
-	if mtype == histogram {
-		// Here we cache those metric names to avoid having to recompute them
-		// every time we collect the state of the metrics.
+	// Here we cache those metric names to avoid having to recompute them
+	// every time we collect the state of the metrics.
+	switch mtype {
+	case counter:
+		// Prometheus expects an accumulating count to carry a "total" suffix.
+		// It is more than convention: the OpenMetrics encoder keys the type
+		// line on the suffix, so a counter without it is published as
+		// unknown.
+		//
+		// A name that already ends in _total is left alone, so a program that
+		// has already adopted the convention does not end up with
+		// requests_total_total.
+		if !strings.HasSuffix(name, "_total") {
+			entry.name = name + "_total"
+		}
+
+	case histogram:
 		entry.bucket = name + "_bucket"
 		entry.sum = name + "_sum"
 		entry.count = name + "_count"
