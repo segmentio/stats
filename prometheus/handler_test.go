@@ -96,21 +96,21 @@ func TestServeHTTP(t *testing.T) {
 	b, _ := io.ReadAll(res.Body)
 
 	const expects = `# TYPE A counter
-A 3 1496614320000
-A{id="123"} 4 1496614320000
+A 3
+A{id="123"} 4
 
 # TYPE B gauge
-B{a="1"} 42 1496614320000
-B{a="1",b="2"} 21 1496614320000
+B{a="1"} 42
+B{a="1",b="2"} 21
 
 # TYPE C histogram
-C_bucket{le="0.25"} 2 1496614320000
-C_bucket{le="0.5"} 3 1496614320000
-C_bucket{le="0.75"} 3 1496614320000
-C_bucket{le="1"} 3 1496614320000
-C_bucket{le="+Inf"} 4 1496614320000
-C_count 4 1496614320000
-C_sum 10.7 1496614320000
+C_bucket{le="0.25"} 2
+C_bucket{le="0.5"} 3
+C_bucket{le="0.75"} 3
+C_bucket{le="1"} 3
+C_bucket{le="+Inf"} 4
+C_count 4
+C_sum 10.7
 `
 
 	if s := string(b); s != expects {
