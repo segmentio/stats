@@ -451,8 +451,24 @@ func (metrics byNameAndLabels) Swap(i, j int) {
 	metrics[i], metrics[j] = metrics[j], metrics[i]
 }
 
+// Less orders by scope before name, so that every metric sharing a scope and
+// a root name stays contiguous in the output.
+//
+// Ordering on the bare name would interleave same-named fields coming from
+// different engine prefixes — hits from two WithPrefix sub-engines, say —
+// which breaks up the family a single "# TYPE" line is meant to cover.
+//
+// Comparing the two parts in turn rather than the joined "scope_name" avoids
+// building a string for every comparison in the sort.
 func (metrics byNameAndLabels) Less(i, j int) bool {
 	m1 := &metrics[i]
 	m2 := &metrics[j]
-	return m1.name < m2.name || (m1.name == m2.name && m1.labels.less(m2.labels))
+
+	if m1.scope != m2.scope {
+		return m1.scope < m2.scope
+	}
+	if m1.name != m2.name {
+		return m1.name < m2.name
+	}
+	return m1.labels.less(m2.labels)
 }

@@ -195,3 +195,92 @@ func TestHistogramWithoutRegisteredBuckets(t *testing.T) {
 		t.Errorf("found %d bucket series, expected %d", n, len(DefaultBuckets)+1)
 	}
 }
+
+// TestTypeDeclarationPerScope covers same-named fields arriving from
+// different engine prefixes, which is what deriving sub-engines with
+// WithPrefix produces.
+//
+// The dedup used to compare the bare field name with the scope discarded, so
+// only the first scope to emit "hits" got a "# TYPE" line and every later one
+// ingested as untyped.
+func TestTypeDeclarationPerScope(t *testing.T) {
+	now := time.Date(2017, 6, 4, 22, 12, 0, 0, time.UTC)
+
+	handler := &Handler{}
+
+	scopes := []string{"alpha", "beta", "gamma"}
+	for _, scope := range scopes {
+		handler.HandleMeasures(now, stats.Measure{
+			Name: scope,
+			Fields: []stats.Field{
+				stats.MakeField("hits", 1, stats.Counter),
+				stats.MakeField("size", 2, stats.Gauge),
+			},
+		})
+	}
+
+	var buf strings.Builder
+	handler.WriteStats(&buf)
+	out := buf.String()
+
+	for _, scope := range scopes {
+		for _, want := range []string{
+			"# TYPE " + scope + "_hits counter",
+			"# TYPE " + scope + "_size gauge",
+		} {
+			if n := strings.Count(out, want); n != 1 {
+				t.Errorf("found %q %d times, expected exactly 1:\n%s", want, n, out)
+			}
+		}
+	}
+
+	// Six metrics, six type declarations, none repeated.
+	if n := strings.Count(out, "# TYPE "); n != 2*len(scopes) {
+		t.Errorf("found %d type declarations, expected %d", n, 2*len(scopes))
+	}
+}
+
+// TestTypeDeclarationAcrossAdjacentScopes is the tighter version of the case
+// above: when each scope exposes the same single field name, the families are
+// adjacent in the output and a dedup that compares the bare name suppresses
+// every one after the first.
+func TestTypeDeclarationAcrossAdjacentScopes(t *testing.T) {
+	now := time.Date(2017, 6, 4, 22, 12, 0, 0, time.UTC)
+
+	handler := &Handler{}
+
+	scopes := []string{"alpha", "beta", "gamma"}
+	for _, scope := range scopes {
+		handler.HandleMeasures(now, stats.Measure{
+			Name: scope,
+			Fields: []stats.Field{
+				stats.MakeField("hits", 1, stats.Counter),
+				// A histogram spans three series names, so its family only
+				// stays contiguous if the sort orders by scope before name.
+				// Sorting on the bare name groups every scope's _bucket
+				// together and pushes _count and _sum away from it, which
+				// makes the same family declare its type more than once.
+				stats.MakeField("latency", 0.1, stats.Histogram),
+			},
+		})
+	}
+
+	var buf strings.Builder
+	handler.WriteStats(&buf)
+	out := buf.String()
+
+	for _, scope := range scopes {
+		for _, want := range []string{
+			"# TYPE " + scope + "_hits counter",
+			"# TYPE " + scope + "_latency histogram",
+		} {
+			if n := strings.Count(out, want); n != 1 {
+				t.Errorf("found %q %d times, expected exactly 1:\n%s", want, n, out)
+			}
+		}
+	}
+
+	if n := strings.Count(out, "# TYPE "); n != 2*len(scopes) {
+		t.Errorf("found %d type declarations, expected %d:\n%s", n, 2*len(scopes), out)
+	}
+}

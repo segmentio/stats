@@ -152,15 +152,25 @@ func (h *Handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 func (h *Handler) WriteStats(w io.Writer) {
 	b := make([]byte, 1024)
 
-	var lastMetricName string
+	// A metric family is identified by its scope and root name together. The
+	// scope cannot be dropped here: two sub-engines derived with WithPrefix
+	// commonly expose the same field name, and comparing the bare name made
+	// the second family look like a repeat of the first, so its "# TYPE" line
+	// was suppressed and it ingested as untyped.
+	//
+	// byNameAndLabels.Less orders by scope before name for the same reason.
+	// Deduplicating on the scoped name without that ordering would turn
+	// missing type declarations into duplicate ones.
+	var lastScope, lastRootName string
+
 	metrics := h.metrics.collect(make([]metric, 0, 10000))
 	sort.Sort(byNameAndLabels(metrics))
 
 	for i, m := range metrics {
 		b = b[:0]
-		name := m.rootName()
+		scope, name := m.scope, m.rootName()
 
-		if name == lastMetricName {
+		if scope == lastScope && name == lastRootName {
 			// Silence the repeated output of type for values belonging to the
 			// same metric.
 			m.mtype, m.help = untyped, ""
@@ -171,7 +181,7 @@ func (h *Handler) WriteStats(w io.Writer) {
 		}
 
 		_, _ = w.Write(appendMetric(b, m))
-		lastMetricName = name
+		lastScope, lastRootName = scope, name
 	}
 }
 
