@@ -2,6 +2,57 @@
 
 ### v5.11.0 (Unreleased)
 
+**The `prometheus` handler's exposition has changed. Nothing fails to compile,
+but the series it publishes are different, so anyone already scraping this
+package will see renamed metrics and different staleness behaviour on upgrade.**
+The `datadog`, `influxdb`, `otlp` and `veneur` handlers are untouched.
+
+What changed, and why:
+
+- **Counters are now suffixed with `_total`.** `Incr("requests")` published
+  `app_requests` and now publishes `app_requests_total`. This is not only
+  Prometheus naming convention: the OpenMetrics encoder keys the type line on
+  the suffix, so a counter without it was published as `unknown`. A name that
+  already ends in `_total` is left alone. **Queries and dashboards referring to
+  the old names need updating.**
+
+- **Histograms always emit a `+Inf` bucket.** The handler allocated exactly one
+  bucket per registered boundary and never appended an overflow bucket, so
+  observations above the highest boundary were counted in `_sum` and `_count`
+  but landed in no bucket at all. `histogram_quantile()` returns `NaN` unless
+  the highest bucket is `+Inf`, so no histogram published by this handler could
+  be evaluated.
+
+- **Histograms with no registered boundaries fall back to `prometheus.DefaultBuckets`.**
+  `stats.Buckets` is empty by default and a miss returned a nil slice with no
+  error, so such a histogram published `_sum` and `_count` with no `_bucket`
+  series and nothing looked wrong. The defaults are the reference Prometheus
+  client's, suited to latencies in seconds; they are a floor, not a substitute
+  for choosing boundaries. **This adds bucket series for histograms that
+  previously published none.**
+
+- **Bucket `le` labels sort numerically.** They compared as raw strings, which
+  put `+Inf` first and `10` ahead of `2`.
+
+- **`# TYPE` is declared once per scope, not once per field name.** The dedup
+  discarded the scope, so same-named fields coming from different engine
+  prefixes looked like repeats and every one after the first was published
+  untyped. Sub-engines derived with `WithPrefix` exist precisely so subsystems
+  can reuse short field names, so this fired readily.
+
+- **Timestamps are no longer exposed.** The field is optional, and a series
+  carrying one opts out of Prometheus stale-marker handling — the scraper kept
+  serving the last value for five minutes after a series stopped being
+  exported. The scraper now assigns scrape time. `MetricTimeout` is unaffected.
+
+- **New: `Engine.SetBuckets(name, buckets...)`.** `Observe` takes a name
+  relative to the engine, while `HistogramBuckets.Set` needs the
+  fully-qualified name, so registering buckets meant restating the engine
+  prefix — and a mismatch was an ordinary map miss, indistinguishable from no
+  registration at all. `SetBuckets` derives the key from the engine's own
+  prefix, so callers pass the same string they pass to `Observe` and a
+  `WithPrefix` sub-engine computes its own key. `Buckets.Set` is unchanged.
+
 **The minimum supported Go version is now 1.26.** The `golang.org/x/*` modules
 (`net`, `sys`, `sync`, `text`) all declare `go 1.26.0` as of their latest
 releases, and `stats` depends on them both directly and transitively through
