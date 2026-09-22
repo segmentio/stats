@@ -14,7 +14,9 @@ What changed, and why:
   Prometheus naming convention: the OpenMetrics encoder keys the type line on
   the suffix, so a counter without it was published as `unknown`. A name that
   already ends in `_total` is left alone. **Queries and dashboards referring to
-  the old names need updating.**
+  the old names need updating.** This includes the metrics the library reports
+  about itself: `go_version_value` and `stats_version_value` become
+  `go_version_value_total` and `stats_version_value_total`.
 
 - **Histograms always emit a `+Inf` bucket.** The handler allocated exactly one
   bucket per registered boundary and never appended an overflow bucket, so
@@ -29,7 +31,11 @@ What changed, and why:
   series and nothing looked wrong. The defaults are the reference Prometheus
   client's, suited to latencies in seconds; they are a floor, not a substitute
   for choosing boundaries. **This adds bucket series for histograms that
-  previously published none.**
+  previously published none:** a histogram that published 2 series (`_sum`,
+  `_count`) now publishes 14 (11 boundaries, `+Inf`, `_sum` and `_count`), per
+  label set. `stats.Buckets` is empty unless a program populates it, so this
+  applies to every histogram without registered boundaries. Counters and gauges
+  are unaffected — they publish one series each, as before.
 
 - **Bucket `le` labels sort numerically.** They compared as raw strings, which
   put `+Inf` first and `10` ahead of `2`.
@@ -39,6 +45,12 @@ What changed, and why:
   prefixes looked like repeats and every one after the first was published
   untyped. Sub-engines derived with `WithPrefix` exist precisely so subsystems
   can reuse short field names, so this fired readily.
+  The handler now tracks every family it has declared rather than comparing
+  each metric against the previous one, so a family interrupted in the sorted
+  output is no longer declared twice. A repeated `# TYPE` makes the text format
+  parser reject the entire exposition, so this also fixes scrapes that failed
+  outright when a histogram shared a scope with a field sorting between its
+  `_bucket` and `_sum` series — `latency` next to `latency_size`, say.
 
 - **Timestamps are no longer exposed.** The field is optional, and a series
   carrying one opts out of Prometheus stale-marker handling — the scraper kept

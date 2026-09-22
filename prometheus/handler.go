@@ -20,7 +20,9 @@ import (
 // Typically, a program creates one Handler, registers it to the stats package,
 // and adds it to the muxer used by the application under the /metrics path.
 //
-// The handle ignores histograms that have no buckets set.
+// Histograms with no buckets registered in Buckets — or in stats.Buckets
+// when that field is nil — are published with DefaultBuckets rather than
+// with no bucket series at all.
 type Handler struct {
 	// Setting this field will trim this prefix from metric namespaces of the
 	// metrics received by this handler.
