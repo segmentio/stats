@@ -425,3 +425,34 @@ func TestHistogramWithEmptyRegisteredBuckets(t *testing.T) {
 		t.Errorf("found %d bucket series, expected %d:\n%s", n, len(DefaultBuckets)+1, out)
 	}
 }
+
+func TestTypeDeclaredOnceWhenFamilyIsInterrupted(t *testing.T) {
+	now := time.Date(2017, 6, 4, 22, 12, 0, 0, time.UTC)
+
+	// Sorting keeps a scope contiguous, but not a root name within it: a
+	// histogram "query" emits query_bucket, query_count and query_sum, and a
+	// sibling gauge "query_depth" sorts between the last two. Comparing each
+	// metric against only its predecessor then sees query_sum as a new family
+	// and declares "# TYPE" for it a second time.
+	//
+	// A repeated type declaration is not a dropped sample — the text format
+	// parser rejects the whole exposition, so the entire scrape fails.
+	handler := &Handler{}
+
+	handler.HandleMeasures(now,
+		stats.Measure{Name: "app", Fields: []stats.Field{stats.MakeField("query", 0.5, stats.Histogram)}},
+		stats.Measure{Name: "app", Fields: []stats.Field{stats.MakeField("query_depth", 7, stats.Gauge)}},
+	)
+
+	var buf strings.Builder
+	handler.WriteStats(&buf)
+	out := buf.String()
+
+	if n := strings.Count(out, "# TYPE app_query histogram"); n != 1 {
+		t.Errorf("declared the histogram type %d times, expected 1:\n%s", n, out)
+	}
+
+	if n := strings.Count(out, "# TYPE app_query_depth gauge"); n != 1 {
+		t.Errorf("declared the gauge type %d times, expected 1:\n%s", n, out)
+	}
+}

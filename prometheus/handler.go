@@ -176,18 +176,26 @@ func (h *Handler) WriteStats(w io.Writer) {
 	// was suppressed and it ingested as untyped.
 	//
 	// byNameAndLabels.Less orders by scope before name for the same reason.
-	// Deduplicating on the scoped name without that ordering would turn
-	// missing type declarations into duplicate ones.
-	var lastScope, lastRootName string
+	//
+	// Tracking every family declared so far, rather than comparing against the
+	// previous metric, is what makes "declared exactly once" hold. The sort
+	// keeps a scope contiguous but not a root name within it, because it
+	// orders on the series name while a family is keyed on the root: a
+	// histogram "q" emits q_bucket, q_count and q_sum, and a sibling "q_bytes"
+	// sorts between the first two. A one-metric memory forgets q was declared
+	// and declares it again — and a repeated declaration is not a dropped
+	// sample, it makes the text format parser reject the whole exposition, so
+	// the entire scrape fails.
+	declared := make(map[metricKey]struct{})
 
 	metrics := h.metrics.collect(make([]metric, 0, 10000))
 	sort.Sort(byNameAndLabels(metrics))
 
 	for i, m := range metrics {
 		b = b[:0]
-		scope, name := m.scope, m.rootName()
+		family := metricKey{scope: m.scope, name: m.rootName()}
 
-		if scope == lastScope && name == lastRootName {
+		if _, seen := declared[family]; seen {
 			// Silence the repeated output of type for values belonging to the
 			// same metric.
 			m.mtype, m.help = untyped, ""
@@ -198,7 +206,7 @@ func (h *Handler) WriteStats(w io.Writer) {
 		}
 
 		_, _ = w.Write(appendMetric(b, m))
-		lastScope, lastRootName = scope, name
+		declared[family] = struct{}{}
 	}
 }
 
