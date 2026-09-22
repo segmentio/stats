@@ -3,6 +3,7 @@ package prometheus
 import (
 	"compress/gzip"
 	"io"
+	"math"
 	"net/http"
 	"sort"
 	"strings"
@@ -79,8 +80,24 @@ func (h *Handler) HandleMeasures(mtime time.Time, measures ...stats.Measure) {
 				// _count but no _bucket series at all — nothing looked wrong,
 				// and no percentile could be computed. Fall back so that a
 				// histogram is never silently bucket-less.
-				if buckets == nil {
+				if len(buckets) == 0 {
 					buckets = DefaultBuckets
+				}
+
+				// makeMetricBuckets appends the +Inf bucket itself. Ending a
+				// registered set with math.Inf(+1) is a common idiom — every
+				// bucket set in httpstats, netstats and procstats does it —
+				// and would otherwise yield two le="+Inf" series, the second
+				// of them unreachable because metricBuckets.update stops at
+				// the first match.
+				//
+				// Trimming here rather than in makeMetricBuckets is
+				// deliberate: metricState.update decides whether to rebuild by
+				// comparing against len(buckets)+1, so a makeMetricBuckets
+				// that sometimes returned len(buckets) entries would rebuild —
+				// and zero the counts — on every observation.
+				if n := len(buckets); n > 0 && math.IsInf(valueOf(buckets[n-1]), 1) {
+					buckets = buckets[:n-1]
 				}
 			}
 

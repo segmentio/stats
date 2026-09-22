@@ -3,6 +3,7 @@ package prometheus
 import (
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -330,5 +331,97 @@ func TestCounterTotalSuffix(t *testing.T) {
 		if strings.Contains(out, unwanted) {
 			t.Errorf("unexpected %q in output:\n%s", unwanted, out)
 		}
+	}
+}
+
+func TestHistogramWithRegisteredInfBoundary(t *testing.T) {
+	now := time.Date(2017, 6, 4, 22, 12, 0, 0, time.UTC)
+
+	// Ending a registered set with +Inf is the idiom used by every bucket set
+	// in httpstats, netstats and procstats.
+	handler := &Handler{Buckets: stats.HistogramBuckets{}}
+	handler.Buckets.Set("D", 0.1, 1.0, math.Inf(+1))
+
+	handler.HandleMeasures(now,
+		stats.Measure{Fields: []stats.Field{stats.MakeField("D", 0.05, stats.Histogram)}},
+		stats.Measure{Fields: []stats.Field{stats.MakeField("D", 5.0, stats.Histogram)}},
+	)
+
+	var buf strings.Builder
+	handler.WriteStats(&buf)
+	out := buf.String()
+
+	// The registered +Inf is used as-is; makeMetricBuckets must not append a
+	// second one, which would be an unreachable duplicate series.
+	if n := strings.Count(out, `D_bucket{le="+Inf"}`); n != 1 {
+		t.Errorf("found %d +Inf bucket series, expected 1:\n%s", n, out)
+	}
+
+	if n := strings.Count(out, "D_bucket{"); n != 3 {
+		t.Errorf("found %d bucket series, expected 3:\n%s", n, out)
+	}
+
+	for _, want := range []string{
+		`D_bucket{le="0.1"} 1`,
+		`D_bucket{le="1"} 1`,
+		`D_bucket{le="+Inf"} 2`,
+		`D_count 2`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in output:\n%s", want, out)
+		}
+	}
+}
+
+func TestHistogramWithRegisteredInfBoundaryAccumulates(t *testing.T) {
+	now := time.Date(2017, 6, 4, 22, 12, 0, 0, time.UTC)
+
+	handler := &Handler{Buckets: stats.HistogramBuckets{}}
+	handler.Buckets.Set("D", 0.1, 1.0, math.Inf(+1))
+
+	for i := 0; i < 5; i++ {
+		handler.HandleMeasures(now,
+			stats.Measure{Fields: []stats.Field{stats.MakeField("D", 0.05, stats.Histogram)}},
+		)
+	}
+
+	var buf strings.Builder
+	handler.WriteStats(&buf)
+	out := buf.String()
+
+	// Trimming the registered +Inf has to leave metricState.update's
+	// len(buckets)+1 rebuild check intact. If it does not, the bucket set is
+	// reallocated on every observation and the counts reset, leaving _count
+	// climbing while every _bucket stays at 0 or 1.
+	for _, want := range []string{
+		`D_bucket{le="0.1"} 5`,
+		`D_bucket{le="+Inf"} 5`,
+		`D_count 5`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in output — bucket state was rebuilt per observation:\n%s", want, out)
+		}
+	}
+}
+
+func TestHistogramWithEmptyRegisteredBuckets(t *testing.T) {
+	now := time.Date(2017, 6, 4, 22, 12, 0, 0, time.UTC)
+
+	// HistogramBuckets.Set allocates with make, so an empty registration is a
+	// non-nil zero-length slice. It has to reach the DefaultBuckets fallback
+	// just as an absent registration does.
+	handler := &Handler{Buckets: stats.HistogramBuckets{}}
+	handler.Buckets.Set("D")
+
+	handler.HandleMeasures(now,
+		stats.Measure{Fields: []stats.Field{stats.MakeField("D", 0.05, stats.Histogram)}},
+	)
+
+	var buf strings.Builder
+	handler.WriteStats(&buf)
+	out := buf.String()
+
+	if n := strings.Count(out, "D_bucket{"); n != len(DefaultBuckets)+1 {
+		t.Errorf("found %d bucket series, expected %d:\n%s", n, len(DefaultBuckets)+1, out)
 	}
 }
