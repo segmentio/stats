@@ -252,8 +252,12 @@ func TestMetricStoreCleanup(t *testing.T) {
 	metrics := store.collect(nil)
 	sort.Sort(byNameAndLabels(metrics))
 
+	// collect() does not carry state.time onto the collected metric: nothing
+	// reads it since appendMetric stopped emitting timestamps. The input times
+	// above are what drive expiry, and which entries survive is what this
+	// asserts.
 	if !reflect.DeepEqual(metrics, []metric{
-		{mtype: counter, name: "E_total", value: 1, time: now.Add(time.Second), labels: labels{}},
+		{mtype: counter, name: "E_total", value: 1, labels: labels{}},
 	}) {
 		t.Errorf("bad metrics: %#v", metrics)
 	}

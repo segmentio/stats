@@ -298,6 +298,10 @@ func (state *metricState) update(mtype metricType, value float64, time time.Time
 func (state *metricState) collect(metrics []metric, entry *metricEntry) []metric {
 	state.mutex.Lock()
 
+	// metric.time is deliberately not set here. appendMetric no longer writes
+	// a timestamp, so nothing on the output path reads it; the field stays on
+	// the struct for the input path, where metricStore.update carries it into
+	// state.time and MetricTimeout expiry depends on it.
 	switch entry.mtype {
 	case counter, gauge:
 		metrics = append(metrics, metric{
@@ -306,7 +310,6 @@ func (state *metricState) collect(metrics []metric, entry *metricEntry) []metric
 			name:   entry.name,
 			help:   entry.help,
 			value:  state.value,
-			time:   state.time,
 			labels: state.labels,
 		})
 
@@ -323,7 +326,6 @@ func (state *metricState) collect(metrics []metric, entry *metricEntry) []metric
 				name:   entry.bucket,
 				help:   entry.help,
 				value:  float64(cumulativeCount),
-				time:   state.time,
 				labels: bucket.labels,
 			})
 		}
@@ -334,7 +336,6 @@ func (state *metricState) collect(metrics []metric, entry *metricEntry) []metric
 				name:   entry.sum,
 				help:   entry.help,
 				value:  state.sum,
-				time:   state.time,
 				labels: state.labels,
 			},
 			metric{
@@ -343,7 +344,6 @@ func (state *metricState) collect(metrics []metric, entry *metricEntry) []metric
 				name:   entry.count,
 				help:   entry.help,
 				value:  float64(state.count),
-				time:   state.time,
 				labels: state.labels,
 			},
 		)
