@@ -4,6 +4,7 @@ import (
 	"math"
 	"reflect"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -123,7 +124,11 @@ func TestMetricStore(t *testing.T) {
 	sort.Sort(byNameAndLabels(metrics))
 
 	expects := []metric{
-		{mtype: counter, scope: "test", name: "A_total", value: 3, labels: labels{}},
+		// "A" would be suffixed to A_total, which the sibling field A_total
+		// already occupies — one # TYPE line over two samples, of which a
+		// scraper keeps one. The suffix is dropped instead, leaving two
+		// distinct families.
+		{mtype: counter, scope: "test", name: "A", value: 3, labels: labels{}},
 		{mtype: counter, scope: "test", name: "A_total", value: 4, labels: labels{{"id", "123"}}},
 		{mtype: gauge, scope: "test", name: "B", value: 42, labels: labels{{"a", "1"}}},
 		{mtype: gauge, scope: "test", name: "B", value: 21, labels: labels{{"a", "1"}, {"b", "2"}}},
@@ -343,5 +348,132 @@ func TestMakeMetricBucketsAppendsInf(t *testing.T) {
 				t.Errorf("overflow observation not counted in +Inf bucket (count = %d)", c)
 			}
 		})
+	}
+}
+
+// TestCounterTotalSuffixUsesRenderedName pins the suffix check to the name as exposed rather
+// than as received. A field is joined to its scope by an "_", so Incr("x.total")
+// arrives here as the bare field "total" and is already suffixed once written;
+// "." also renders as "_", so a dotted name can be suffixed too. Testing the
+// raw name misses both and publishes _total_total.
+func TestCounterTotalSuffixUsesRenderedName(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		want string
+	}{
+		{name: "hits", want: "hits_total"},
+		{name: "hits_total", want: "hits_total"},
+		{name: "total", want: "total"},
+		{name: "requests.total", want: "requests.total"},
+		{name: "subtotal", want: "subtotal_total"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if entry := newMetricEntry(counter, "app", test.name, ""); entry.name != test.want {
+				t.Errorf("newMetricEntry(%q).name = %q, expected %q",
+					test.name, entry.name, test.want)
+			}
+		})
+	}
+}
+
+// TestCounterTotalSuffixDottedName is the same invariant at the other end:
+// e.Incr("requests.total") must not publish app_requests_total_total.
+func TestCounterTotalSuffixDottedName(t *testing.T) {
+	h := &Handler{}
+
+	// What Incr("requests.total") produces: measure "app.requests", field "total".
+	h.HandleMeasures(time.Now(), stats.Measure{
+		Name:   "app.requests",
+		Fields: []stats.Field{stats.MakeField("total", 1, stats.Counter)},
+	})
+
+	var buf strings.Builder
+	h.WriteStats(&buf)
+	out := buf.String()
+
+	if !strings.Contains(out, "app_requests_total 1") {
+		t.Errorf("expected app_requests_total:\n%s", out)
+	}
+	if strings.Contains(out, "total_total") {
+		t.Errorf("counter was double-suffixed:\n%s", out)
+	}
+}
+
+// TestCounterTotalSuffixCollision covers the pair the suffix rule can bring
+// onto one name. Both families have to survive, whichever order they arrive
+// in, so that neither sample is dropped by the scraper.
+func TestCounterTotalSuffixCollision(t *testing.T) {
+	for _, order := range [][]string{
+		{"hits", "hits_total"},
+		{"hits_total", "hits"},
+	} {
+		t.Run(strings.Join(order, ","), func(t *testing.T) {
+			h := &Handler{}
+
+			for _, name := range order {
+				h.HandleMeasures(time.Now(), stats.Measure{
+					Name:   "svc",
+					Fields: []stats.Field{stats.MakeField(name, 1, stats.Counter)},
+				})
+			}
+
+			var buf strings.Builder
+			h.WriteStats(&buf)
+			out := buf.String()
+
+			for _, want := range []string{
+				"# TYPE svc_hits counter",
+				"svc_hits 1",
+				"# TYPE svc_hits_total counter",
+				"svc_hits_total 1",
+			} {
+				if !strings.Contains(out, want) {
+					t.Errorf("missing %q in output:\n%s", want, out)
+				}
+			}
+
+			// One sample each. Two would mean they collided onto one name.
+			if n := strings.Count(out, "svc_hits_total 1"); n != 1 {
+				t.Errorf("found %d svc_hits_total samples, expected 1:\n%s", n, out)
+			}
+		})
+	}
+}
+
+// TestCounterTotalSuffixCollisionSurvivesCleanup covers the collision outliving
+// the entry that caused it. The sibling stops being reported and is swept by
+// the MetricTimeout cleanup; the counter must keep the name it has been
+// publishing under, because changing it reads to a scraper as one series going
+// stale and another appearing.
+func TestCounterTotalSuffixCollisionSurvivesCleanup(t *testing.T) {
+	now := time.Now()
+	h := &Handler{}
+
+	h.HandleMeasures(now, stats.Measure{
+		Name:   "svc",
+		Fields: []stats.Field{stats.MakeField("hits", 1, stats.Counter)},
+	})
+	h.HandleMeasures(now.Add(-time.Hour), stats.Measure{
+		Name:   "svc",
+		Fields: []stats.Field{stats.MakeField("hits_total", 5, stats.Counter)},
+	})
+
+	var buf strings.Builder
+	h.WriteStats(&buf)
+	if out := buf.String(); !strings.Contains(out, "svc_hits 1") {
+		t.Fatalf("expected svc_hits before cleanup:\n%s", out)
+	}
+
+	h.metrics.cleanup(now.Add(-2 * time.Minute))
+
+	buf.Reset()
+	h.WriteStats(&buf)
+	out := buf.String()
+
+	if !strings.Contains(out, "svc_hits 1") {
+		t.Errorf("counter renamed itself after the sibling expired:\n%s", out)
+	}
+	if strings.Contains(out, "svc_hits_total") {
+		t.Errorf("counter took the expired sibling's name:\n%s", out)
 	}
 }

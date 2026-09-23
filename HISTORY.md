@@ -13,7 +13,19 @@ What changed, and why:
   `app_requests` and now publishes `app_requests_total`. This is not only
   Prometheus naming convention: the OpenMetrics encoder keys the type line on
   the suffix, so a counter without it was published as `unknown`. A name that
-  already ends in `_total` is left alone. **Queries and dashboards referring to
+  already ends in `_total` is left alone — as judged on the name once exposed,
+  not as received: a field is joined to its scope by an `_`, so
+  `Incr("requests.total")` reports the bare field `total` and already publishes
+  `app_requests_total`, and `.` renders as `_` besides. Where the suffix
+  would land on a name a sibling field already occupies — a counter `hits`
+  beside a field `hits_total` in the same scope — **the suffix is dropped
+  rather than the two being merged onto one series.** `svc.hits` publishes
+  `svc_hits` and `svc.hits_total` publishes `svc_hits_total`; merging them put
+  two samples with identical labels under one `# TYPE` line, of which a scraper
+  keeps one. Which names the handler has seen decides this — not the order they
+  arrived in, and not which are still live, so a counter does not change the
+  name it publishes under when its sibling stops being reported and is swept
+  by the `MetricTimeout` cleanup. **Queries and dashboards referring to
   the old names need updating.** This includes the metrics the library reports
   about itself: `go_version_value` and `stats_version_value` become
   `go_version_value_total` and `stats_version_value_total`.
@@ -22,8 +34,8 @@ What changed, and why:
   bucket per registered boundary and never appended an overflow bucket, so
   observations above the highest boundary were counted in `_sum` and `_count`
   but landed in no bucket at all. `histogram_quantile()` returns `NaN` unless
-  the highest bucket is `+Inf`, so no histogram published by this handler could
-  be evaluated.
+  the highest bucket is `+Inf`, so any histogram whose registered boundaries
+  did not already end in `math.Inf(+1)` could not be evaluated.
 
 - **Histograms with no registered boundaries fall back to `prometheus.DefaultBuckets`.**
   `stats.Buckets` is empty by default and a miss returned a nil slice with no
@@ -33,8 +45,9 @@ What changed, and why:
   for choosing boundaries. **This adds bucket series for histograms that
   previously published none:** a histogram that published 2 series (`_sum`,
   `_count`) now publishes 14 (11 boundaries, `+Inf`, `_sum` and `_count`), per
-  label set. `stats.Buckets` is empty unless a program populates it, so this
-  applies to every histogram without registered boundaries. Counters and gauges
+  label set. This applies to every histogram the lookup finds nothing for; the
+  registrations shipped by `httpstats` and `netstats` now resolve (below), so
+  those get their own boundaries rather than these. Counters and gauges
   are unaffected — they publish one series each, as before.
 
 - **Bucket `le` labels sort numerically.** They compared as raw strings, which
@@ -57,13 +70,48 @@ What changed, and why:
   serving the last value for five minutes after a series stopped being
   exported. The scraper now assigns scrape time. `MetricTimeout` is unaffected.
 
+- **Bucket registrations made by `httpstats` and `netstats` now resolve.** They
+  never had. `HistogramBuckets.Set` splits its argument on the last `.`, but
+  these registrations are written `"http.message:body.bytes"` — the `:` form
+  `splitMeasureField` used before b45dd38 ("fix typo in `splitMeasureField()`",
+  Aug 2019) changed the separator. The strings were never updated, so each has
+  been keyed on a name nothing looks up since. The string form cannot express
+  these keys at all: `Set` cuts at the last `.`, and every one of these fields
+  carries one of its own (`body.bytes`, `header.size`, `rtt.seconds`). A second
+  mismatch sat behind the first — the lookup uses the measure name after the
+  engine prefix is attached, and a package registering from `init()` cannot
+  know that prefix. **This changes the series published for anyone using
+  `httpstats` or `netstats`:** those histograms published no `_bucket` series
+  before, and would otherwise have taken the seconds-scale `DefaultBuckets`
+  above — eleven boundaries no byte count can reach. They now publish the byte
+  and duration boundaries those packages declare. `procstats` registers
+  `"go.memstats:gc_pause.seconds"` for fields declared `type:"gauge"`, so that
+  entry remains inert and is left alone.
+
+- **New: `HistogramBuckets.SetKey`, `SetUnprefixed` and `Lookup`.** `SetKey`
+  takes the `Measure` and `Field` halves directly, reaching keys `Set` cannot
+  express. `SetUnprefixed` registers a measure named without the prefix an
+  engine will add to it, for packages registering from `init()`, and `Lookup`
+  resolves those by dropping leading segments from the measure name after an
+  exact lookup fails. Exact registrations always win, and only registrations
+  made through `SetUnprefixed` are matched that way: matching every
+  registration by suffix cannot tell a derived measure from an unrelated one
+  ending the same way. `Set` is unchanged, and the `otlp` handler — which reads
+  the registry directly — is untouched.
+
 - **New: `Engine.SetBuckets(name, buckets...)`.** `Observe` takes a name
   relative to the engine, while `HistogramBuckets.Set` needs the
   fully-qualified name, so registering buckets meant restating the engine
   prefix — and a mismatch was an ordinary map miss, indistinguishable from no
   registration at all. `SetBuckets` derives the key from the engine's own
-  prefix, so callers pass the same string they pass to `Observe` and a
-  `WithPrefix` sub-engine computes its own key. `Buckets.Set` is unchanged.
+  prefix, so callers pass the same string they pass to `Observe`. An ancestor
+  can register for a sub-engine by naming the path to it —
+  `root.SetBuckets("db.latency", ...)` covers
+  `root.WithPrefix("db").Observe("latency", ...)` — so one `init` function
+  covers a whole tree. Buckets are not inherited: a sub-engine resolves only
+  what was registered for its own prefix. A `Handler` holding its own non-nil
+  `Buckets` never reads the global registry, so `SetBuckets` has no effect on
+  it. `Buckets.Set` is unchanged.
 
 **The minimum supported Go version is now 1.26.** The `golang.org/x/*` modules
 (`net`, `sys`, `sync`, `text`) all declare `go 1.26.0` as of their latest

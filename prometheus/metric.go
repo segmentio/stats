@@ -67,6 +67,14 @@ func (m metric) rootName() string {
 type metricStore struct {
 	mutex   sync.RWMutex
 	entries map[metricKey]*metricEntry
+
+	// Every name the store has ever held, which cleanup deliberately does not
+	// prune: exposedName has to keep deciding the same way after a colliding
+	// entry expires, or a counter would change the name it publishes under
+	// mid-process. Metric names come from the program rather than from the
+	// data, so this is bounded by its vocabulary — label cardinality lives in
+	// metricEntry.states, not here.
+	names map[metricKey]struct{}
 }
 
 func (store *metricStore) lookup(mtype metricType, key metricKey, help string) *metricEntry {
@@ -87,6 +95,11 @@ func (store *metricStore) lookup(mtype metricType, key metricKey, help string) *
 		if entry = store.entries[key]; entry == nil || entry.mtype != mtype {
 			entry = newMetricEntry(mtype, key.scope, key.name, help)
 			store.entries[key] = entry
+
+			if store.names == nil {
+				store.names = make(map[metricKey]struct{})
+			}
+			store.names[key] = struct{}{}
 		}
 
 		store.mutex.Unlock()
@@ -104,12 +117,38 @@ func (store *metricStore) update(metric metric, buckets []stats.Value) {
 func (store *metricStore) collect(metrics []metric) []metric {
 	store.mutex.RLock()
 
-	for _, entry := range store.entries {
-		metrics = entry.collect(metrics)
+	for key, entry := range store.entries {
+		metrics = entry.collect(metrics, store.exposedName(key, entry))
 	}
 
 	store.mutex.RUnlock()
 	return metrics
+}
+
+// exposedName returns the name entry publishes under.
+//
+// It is entry.name except where the _total suffix added to a counter would
+// land on a name some other field in the same scope already occupies: a
+// counter "hits" and a sibling field "hits_total" both render
+// <scope>_hits_total, one # TYPE line covers the pair, and a scraper keeps
+// one of the two samples. Dropping the suffix costs the counter a naming
+// convention; keeping it costs a series.
+//
+// The answer depends on which names the store has seen, never on the order
+// they arrived in or on which are live right now. Consulting the live entries
+// instead would let a counter switch names once its colliding sibling expired
+// — a rename mid-process, which a scraper reads as one series going stale and
+// another appearing.
+//
+// Callers hold store.mutex.
+func (store *metricStore) exposedName(key metricKey, entry *metricEntry) string {
+	if entry.mtype != counter || entry.name == key.name {
+		return entry.name
+	}
+	if _, taken := store.names[metricKey{scope: key.scope, name: entry.name}]; taken {
+		return key.name
+	}
+	return entry.name
 }
 
 func (store *metricStore) cleanup(exp time.Time) {
@@ -156,14 +195,11 @@ func newMetricEntry(mtype metricType, scope, name, help string) *metricEntry {
 	switch mtype {
 	case counter:
 		// Prometheus expects an accumulating count to carry a "total" suffix.
-		// It is more than convention: the OpenMetrics encoder keys the type
-		// line on the suffix, so a counter without it is published as
-		// unknown.
 		//
 		// A name that already ends in _total is left alone, so a program that
 		// has already adopted the convention does not end up with
 		// requests_total_total.
-		if !strings.HasSuffix(name, "_total") {
+		if !hasTotalSuffix(name) {
 			entry.name = name + "_total"
 		}
 
@@ -174,6 +210,20 @@ func newMetricEntry(mtype metricType, scope, name, help string) *metricEntry {
 	}
 
 	return entry
+}
+
+// hasTotalSuffix reports whether name will already end in _total once it is
+// exposed.
+//
+// The test has to run on the rendered name rather than the one received. A
+// field is joined to its scope by an "_", so Incr("requests.total") arrives
+// here as the bare field "total" and is published as <scope>_requests_total —
+// already suffixed. Any byte invalid in a metric name, "." among them, also
+// becomes "_" on the way out, so "requests.total" renders as requests_total.
+// Comparing against the raw name misses both and yields _total_total.
+func hasTotalSuffix(name string) bool {
+	b := appendMetricName(make([]byte, 0, len(name)), name)
+	return string(b) == "total" || strings.HasSuffix(string(b), "_total")
 }
 
 func (entry *metricEntry) lookup(labels labels) *metricState {
@@ -197,13 +247,13 @@ func (entry *metricEntry) lookup(labels labels) *metricState {
 	return state
 }
 
-func (entry *metricEntry) collect(metrics []metric) []metric {
+func (entry *metricEntry) collect(metrics []metric, name string) []metric {
 	entry.mutex.RLock()
 
 	if len(entry.states) != 0 {
 		for _, states := range entry.states {
 			for _, state := range states {
-				metrics = state.collect(metrics, entry)
+				metrics = state.collect(metrics, entry, name)
 			}
 		}
 	}
@@ -295,7 +345,7 @@ func (state *metricState) update(mtype metricType, value float64, time time.Time
 	state.mutex.Unlock()
 }
 
-func (state *metricState) collect(metrics []metric, entry *metricEntry) []metric {
+func (state *metricState) collect(metrics []metric, entry *metricEntry, name string) []metric {
 	state.mutex.Lock()
 
 	// metric.time is deliberately not set here. appendMetric no longer writes
@@ -307,7 +357,7 @@ func (state *metricState) collect(metrics []metric, entry *metricEntry) []metric
 		metrics = append(metrics, metric{
 			mtype:  entry.mtype,
 			scope:  entry.scope,
-			name:   entry.name,
+			name:   name,
 			help:   entry.help,
 			value:  state.value,
 			labels: state.labels,

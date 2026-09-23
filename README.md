@@ -218,11 +218,22 @@ engine.SetBuckets("request.latency", 0.005, 0.01, 0.025, 0.05, 0.1, 0.5, 1)
 engine.Observe("request.latency", elapsed)
 ```
 
-A sub-engine derived with `WithPrefix` computes its own key, so buckets do not
-have to be registered once per derived prefix. Histograms with nothing
-registered fall back to `prometheus.DefaultBuckets`, which suits latencies
-measured in seconds — a floor that keeps percentiles computable, not a
-substitute for picking boundaries where accuracy matters.
+The key is the engine's prefix joined to the name, so name the metric relative
+to the engine you call it on. An ancestor can register for a sub-engine by
+naming the path to it, which lets one `init` function cover a whole tree:
+
+```go
+engine.SetBuckets("db.request.latency", 0.01, 0.05, 0.25)
+engine.WithPrefix("db").Observe("request.latency", elapsed)
+```
+
+Buckets are not inherited — a sub-engine resolves only what was registered for
+its own prefix — and a `Handler` holding its own non-nil `Buckets` never reads
+the global registry, so `SetBuckets` has no effect on it.
+
+Histograms with nothing registered fall back to `prometheus.DefaultBuckets`,
+which suits latencies measured in seconds — a floor that keeps percentiles
+computable, not a substitute for picking boundaries where accuracy matters.
 
 ### InfluxDB
 

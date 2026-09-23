@@ -3,8 +3,10 @@ package stats_test
 import (
 	"strings"
 	"testing"
+	"time"
 
 	stats "github.com/segmentio/stats/v5"
+	_ "github.com/segmentio/stats/v5/httpstats"
 	"github.com/segmentio/stats/v5/prometheus"
 	"github.com/segmentio/stats/v5/statstest"
 )
@@ -147,4 +149,124 @@ func keysOf(b stats.HistogramBuckets) []stats.Key {
 		keys = append(keys, k)
 	}
 	return keys
+}
+
+// TestHistogramBucketsSetKeyDottedField covers the key Set cannot express.
+// Set splits its argument on the last ".", so a field carrying one of its own
+// is unreachable through it — and every histogram httpstats reports has such
+// a field.
+func TestHistogramBucketsSetKeyDottedField(t *testing.T) {
+	key := stats.Key{Measure: "http.message", Field: "body.bytes"}
+
+	b := stats.HistogramBuckets{}
+	b.SetKey(key, 100, 1000)
+
+	if _, ok := b[key]; !ok {
+		t.Fatalf("SetKey did not register %#v; registry holds %#v", key, keysOf(b))
+	}
+
+	legacy := stats.HistogramBuckets{}
+	legacy.Set("http.message.body.bytes", 100, 1000)
+
+	if _, ok := legacy[key]; ok {
+		t.Error("Set reached the dotted-field key; SetKey would be unnecessary")
+	}
+}
+
+// TestHistogramBucketsLookupUnprefixed pins the resolution a package doing its
+// registration from init() depends on: it cannot know the prefix an engine
+// will add, so the name it registers has to match a measure carrying one.
+func TestHistogramBucketsLookupUnprefixed(t *testing.T) {
+	b := stats.HistogramBuckets{}
+	b.SetUnprefixed(stats.Key{Measure: "http.message", Field: "body.bytes"}, 100, 1000)
+
+	for _, measure := range []string{
+		"http.message",
+		"myapp.http.message",
+		"myapp.sub.http.message",
+	} {
+		if v := b.Lookup(measure, "body.bytes"); len(v) != 2 {
+			t.Errorf("Lookup(%q) resolved %d buckets, expected 2", measure, len(v))
+		}
+	}
+
+	if v := b.Lookup("myapp.http.message", "header.bytes"); v != nil {
+		t.Error("Lookup matched a different field")
+	}
+	if v := b.Lookup("message", "body.bytes"); v != nil {
+		t.Error("Lookup matched half a segment")
+	}
+}
+
+// TestHistogramBucketsLookupExactWins keeps a program able to override what a
+// package registered for the same measure.
+func TestHistogramBucketsLookupExactWins(t *testing.T) {
+	b := stats.HistogramBuckets{}
+	b.SetUnprefixed(stats.Key{Measure: "conn.read", Field: "bytes"}, 1, 2, 3)
+	b.SetKey(stats.Key{Measure: "myapp.conn.read", Field: "bytes"}, 9)
+
+	if v := b.Lookup("myapp.conn.read", "bytes"); len(v) != 1 {
+		t.Errorf("exact registration lost to the unprefixed one (%d buckets)", len(v))
+	}
+}
+
+// TestHistogramBucketsSuffixMatchingIsOptIn is why SetUnprefixed exists as a
+// separate call. Matching by suffix cannot tell a derived measure from an
+// unrelated one ending the same way, so only registrations that ask for it
+// take part: svc.billing must not inherit a set registered for billing.
+func TestHistogramBucketsSuffixMatchingIsOptIn(t *testing.T) {
+	b := stats.HistogramBuckets{}
+	b.SetKey(stats.Key{Measure: "billing", Field: "size"}, 0.25, 0.75)
+
+	if v := b.Lookup("svc.billing", "size"); v != nil {
+		t.Errorf("a SetKey registration was matched by suffix: %v", v)
+	}
+}
+
+// TestEngineSetBucketsFromAncestor pins what the doc comment promises: one
+// init function on the root engine covers the whole tree, by naming the path
+// to each metric rather than holding a reference to every sub-engine.
+func TestEngineSetBucketsFromAncestor(t *testing.T) {
+	ph := &prometheus.Handler{}
+	root := stats.NewEngine("anc", ph)
+
+	root.SetBuckets("db.latency", 0.2, 0.4)
+	defer delete(stats.Buckets, stats.Key{Measure: "anc.db", Field: "latency"})
+
+	root.WithPrefix("db").Observe("latency", 0.3)
+
+	var buf strings.Builder
+	ph.WriteStats(&buf)
+	out := buf.String()
+
+	// Two registered boundaries plus +Inf. Eleven would mean the registration
+	// missed and DefaultBuckets was used.
+	if n := strings.Count(out, "anc_db_latency_bucket{"); n != 3 {
+		t.Errorf("found %d bucket series, expected 3:\n%s", n, out)
+	}
+}
+
+// TestHTTPStatsBucketsReachTheHandler is the regression this whole change is
+// for. httpstats registers byte boundaries for its message histograms; until
+// they resolved, every one of them took DefaultBuckets instead — eleven
+// boundaries between 0.005 and 10 seconds, none of which a byte count can
+// reach, so +Inf held every observation.
+func TestHTTPStatsBucketsReachTheHandler(t *testing.T) {
+	ph := &prometheus.Handler{}
+
+	ph.HandleMeasures(time.Now(), stats.Measure{
+		Name:   "myapp.http.message",
+		Fields: []stats.Field{stats.MakeField("body.bytes", 5000, stats.Histogram)},
+	})
+
+	var buf strings.Builder
+	ph.WriteStats(&buf)
+	out := buf.String()
+
+	if !strings.Contains(out, `le="10000"`) {
+		t.Errorf("registered byte boundaries missing:\n%s", out)
+	}
+	if strings.Contains(out, `le="0.005"`) {
+		t.Errorf("fell back to DefaultBuckets:\n%s", out)
+	}
 }
