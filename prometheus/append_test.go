@@ -48,7 +48,10 @@ hello_world_bucket{le="0.5"} 42
 	},
 
 	{
-		scenario: "counter metric with help, floating point value, labels, and timestamp",
+		// metric.time is set here and must not reach the output: the
+		// timestamp is tracked for MetricTimeout and store cleanup, but
+		// exposing it opts the series out of stale-marker handling.
+		scenario: "counter metric with help, floating point value, and labels",
 		metric: metric{
 			mtype:  counter,
 			scope:  "global",
@@ -60,7 +63,7 @@ hello_world_bucket{le="0.5"} 42
 		},
 		string: `# HELP global_hello_world This is a great metric!\n
 # TYPE global_hello_world counter
-global_hello_world{question="\"???\"\n",answer="42"} 0.5 1496614320000
+global_hello_world{question="\"???\"\n",answer="42"} 0.5
 `,
 	},
 }

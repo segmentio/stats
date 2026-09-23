@@ -100,7 +100,7 @@ func TestMetricStore(t *testing.T) {
 		{mtype: counter, scope: "test", name: "A", value: 2},
 		{mtype: histogram, scope: "test", name: "C", value: 0.1},
 		{mtype: gauge, scope: "test", name: "B", value: 1, labels: labels{{"a", "1"}, {"b", "2"}}},
-		{mtype: counter, scope: "test", name: "A", value: 4, labels: labels{{"id", "123"}}},
+		{mtype: counter, scope: "test", name: "A_total", value: 4, labels: labels{{"id", "123"}}},
 		{mtype: gauge, scope: "test", name: "B", value: 42, labels: labels{{"a", "1"}}},
 		{mtype: histogram, scope: "test", name: "C", value: 0.1},
 		{mtype: gauge, scope: "test", name: "B", value: 21, labels: labels{{"a", "1"}, {"b", "2"}}},
@@ -123,14 +123,18 @@ func TestMetricStore(t *testing.T) {
 	sort.Sort(byNameAndLabels(metrics))
 
 	expects := []metric{
-		{mtype: counter, scope: "test", name: "A", value: 3, labels: labels{}},
-		{mtype: counter, scope: "test", name: "A", value: 4, labels: labels{{"id", "123"}}},
+		{mtype: counter, scope: "test", name: "A_total", value: 3, labels: labels{}},
+		{mtype: counter, scope: "test", name: "A_total", value: 4, labels: labels{{"id", "123"}}},
 		{mtype: gauge, scope: "test", name: "B", value: 42, labels: labels{{"a", "1"}}},
 		{mtype: gauge, scope: "test", name: "B", value: 21, labels: labels{{"a", "1"}, {"b", "2"}}},
 		{mtype: histogram, scope: "test", name: "C_bucket", value: 2, labels: labels{{"le", "0.25"}}},
 		{mtype: histogram, scope: "test", name: "C_bucket", value: 3, labels: labels{{"le", "0.5"}}},
 		{mtype: histogram, scope: "test", name: "C_bucket", value: 3, labels: labels{{"le", "0.75"}}},
 		{mtype: histogram, scope: "test", name: "C_bucket", value: 3, labels: labels{{"le", "1"}}},
+		// The 10 observation exceeds the highest registered boundary, so the
+		// +Inf bucket matches C_count. It sorts last because le compares
+		// numerically.
+		{mtype: histogram, scope: "test", name: "C_bucket", value: 4, labels: labels{{"le", "+Inf"}}},
 		{mtype: histogram, scope: "test", name: "C_count", value: 4, labels: labels{}},
 		{mtype: histogram, scope: "test", name: "C_sum", value: 10.7, labels: labels{}},
 	}
@@ -248,8 +252,12 @@ func TestMetricStoreCleanup(t *testing.T) {
 	metrics := store.collect(nil)
 	sort.Sort(byNameAndLabels(metrics))
 
+	// collect() does not carry state.time onto the collected metric: nothing
+	// reads it since appendMetric stopped emitting timestamps. The input times
+	// above are what drive expiry, and which entries survive is what this
+	// asserts.
 	if !reflect.DeepEqual(metrics, []metric{
-		{mtype: counter, name: "E", value: 1, time: now.Add(time.Second), labels: labels{}},
+		{mtype: counter, name: "E_total", value: 1, labels: labels{}},
 	}) {
 		t.Errorf("bad metrics: %#v", metrics)
 	}
@@ -267,5 +275,73 @@ func BenchmarkLE(b *testing.B) {
 
 	for b.Loop() {
 		le(buckets)
+	}
+}
+
+// TestMetricStateBucketsNotRebuilt guards the interaction between the +Inf
+// bucket and the rebuild check in metricState.update.
+//
+// makeMetricBuckets returns len(buckets)+1 entries. If update compares the
+// stored slice against len(buckets) it never matches, so every observation
+// reallocates the bucket set and discards the counts accumulated so far —
+// leaving _count climbing while every _bucket stays at 0 or 1.
+func TestMetricStateBucketsNotRebuilt(t *testing.T) {
+	buckets := []stats.Value{
+		stats.ValueOf(0.25),
+		stats.ValueOf(0.5),
+	}
+
+	state := newMetricState(labels{})
+
+	const observations = 10
+	for range observations {
+		state.update(histogram, 0.1, time.Now(), buckets)
+	}
+
+	if n := len(state.buckets); n != len(buckets)+1 {
+		t.Fatalf("expected %d buckets (registered + Inf), found %d", len(buckets)+1, n)
+	}
+
+	// Every observation is 0.1, so all of them belong in the lowest bucket.
+	if c := state.buckets[0].count; c != observations {
+		t.Errorf("buckets were rebuilt: le=0.25 has count %d, expected %d", c, observations)
+	}
+
+	if state.count != observations {
+		t.Errorf("count = %d, expected %d", state.count, observations)
+	}
+}
+
+// TestMakeMetricBucketsAppendsInf covers the empty-registry case, where the
+// +Inf bucket is the only one, and confirms it catches overflow.
+func TestMakeMetricBucketsAppendsInf(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		buckets []stats.Value
+	}{
+		{name: "empty", buckets: nil},
+		{name: "one boundary", buckets: []stats.Value{stats.ValueOf(1.0)}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			b := makeMetricBuckets(test.buckets, labels{})
+
+			if len(b) != len(test.buckets)+1 {
+				t.Fatalf("expected %d buckets, found %d", len(test.buckets)+1, len(b))
+			}
+
+			last := b[len(b)-1]
+			if !math.IsInf(last.limit, 1) {
+				t.Errorf("last bucket limit = %v, expected +Inf", last.limit)
+			}
+			if got := last.labels[len(last.labels)-1]; got != (label{"le", "+Inf"}) {
+				t.Errorf("last bucket label = %v, expected le=+Inf", got)
+			}
+
+			// A value above every registered boundary must still be counted.
+			b.update(1e9)
+			if c := b[len(b)-1].count; c != 1 {
+				t.Errorf("overflow observation not counted in +Inf bucket (count = %d)", c)
+			}
+		})
 	}
 }

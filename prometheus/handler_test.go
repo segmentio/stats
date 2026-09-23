@@ -3,8 +3,10 @@ package prometheus
 import (
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -94,21 +96,22 @@ func TestServeHTTP(t *testing.T) {
 
 	b, _ := io.ReadAll(res.Body)
 
-	const expects = `# TYPE A counter
-A 3 1496614320000
-A{id="123"} 4 1496614320000
+	const expects = `# TYPE A_total counter
+A_total 3
+A_total{id="123"} 4
 
 # TYPE B gauge
-B{a="1"} 42 1496614320000
-B{a="1",b="2"} 21 1496614320000
+B{a="1"} 42
+B{a="1",b="2"} 21
 
 # TYPE C histogram
-C_bucket{le="0.25"} 2 1496614320000
-C_bucket{le="0.5"} 3 1496614320000
-C_bucket{le="0.75"} 3 1496614320000
-C_bucket{le="1"} 3 1496614320000
-C_count 4 1496614320000
-C_sum 10.7 1496614320000
+C_bucket{le="0.25"} 2
+C_bucket{le="0.5"} 3
+C_bucket{le="0.75"} 3
+C_bucket{le="1"} 3
+C_bucket{le="+Inf"} 4
+C_count 4
+C_sum 10.7
 `
 
 	if s := string(b); s != expects {
@@ -155,5 +158,301 @@ func BenchmarkHandleMetric(b *testing.B) {
 				handler.HandleMeasures(now, metric)
 			}
 		})
+	}
+}
+
+// TestHistogramWithoutRegisteredBuckets covers the fail-silent case: a
+// histogram with no entry in the bucket registry used to publish _sum and
+// _count with no _bucket series at all, so nothing looked wrong and no
+// percentile could be computed.
+func TestHistogramWithoutRegisteredBuckets(t *testing.T) {
+	now := time.Date(2017, 6, 4, 22, 12, 0, 0, time.UTC)
+
+	handler := &Handler{} // no Buckets registry at all
+
+	handler.HandleMeasures(now,
+		stats.Measure{Fields: []stats.Field{stats.MakeField("D", 0.003, stats.Histogram)}},
+		stats.Measure{Fields: []stats.Field{stats.MakeField("D", 0.4, stats.Histogram)}},
+		stats.Measure{Fields: []stats.Field{stats.MakeField("D", 900, stats.Histogram)}},
+	)
+
+	var buf strings.Builder
+	handler.WriteStats(&buf)
+	out := buf.String()
+
+	for _, want := range []string{
+		`D_bucket{le="0.005"} 1`,
+		`D_bucket{le="0.5"} 2`,
+		`D_bucket{le="+Inf"} 3`,
+		`D_count 3`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in output:\n%s", want, out)
+		}
+	}
+
+	// Every registered boundary plus +Inf must be present.
+	if n := strings.Count(out, "D_bucket{"); n != len(DefaultBuckets)+1 {
+		t.Errorf("found %d bucket series, expected %d", n, len(DefaultBuckets)+1)
+	}
+}
+
+// TestTypeDeclarationPerScope covers same-named fields arriving from
+// different engine prefixes, which is what deriving sub-engines with
+// WithPrefix produces.
+//
+// The dedup used to compare the bare field name with the scope discarded, so
+// only the first scope to emit "hits" got a "# TYPE" line and every later one
+// ingested as untyped.
+func TestTypeDeclarationPerScope(t *testing.T) {
+	now := time.Date(2017, 6, 4, 22, 12, 0, 0, time.UTC)
+
+	handler := &Handler{}
+
+	scopes := []string{"alpha", "beta", "gamma"}
+	for _, scope := range scopes {
+		handler.HandleMeasures(now, stats.Measure{
+			Name: scope,
+			Fields: []stats.Field{
+				stats.MakeField("hits", 1, stats.Counter),
+				stats.MakeField("size", 2, stats.Gauge),
+			},
+		})
+	}
+
+	var buf strings.Builder
+	handler.WriteStats(&buf)
+	out := buf.String()
+
+	for _, scope := range scopes {
+		for _, want := range []string{
+			"# TYPE " + scope + "_hits_total counter",
+			"# TYPE " + scope + "_size gauge",
+		} {
+			if n := strings.Count(out, want); n != 1 {
+				t.Errorf("found %q %d times, expected exactly 1:\n%s", want, n, out)
+			}
+		}
+	}
+
+	// Six metrics, six type declarations, none repeated.
+	if n := strings.Count(out, "# TYPE "); n != 2*len(scopes) {
+		t.Errorf("found %d type declarations, expected %d", n, 2*len(scopes))
+	}
+}
+
+// TestTypeDeclarationAcrossAdjacentScopes is the tighter version of the case
+// above: when each scope exposes the same single field name, the families are
+// adjacent in the output and a dedup that compares the bare name suppresses
+// every one after the first.
+func TestTypeDeclarationAcrossAdjacentScopes(t *testing.T) {
+	now := time.Date(2017, 6, 4, 22, 12, 0, 0, time.UTC)
+
+	handler := &Handler{}
+
+	scopes := []string{"alpha", "beta", "gamma"}
+	for _, scope := range scopes {
+		handler.HandleMeasures(now, stats.Measure{
+			Name: scope,
+			Fields: []stats.Field{
+				stats.MakeField("hits", 1, stats.Counter),
+				// A histogram spans three series names, so its family only
+				// stays contiguous if the sort orders by scope before name.
+				// Sorting on the bare name groups every scope's _bucket
+				// together and pushes _count and _sum away from it, which
+				// makes the same family declare its type more than once.
+				stats.MakeField("latency", 0.1, stats.Histogram),
+			},
+		})
+	}
+
+	var buf strings.Builder
+	handler.WriteStats(&buf)
+	out := buf.String()
+
+	for _, scope := range scopes {
+		for _, want := range []string{
+			"# TYPE " + scope + "_hits_total counter",
+			"# TYPE " + scope + "_latency histogram",
+		} {
+			if n := strings.Count(out, want); n != 1 {
+				t.Errorf("found %q %d times, expected exactly 1:\n%s", want, n, out)
+			}
+		}
+	}
+
+	if n := strings.Count(out, "# TYPE "); n != 2*len(scopes) {
+		t.Errorf("found %d type declarations, expected %d:\n%s", n, 2*len(scopes), out)
+	}
+}
+
+// TestCounterTotalSuffix covers the _total naming rule. Only counters get the
+// suffix, and a counter that already carries it is left alone.
+func TestCounterTotalSuffix(t *testing.T) {
+	now := time.Date(2017, 6, 4, 22, 12, 0, 0, time.UTC)
+
+	handler := &Handler{}
+	handler.HandleMeasures(now, stats.Measure{
+		Name: "svc",
+		Fields: []stats.Field{
+			stats.MakeField("requests", 1, stats.Counter),
+			stats.MakeField("errors_total", 2, stats.Counter),
+			stats.MakeField("queue_depth", 3, stats.Gauge),
+			stats.MakeField("latency", 0.1, stats.Histogram),
+		},
+	})
+
+	var buf strings.Builder
+	handler.WriteStats(&buf)
+	out := buf.String()
+
+	for _, want := range []string{
+		"# TYPE svc_requests_total counter",
+		"svc_requests_total 1",
+		// Already suffixed: must not become errors_total_total.
+		"# TYPE svc_errors_total counter",
+		"svc_errors_total 2",
+		// Gauges and histograms are untouched.
+		"# TYPE svc_queue_depth gauge",
+		"svc_queue_depth 3",
+		"# TYPE svc_latency histogram",
+		"svc_latency_count 1",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in output:\n%s", want, out)
+		}
+	}
+
+	for _, unwanted := range []string{
+		"svc_errors_total_total",
+		"svc_queue_depth_total",
+		"svc_latency_total",
+	} {
+		if strings.Contains(out, unwanted) {
+			t.Errorf("unexpected %q in output:\n%s", unwanted, out)
+		}
+	}
+}
+
+func TestHistogramWithRegisteredInfBoundary(t *testing.T) {
+	now := time.Date(2017, 6, 4, 22, 12, 0, 0, time.UTC)
+
+	// Ending a registered set with +Inf is the idiom used by every bucket set
+	// in httpstats, netstats and procstats.
+	handler := &Handler{Buckets: stats.HistogramBuckets{}}
+	handler.Buckets.Set("D", 0.1, 1.0, math.Inf(+1))
+
+	handler.HandleMeasures(now,
+		stats.Measure{Fields: []stats.Field{stats.MakeField("D", 0.05, stats.Histogram)}},
+		stats.Measure{Fields: []stats.Field{stats.MakeField("D", 5.0, stats.Histogram)}},
+	)
+
+	var buf strings.Builder
+	handler.WriteStats(&buf)
+	out := buf.String()
+
+	// The registered +Inf is used as-is; makeMetricBuckets must not append a
+	// second one, which would be an unreachable duplicate series.
+	if n := strings.Count(out, `D_bucket{le="+Inf"}`); n != 1 {
+		t.Errorf("found %d +Inf bucket series, expected 1:\n%s", n, out)
+	}
+
+	if n := strings.Count(out, "D_bucket{"); n != 3 {
+		t.Errorf("found %d bucket series, expected 3:\n%s", n, out)
+	}
+
+	for _, want := range []string{
+		`D_bucket{le="0.1"} 1`,
+		`D_bucket{le="1"} 1`,
+		`D_bucket{le="+Inf"} 2`,
+		`D_count 2`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in output:\n%s", want, out)
+		}
+	}
+}
+
+func TestHistogramWithRegisteredInfBoundaryAccumulates(t *testing.T) {
+	now := time.Date(2017, 6, 4, 22, 12, 0, 0, time.UTC)
+
+	handler := &Handler{Buckets: stats.HistogramBuckets{}}
+	handler.Buckets.Set("D", 0.1, 1.0, math.Inf(+1))
+
+	for i := 0; i < 5; i++ {
+		handler.HandleMeasures(now,
+			stats.Measure{Fields: []stats.Field{stats.MakeField("D", 0.05, stats.Histogram)}},
+		)
+	}
+
+	var buf strings.Builder
+	handler.WriteStats(&buf)
+	out := buf.String()
+
+	// Trimming the registered +Inf has to leave metricState.update's
+	// len(buckets)+1 rebuild check intact. If it does not, the bucket set is
+	// reallocated on every observation and the counts reset, leaving _count
+	// climbing while every _bucket stays at 0 or 1.
+	for _, want := range []string{
+		`D_bucket{le="0.1"} 5`,
+		`D_bucket{le="+Inf"} 5`,
+		`D_count 5`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in output — bucket state was rebuilt per observation:\n%s", want, out)
+		}
+	}
+}
+
+func TestHistogramWithEmptyRegisteredBuckets(t *testing.T) {
+	now := time.Date(2017, 6, 4, 22, 12, 0, 0, time.UTC)
+
+	// HistogramBuckets.Set allocates with make, so an empty registration is a
+	// non-nil zero-length slice. It has to reach the DefaultBuckets fallback
+	// just as an absent registration does.
+	handler := &Handler{Buckets: stats.HistogramBuckets{}}
+	handler.Buckets.Set("D")
+
+	handler.HandleMeasures(now,
+		stats.Measure{Fields: []stats.Field{stats.MakeField("D", 0.05, stats.Histogram)}},
+	)
+
+	var buf strings.Builder
+	handler.WriteStats(&buf)
+	out := buf.String()
+
+	if n := strings.Count(out, "D_bucket{"); n != len(DefaultBuckets)+1 {
+		t.Errorf("found %d bucket series, expected %d:\n%s", n, len(DefaultBuckets)+1, out)
+	}
+}
+
+func TestTypeDeclaredOnceWhenFamilyIsInterrupted(t *testing.T) {
+	now := time.Date(2017, 6, 4, 22, 12, 0, 0, time.UTC)
+
+	// Sorting keeps a scope contiguous, but not a root name within it: a
+	// histogram "query" emits query_bucket, query_count and query_sum, and a
+	// sibling gauge "query_depth" sorts between the last two. Comparing each
+	// metric against only its predecessor then sees query_sum as a new family
+	// and declares "# TYPE" for it a second time.
+	//
+	// A repeated type declaration is not a dropped sample — the text format
+	// parser rejects the whole exposition, so the entire scrape fails.
+	handler := &Handler{}
+
+	handler.HandleMeasures(now,
+		stats.Measure{Name: "app", Fields: []stats.Field{stats.MakeField("query", 0.5, stats.Histogram)}},
+		stats.Measure{Name: "app", Fields: []stats.Field{stats.MakeField("query_depth", 7, stats.Gauge)}},
+	)
+
+	var buf strings.Builder
+	handler.WriteStats(&buf)
+	out := buf.String()
+
+	if n := strings.Count(out, "# TYPE app_query histogram"); n != 1 {
+		t.Errorf("declared the histogram type %d times, expected 1:\n%s", n, out)
+	}
+
+	if n := strings.Count(out, "# TYPE app_query_depth gauge"); n != 1 {
+		t.Errorf("declared the gauge type %d times, expected 1:\n%s", n, out)
 	}
 }

@@ -1,6 +1,7 @@
 package prometheus
 
 import (
+	"math"
 	"strconv"
 	"strings"
 	"sync"
@@ -150,9 +151,23 @@ func newMetricEntry(mtype metricType, scope, name, help string) *metricEntry {
 		states: make(metricStateMap),
 	}
 
-	if mtype == histogram {
-		// Here we cache those metric names to avoid having to recompute them
-		// every time we collect the state of the metrics.
+	// Here we cache those metric names to avoid having to recompute them
+	// every time we collect the state of the metrics.
+	switch mtype {
+	case counter:
+		// Prometheus expects an accumulating count to carry a "total" suffix.
+		// It is more than convention: the OpenMetrics encoder keys the type
+		// line on the suffix, so a counter without it is published as
+		// unknown.
+		//
+		// A name that already ends in _total is left alone, so a program that
+		// has already adopted the convention does not end up with
+		// requests_total_total.
+		if !strings.HasSuffix(name, "_total") {
+			entry.name = name + "_total"
+		}
+
+	case histogram:
 		entry.bucket = name + "_bucket"
 		entry.sum = name + "_sum"
 		entry.count = name + "_count"
@@ -265,7 +280,10 @@ func (state *metricState) update(mtype metricType, value float64, time time.Time
 		state.value = value
 
 	case histogram:
-		if len(state.buckets) != len(buckets) {
+		// makeMetricBuckets appends a +Inf bucket, so the state holds one more
+		// entry than the registry slice. Comparing against len(buckets) here
+		// would rebuild — and zero the counts — on every observation.
+		if len(state.buckets) != len(buckets)+1 {
 			state.buckets = makeMetricBuckets(buckets, state.labels)
 		}
 		state.buckets.update(value)
@@ -280,6 +298,10 @@ func (state *metricState) update(mtype metricType, value float64, time time.Time
 func (state *metricState) collect(metrics []metric, entry *metricEntry) []metric {
 	state.mutex.Lock()
 
+	// metric.time is deliberately not set here. appendMetric no longer writes
+	// a timestamp, so nothing on the output path reads it; the field stays on
+	// the struct for the input path, where metricStore.update carries it into
+	// state.time and MetricTimeout expiry depends on it.
 	switch entry.mtype {
 	case counter, gauge:
 		metrics = append(metrics, metric{
@@ -288,7 +310,6 @@ func (state *metricState) collect(metrics []metric, entry *metricEntry) []metric
 			name:   entry.name,
 			help:   entry.help,
 			value:  state.value,
-			time:   state.time,
 			labels: state.labels,
 		})
 
@@ -305,7 +326,6 @@ func (state *metricState) collect(metrics []metric, entry *metricEntry) []metric
 				name:   entry.bucket,
 				help:   entry.help,
 				value:  float64(cumulativeCount),
-				time:   state.time,
 				labels: bucket.labels,
 			})
 		}
@@ -316,7 +336,6 @@ func (state *metricState) collect(metrics []metric, entry *metricEntry) []metric
 				name:   entry.sum,
 				help:   entry.help,
 				value:  state.sum,
-				time:   state.time,
 				labels: state.labels,
 			},
 			metric{
@@ -325,7 +344,6 @@ func (state *metricState) collect(metrics []metric, entry *metricEntry) []metric
 				name:   entry.count,
 				help:   entry.help,
 				value:  float64(state.count),
-				time:   state.time,
 				labels: state.labels,
 			},
 		)
@@ -361,8 +379,18 @@ type metricBucket struct {
 
 type metricBuckets []metricBucket
 
+// makeMetricBuckets builds the bucket set for a histogram state, with one
+// entry per registered boundary plus a final +Inf bucket.
+//
+// The +Inf bucket is not optional: histogram_quantile returns NaN unless the
+// highest bucket has an upper bound of +Inf, and without it observations above
+// the last registered boundary are counted in _sum and _count but land in no
+// bucket at all.
+//
+// Callers that compare an existing bucket set against the registry slice to
+// decide whether to rebuild must account for the extra entry.
 func makeMetricBuckets(buckets []stats.Value, labels labels) metricBuckets {
-	b := make(metricBuckets, len(buckets))
+	b := make(metricBuckets, len(buckets)+1)
 	s := le(buckets)
 
 	for i := range buckets {
@@ -371,6 +399,9 @@ func makeMetricBuckets(buckets []stats.Value, labels labels) metricBuckets {
 		b[i].limit = valueOf(buckets[i])
 		b[i].labels = labels.copyAppend(label{"le", le})
 	}
+
+	b[len(buckets)].limit = math.Inf(1)
+	b[len(buckets)].labels = labels.copyAppend(label{"le", "+Inf"})
 
 	return b
 }
@@ -434,8 +465,24 @@ func (metrics byNameAndLabels) Swap(i, j int) {
 	metrics[i], metrics[j] = metrics[j], metrics[i]
 }
 
+// Less orders by scope before name, so that every metric sharing a scope and
+// a root name stays contiguous in the output.
+//
+// Ordering on the bare name would interleave same-named fields coming from
+// different engine prefixes — hits from two WithPrefix sub-engines, say —
+// which breaks up the family a single "# TYPE" line is meant to cover.
+//
+// Comparing the two parts in turn rather than the joined "scope_name" avoids
+// building a string for every comparison in the sort.
 func (metrics byNameAndLabels) Less(i, j int) bool {
 	m1 := &metrics[i]
 	m2 := &metrics[j]
-	return m1.name < m2.name || (m1.name == m2.name && m1.labels.less(m2.labels))
+
+	if m1.scope != m2.scope {
+		return m1.scope < m2.scope
+	}
+	if m1.name != m2.name {
+		return m1.name < m2.name
+	}
+	return m1.labels.less(m2.labels)
 }

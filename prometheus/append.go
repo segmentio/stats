@@ -34,12 +34,14 @@ func appendMetric(b []byte, metric metric) []byte {
 	b = append(b, ' ')
 	b = strconv.AppendFloat(b, metric.value, 'g', -1, 64)
 
-	if !metric.time.IsZero() {
-		t := metric.time.Unix() * 1000
-		t += int64(metric.time.Nanosecond() / 1e6) // millisecond
-		b = append(b, ' ')
-		b = strconv.AppendInt(b, t, 10)
-	}
+	// The timestamp is deliberately omitted. It is an optional field, and a
+	// series that carries one opts out of Prometheus stale-marker handling:
+	// when the series stops being exported the scraper keeps returning its
+	// last value for five minutes instead of letting it go stale.
+	//
+	// Leaving it off lets the scraper assign scrape time, which is what every
+	// other exporter does. metric.time is still tracked internally, where
+	// MetricTimeout and the store cleanup depend on it.
 
 	return append(b, '\n')
 }

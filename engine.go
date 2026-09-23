@@ -130,6 +130,38 @@ func (e *Engine) ObserveAt(t time.Time, name string, value any, tags ...Tag) {
 	e.measure(t, name, value, Histogram, tags...)
 }
 
+// SetBuckets registers histogram buckets for the metric that Observe(name)
+// reports, deriving the registry key from the engine's own prefix.
+//
+// It must be called before the metrics it covers start being reported — from
+// an init function or program setup. Despite the receiver it writes to the
+// global Buckets registry, which is an unsynchronised map that handlers read
+// on every histogram measure, so registering one concurrently with reporting
+// is a concurrent map write.
+//
+// Buckets is a single global registry shared by every engine, so it cannot
+// infer which engine a name belongs to: HistogramBuckets.Set takes the
+// fully-qualified name and merely splits what it is handed, while Observe
+// takes a name relative to the engine and has the prefix attached afterwards.
+// Registering buckets through Set therefore means restating the prefix, and a
+// mismatch is an ordinary map miss — a mistyped key and no key at all produce
+// identical output, so the histogram silently loses its buckets.
+//
+// SetBuckets removes that by moving key construction to the engine, which does
+// know its prefix. Callers pass the same string they pass to Observe:
+//
+//	e := stats.NewEngine("app", h)
+//	e.SetBuckets("latency", 0.005, 0.01, 0.025, 0.05, 0.1)
+//	e.Observe("latency", d)
+//
+// A sub-engine derived with WithPrefix computes its own key, so buckets no
+// longer have to be registered once per derived prefix.
+//
+// The existing Buckets.Set keeps working unchanged.
+func (e *Engine) SetBuckets(name string, buckets ...any) {
+	Buckets.Set(e.makeName(name), buckets...)
+}
+
 // Clock returns a new clock identified by name and tags.
 func (e *Engine) Clock(name string, tags ...Tag) *Clock {
 	return e.ClockAt(name, time.Now(), tags...)

@@ -205,6 +205,25 @@ http.Handle("/metrics", prometheus.DefaultHandler)
 instance. Construct your own `&prometheus.Handler{}` literal instead if you need to set
 `TrimPrefix`, `MetricTimeout`, or `Buckets`.
 
+Counters are published with a `_total` suffix, and the handler leaves timestamps
+off so the scraper assigns scrape time.
+
+Histograms need bucket boundaries. Register them with `Engine.SetBuckets`, which
+takes the same name you pass to `Observe` and derives the registry key from the
+engine's own prefix:
+
+```go
+engine := stats.NewEngine("app", prometheus.DefaultHandler)
+engine.SetBuckets("request.latency", 0.005, 0.01, 0.025, 0.05, 0.1, 0.5, 1)
+engine.Observe("request.latency", elapsed)
+```
+
+A sub-engine derived with `WithPrefix` computes its own key, so buckets do not
+have to be registered once per derived prefix. Histograms with nothing
+registered fall back to `prometheus.DefaultBuckets`, which suits latencies
+measured in seconds — a floor that keeps percentiles computable, not a
+substitute for picking boundaries where accuracy matters.
+
 ### InfluxDB
 
 The [github.com/segmentio/stats/v5/influxdb](https://godoc.org/github.com/segmentio/stats/v5/influxdb) package sends metrics to InfluxDB using the line protocol over HTTP.
