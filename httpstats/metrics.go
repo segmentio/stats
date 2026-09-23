@@ -14,7 +14,7 @@ import (
 )
 
 func init() {
-	stats.Buckets.Set("http.message:header.size",
+	stats.Buckets.SetUnprefixed(stats.Key{Measure: "http.message", Field: "header.size"},
 		5,
 		10,
 		20,
@@ -23,7 +23,7 @@ func init() {
 		math.Inf(+1),
 	)
 
-	stats.Buckets.Set("http.message:header.bytes",
+	stats.Buckets.SetUnprefixed(stats.Key{Measure: "http.message", Field: "header.bytes"},
 		1e2, // 100 B
 		1e3, // 1 KB
 		1e4, // 10 KB
@@ -32,7 +32,7 @@ func init() {
 		math.Inf(+1),
 	)
 
-	stats.Buckets.Set("http.message:body.bytes",
+	stats.Buckets.SetUnprefixed(stats.Key{Measure: "http.message", Field: "body.bytes"},
 		1e2, // 100 B
 		1e3, // 1 KB
 		1e4, // 10 KB
@@ -44,7 +44,7 @@ func init() {
 		math.Inf(+1),
 	)
 
-	stats.Buckets.Set("http:rtt.seconds",
+	stats.Buckets.SetUnprefixed(stats.Key{Measure: "http", Field: "rtt.seconds"},
 		1*time.Millisecond,
 		10*time.Millisecond,
 		100*time.Millisecond,

@@ -72,9 +72,9 @@ func (h *Handler) HandleMeasures(mtime time.Time, measures ...stats.Measure) {
 				k := stats.Key{Measure: m.Name, Field: f.Name}
 
 				if b := h.Buckets; b != nil {
-					buckets = b[k]
+					buckets = b.Lookup(k.Measure, k.Field)
 				} else {
-					buckets = stats.Buckets[k]
+					buckets = stats.Buckets.Lookup(k.Measure, k.Field)
 				}
 
 				// A registry miss returns a nil slice with no error, which

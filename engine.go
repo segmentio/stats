@@ -131,7 +131,7 @@ func (e *Engine) ObserveAt(t time.Time, name string, value any, tags ...Tag) {
 }
 
 // SetBuckets registers histogram buckets for the metric that Observe(name)
-// reports, deriving the registry key from the engine's own prefix.
+// reports on this engine.
 //
 // It must be called before the metrics it covers start being reported — from
 // an init function or program setup. Despite the receiver it writes to the
@@ -148,18 +148,30 @@ func (e *Engine) ObserveAt(t time.Time, name string, value any, tags ...Tag) {
 // identical output, so the histogram silently loses its buckets.
 //
 // SetBuckets removes that by moving key construction to the engine, which does
-// know its prefix. Callers pass the same string they pass to Observe:
+// know its prefix. The key is the engine's prefix joined to name, so name the
+// metric relative to the engine this is called on — the same string passed to
+// Observe:
 //
-//	e := stats.NewEngine("app", h)
-//	e.SetBuckets("latency", 0.005, 0.01, 0.025, 0.05, 0.1)
-//	e.Observe("latency", d)
+//	root := stats.NewEngine("app", h)
+//	root.SetBuckets("latency", 0.005, 0.01, 0.025, 0.05, 0.1)
+//	root.Observe("latency", d)
 //
-// A sub-engine derived with WithPrefix computes its own key, so buckets no
-// longer have to be registered once per derived prefix.
+// A sub-engine's metrics can be registered from any ancestor by naming the
+// path to them, so one init function can cover a whole tree:
+//
+//	root.SetBuckets("db.latency", 0.01, 0.05, 0.25)
+//	root.WithPrefix("db").Observe("latency", d)
+//
+// Buckets are not inherited. A sub-engine resolves only what was registered
+// for its own prefix, never what an ancestor registered for itself.
+//
+// A Handler holding its own non-nil Buckets never reads the global registry,
+// so SetBuckets has no effect on it; populate that map instead.
 //
 // The existing Buckets.Set keeps working unchanged.
 func (e *Engine) SetBuckets(name string, buckets ...any) {
-	Buckets.Set(e.makeName(name), buckets...)
+	measure, field := splitMeasureField(name)
+	Buckets.SetKey(Key{Measure: e.makeName(measure), Field: field}, buckets...)
 }
 
 // Clock returns a new clock identified by name and tags.

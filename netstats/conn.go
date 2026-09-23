@@ -14,7 +14,7 @@ import (
 )
 
 func init() {
-	stats.Buckets.Set("conn.read:bytes",
+	stats.Buckets.SetUnprefixed(stats.Key{Measure: "conn.read", Field: "bytes"},
 		1e2, // 100 B
 		1e3, // 1 KB
 		1e4, // 10 KB
@@ -22,7 +22,7 @@ func init() {
 		math.Inf(+1),
 	)
 
-	stats.Buckets.Set("conn.write:bytes",
+	stats.Buckets.SetUnprefixed(stats.Key{Measure: "conn.write", Field: "bytes"},
 		1e2, // 100 B
 		1e3, // 1 KB
 		1e4, // 10 KB
