@@ -1,6 +1,6 @@
 # History
 
-### v5.11.0 (Unreleased)
+### v5.11.0 (September 23, 2026)
 
 **The `prometheus` handler's exposition has changed. Nothing fails to compile,
 but the series it publishes are different, so anyone already scraping this
