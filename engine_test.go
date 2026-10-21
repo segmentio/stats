@@ -72,6 +72,14 @@ func TestEngine(t *testing.T) {
 			scenario: "calling Engine.Incr produces expected tags when AllowDuplicateTags is set",
 			function: testEngineAllowDuplicateTags,
 		},
+		{
+			scenario: "calling Engine.Incr with tags that override engine tags produces each tag once",
+			function: testEngineIncrOverrideTags,
+		},
+		{
+			scenario: "calling Engine.Report with tags that override engine tags produces each tag once",
+			function: testEngineReportOverrideTags,
+		},
 	}
 
 	initValue := stats.GoVersionReportingEnabled
@@ -156,6 +164,46 @@ func testEngineAllowDuplicateTags(t *testing.T, eng *stats.Engine) {
 			Name:   "test.measure",
 			Fields: []stats.Field{stats.MakeField("count", 1, stats.Counter)},
 			Tags:   []stats.Tag{stats.T("service", "test-service"), stats.T("category", "a"), stats.T("category", "b"), stats.T("category", "c")},
+		},
+	)
+}
+
+// SortTags deduplicates in place and returns a shorter slice; callers that
+// drop the result send the stale trailing tags along with the measure.
+func testEngineIncrOverrideTags(t *testing.T, eng *stats.Engine) {
+	e2 := eng.WithTags(stats.T("system", "testing"))
+	e2.Incr("measure.count", stats.T("service", "override"))
+	e2.Incr("measure.count", stats.T("service", "override"), stats.T("system", "other"))
+
+	checkMeasuresEqual(t, e2,
+		stats.Measure{
+			Name:   "test.measure",
+			Fields: []stats.Field{stats.MakeField("count", 1, stats.Counter)},
+			Tags:   []stats.Tag{stats.T("service", "override"), stats.T("system", "testing")},
+		},
+		stats.Measure{
+			Name:   "test.measure",
+			Fields: []stats.Field{stats.MakeField("count", 1, stats.Counter)},
+			Tags:   []stats.Tag{stats.T("service", "override"), stats.T("system", "other")},
+		},
+	)
+}
+
+func testEngineReportOverrideTags(t *testing.T, eng *stats.Engine) {
+	m := struct {
+		Count int `metric:"count" type:"counter"`
+	}{42}
+
+	e2 := eng.WithTags(stats.T("system", "testing"))
+	e2.Report(m, stats.T("service", "override"))
+
+	// Report appends the engine tags after the call-time tags, so the engine
+	// tag wins the collision.
+	checkMeasuresEqual(t, e2,
+		stats.Measure{
+			Name:   "test",
+			Fields: []stats.Field{stats.MakeField("count", 42, stats.Counter)},
+			Tags:   []stats.Tag{stats.T("service", "test-service"), stats.T("system", "testing")},
 		},
 	)
 }
@@ -651,6 +699,33 @@ func TestVersionMetricsIncludeEngineTags(t *testing.T) {
 			t.Errorf("go_version missing go_version tag, got tags: %v", goVersionMeasure.Tags)
 		}
 	}
+}
+
+// TestPrometheusOverrideTagsUniqueLabels verifies that a call-time tag that
+// overrides an engine tag does not produce a repeated label name, which
+// Prometheus rejects along with the whole scrape.
+func TestPrometheusOverrideTagsUniqueLabels(t *testing.T) {
+	initValue := stats.GoVersionReportingEnabled
+	stats.GoVersionReportingEnabled = false
+	defer func() { stats.GoVersionReportingEnabled = initValue }()
+
+	h := &prometheus.Handler{}
+	e := stats.NewEngine("", h, stats.T("service_name", "app")).WithTags(stats.T("service", "cps"))
+	e.Incr("rpc_call", stats.T("method", "POST"), stats.T("service", ""))
+
+	var buf strings.Builder
+	h.WriteStats(&buf)
+
+	const want = `rpc_call_total{method="POST",service="",service_name="app"} 1`
+	for line := range strings.SplitSeq(buf.String(), "\n") {
+		if strings.HasPrefix(line, "rpc_call_total{") {
+			if line != want {
+				t.Errorf("bad series:\nwant: %s\ngot:  %s", want, line)
+			}
+			return
+		}
+	}
+	t.Errorf("rpc_call_total not found in output:\n%s", buf.String())
 }
 
 // TestVersionMetricsPrometheusNoTimestamp verifies that version metrics

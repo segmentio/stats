@@ -1,5 +1,22 @@
 # History
 
+### v5.11.1
+
+**A call-time tag that overrides an engine tag no longer sends a tag twice.**
+Since v4.7.0, `SortTags` has deduplicated tags in place and returned a shorter
+slice, but `Engine.measureOne` (behind `Incr`, `Add`, `Set`, `Observe` and the
+clock) and `Engine.ReportAt` dropped that result. With a derived engine such as
+`eng.WithTags(stats.T("service", "a"))` and a call that passes
+`stats.T("service", "b")`, the measure kept its original length, and the stale
+slots at the end repeated the last sorted tags. With three or more tags of the
+same name, an overridden value came back, too.
+
+The `prometheus` handler published these as repeated label names, which
+Prometheus rejects together with the whole scrape (`label name "…" is not
+unique: invalid sample`). The `datadog` handler wrote the tag twice in the
+packet. Both now get each tag once. Which value wins a collision is unchanged:
+the call-time tag for `Incr` and friends, and the engine tag for `Report`.
+
 ### v5.11.0 (September 23, 2026)
 
 **The `prometheus` handler's exposition has changed. Nothing fails to compile,

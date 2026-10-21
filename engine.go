@@ -258,7 +258,7 @@ func (e *Engine) measureOne(t time.Time, name string, value any, ftype FieldType
 	m.Tags = append(m.Tags, tags...)
 
 	if len(tags) != 0 && !e.AllowDuplicateTags && !TagsAreSorted(m.Tags) {
-		SortTags(m.Tags)
+		m.Tags = SortTags(m.Tags)
 	}
 
 	e.Handler.HandleMeasures(t, (*mp)[:]...)
