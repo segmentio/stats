@@ -8,7 +8,7 @@ first sample. The handler exposed a new counter at its first value and expired
 idle series after `MetricTimeout`, so a counter first scraped at 3 lost those
 3, and a series expired and re-created at 1 read as no change at all. Busy
 series lose this once per process; sparse, high-cardinality ones lose it every
-time they come back. A counter labelled by a per-customer ID, where each series
+time they come back. A counter labeled by a per-customer ID, where each series
 sees a few requests and goes idle, can read several percent low against the
 same counter sent to a statsd backend, while a busy counter on the same process
 matches.

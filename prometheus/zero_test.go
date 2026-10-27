@@ -48,7 +48,7 @@ func promIncrease(samples []float64) float64 {
 //
 // One series is busy and never expires. Three others, one per workspace, see
 // a short burst every few minutes and are expired by MetricTimeout in between
-// — the shape of a counter labelled by a per-customer ID.
+// — the shape of a counter labeled by a per-customer ID.
 func scrapeCounts(t *testing.T, zeroPeriod time.Duration) (got, want float64) {
 	const (
 		scrapeInterval = 15 * time.Second
