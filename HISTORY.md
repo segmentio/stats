@@ -1,5 +1,30 @@
 # History
 
+### v5.12.0
+
+**The `prometheus` handler no longer loses the first counts of a new series.**
+`increase()` and `rate()` count the change between samples, never a series'
+first sample. The handler exposed a new counter at its first value and expired
+idle series after `MetricTimeout`, so a counter first scraped at 3 lost those
+3, and a series expired and re-created at 1 read as no change at all. Busy
+series lose this once per process; sparse, high-cardinality ones lose it every
+time they come back. A counter labelled by a per-customer ID, where each series
+sees a few requests and goes idle, can read several percent low against the
+same counter sent to a statsd backend, while a busy counter on the same process
+matches.
+
+New and re-created counter and histogram series are now published as 0 for
+the new `Handler.ZeroPeriod`, 2 minutes by default, before their real value.
+The period is measured on the wall clock, not per scrape, so every scraper of
+the endpoint sees the zero. Keep it at least twice the scrape interval: a
+scrape that runs late, or a target handed to another collector, can otherwise
+skip a window only one interval long. Counts are
+delayed by up to that long, not lost: a series in its zero period is not
+expired, and its value is published for a full `MetricTimeout` afterwards.
+Gauges are unchanged. Set a negative `ZeroPeriod` to turn this off. A program
+that reads `WriteStats` output right after its first update, as tests often
+do, sees 0 unless it does.
+
 ### v5.11.1
 
 **A call-time tag that overrides an engine tag no longer sends a tag twice.**

@@ -57,6 +57,7 @@ func TestServeHTTP(t *testing.T) {
 	now := time.Date(2017, 6, 4, 22, 12, 0, 0, time.UTC)
 
 	handler := &Handler{
+		ZeroPeriod: -1,
 		Buckets: map[stats.Key][]stats.Value{
 			{Field: "C"}: {
 				stats.ValueOf(0.25),
@@ -168,7 +169,7 @@ func BenchmarkHandleMetric(b *testing.B) {
 func TestHistogramWithoutRegisteredBuckets(t *testing.T) {
 	now := time.Date(2017, 6, 4, 22, 12, 0, 0, time.UTC)
 
-	handler := &Handler{} // no Buckets registry at all
+	handler := &Handler{ZeroPeriod: -1} // no Buckets registry at all
 
 	handler.HandleMeasures(now,
 		stats.Measure{Fields: []stats.Field{stats.MakeField("D", 0.003, stats.Histogram)}},
@@ -291,7 +292,7 @@ func TestTypeDeclarationAcrossAdjacentScopes(t *testing.T) {
 func TestCounterTotalSuffix(t *testing.T) {
 	now := time.Date(2017, 6, 4, 22, 12, 0, 0, time.UTC)
 
-	handler := &Handler{}
+	handler := &Handler{ZeroPeriod: -1}
 	handler.HandleMeasures(now, stats.Measure{
 		Name: "svc",
 		Fields: []stats.Field{
@@ -339,7 +340,7 @@ func TestHistogramWithRegisteredInfBoundary(t *testing.T) {
 
 	// Ending a registered set with +Inf is the idiom used by every bucket set
 	// in httpstats, netstats and procstats.
-	handler := &Handler{Buckets: stats.HistogramBuckets{}}
+	handler := &Handler{ZeroPeriod: -1, Buckets: stats.HistogramBuckets{}}
 	handler.Buckets.Set("D", 0.1, 1.0, math.Inf(+1))
 
 	handler.HandleMeasures(now,
@@ -376,7 +377,7 @@ func TestHistogramWithRegisteredInfBoundary(t *testing.T) {
 func TestHistogramWithRegisteredInfBoundaryAccumulates(t *testing.T) {
 	now := time.Date(2017, 6, 4, 22, 12, 0, 0, time.UTC)
 
-	handler := &Handler{Buckets: stats.HistogramBuckets{}}
+	handler := &Handler{ZeroPeriod: -1, Buckets: stats.HistogramBuckets{}}
 	handler.Buckets.Set("D", 0.1, 1.0, math.Inf(+1))
 
 	for i := 0; i < 5; i++ {

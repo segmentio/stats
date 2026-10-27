@@ -709,7 +709,7 @@ func TestPrometheusOverrideTagsUniqueLabels(t *testing.T) {
 	stats.GoVersionReportingEnabled = false
 	defer func() { stats.GoVersionReportingEnabled = initValue }()
 
-	h := &prometheus.Handler{}
+	h := &prometheus.Handler{ZeroPeriod: -1}
 	e := stats.NewEngine("", h, stats.T("service_name", "app")).WithTags(stats.T("service", "cps"))
 	e.Incr("rpc_call", stats.T("method", "POST"), stats.T("service", ""))
 

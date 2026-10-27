@@ -99,7 +99,7 @@ func TestEngineSetBucketsKeyMatchesObserve(t *testing.T) {
 // sub-engine reach the exposition, rather than the metric silently falling
 // back to the default set.
 func TestEngineSetBucketsEndToEnd(t *testing.T) {
-	ph := &prometheus.Handler{}
+	ph := &prometheus.Handler{ZeroPeriod: -1}
 	e := stats.NewEngine("svc", ph).WithPrefix("sub")
 
 	e.SetBuckets("latency", 0.1, 0.2, 0.3)

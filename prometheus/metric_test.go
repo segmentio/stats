@@ -34,7 +34,7 @@ func TestFuzzyDeadlock(t *testing.T) {
 		// 2) race collect vs cleanup once
 		done := make(chan struct{}, 2)
 		go func() {
-			store.collect(nil)
+			store.collect(nil, time.Now())
 			done <- struct{}{}
 		}()
 		go func() {
@@ -120,7 +120,7 @@ func TestMetricStore(t *testing.T) {
 		})
 	}
 
-	metrics := store.collect(nil)
+	metrics := store.collect(nil, time.Now())
 	sort.Sort(byNameAndLabels(metrics))
 
 	expects := []metric{
@@ -254,7 +254,7 @@ func TestMetricStoreCleanup(t *testing.T) {
 
 	wg.Wait()
 
-	metrics := store.collect(nil)
+	metrics := store.collect(nil, time.Now())
 	sort.Sort(byNameAndLabels(metrics))
 
 	// collect() does not carry state.time onto the collected metric: nothing
@@ -379,7 +379,7 @@ func TestCounterTotalSuffixUsesRenderedName(t *testing.T) {
 // TestCounterTotalSuffixDottedName is the same invariant at the other end:
 // e.Incr("requests.total") must not publish app_requests_total_total.
 func TestCounterTotalSuffixDottedName(t *testing.T) {
-	h := &Handler{}
+	h := &Handler{ZeroPeriod: -1}
 
 	// What Incr("requests.total") produces: measure "app.requests", field "total".
 	h.HandleMeasures(time.Now(), stats.Measure{
@@ -408,7 +408,7 @@ func TestCounterTotalSuffixCollision(t *testing.T) {
 		{"hits_total", "hits"},
 	} {
 		t.Run(strings.Join(order, ","), func(t *testing.T) {
-			h := &Handler{}
+			h := &Handler{ZeroPeriod: -1}
 
 			for _, name := range order {
 				h.HandleMeasures(time.Now(), stats.Measure{
@@ -447,7 +447,7 @@ func TestCounterTotalSuffixCollision(t *testing.T) {
 // stale and another appearing.
 func TestCounterTotalSuffixCollisionSurvivesCleanup(t *testing.T) {
 	now := time.Now()
-	h := &Handler{}
+	h := &Handler{ZeroPeriod: -1}
 
 	h.HandleMeasures(now, stats.Measure{
 		Name:   "svc",
