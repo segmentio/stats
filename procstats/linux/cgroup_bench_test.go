@@ -22,7 +22,7 @@ func BenchmarkParseProcCGroup(b *testing.B) {
 	for name, text := range map[string]string{"v1": procCGroupV1, "v2": procCGroupV2} {
 		b.Run(name, func(b *testing.B) {
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				if _, err := ParseProcCGroup(text); err != nil {
 					b.Fatal(err)
 				}

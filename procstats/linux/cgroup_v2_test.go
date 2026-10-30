@@ -59,7 +59,7 @@ func TestWeightToShares(t *testing.T) {
 
 func BenchmarkParseCPUMax(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		parseCPUMax("150000 100000\n")
 	}
 }

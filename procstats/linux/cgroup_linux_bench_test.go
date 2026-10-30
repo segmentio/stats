@@ -12,21 +12,21 @@ import (
 
 func BenchmarkReadCPUPeriod(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ReadCPUPeriod("")
 	}
 }
 
 func BenchmarkReadCPUQuota(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ReadCPUQuota("")
 	}
 }
 
 func BenchmarkReadCPUShares(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ReadCPUShares("")
 	}
 }
@@ -34,7 +34,7 @@ func BenchmarkReadCPUShares(b *testing.B) {
 func BenchmarkReadMemoryLimit(b *testing.B) {
 	pid := os.Getpid()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ReadMemoryLimit(pid)
 	}
 }
