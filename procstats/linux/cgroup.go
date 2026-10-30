@@ -1,6 +1,7 @@
 package linux
 
 import (
+	"fmt"
 	"strings"
 	"time"
 )
@@ -130,29 +131,37 @@ func readCPUShares(cgroup string) int64 {
 }
 
 func readCPUMax(cgroup string) (quota, period time.Duration) {
-	return parseCPUMax(readFile(cgroupPath("", cgroup, "cpu.max")))
+	return parseCPUMax(readSmallFile(cgroupPath("", cgroup, "cpu.max")))
 }
 
-// parseCPUMax parses the cgroup v2 cpu.max format, "<quota> <period>", where
-// quota is "max" when unlimited. An unlimited quota is reported as -1µs to
-// match what cgroup v1 reports in cpu.cfs_quota_us.
+// parseCPUMax parses the cgroup v2 cpu.max format, "<quota> [<period>]", where
+// quota is "max" when unlimited and period defaults to 100ms. An unlimited
+// quota is reported as -1µs to match what cgroup v1 reports in
+// cpu.cfs_quota_us.
 func parseCPUMax(s string) (quota, period time.Duration) {
-	q, p := split(strings.TrimSpace(s), ' ')
+	q, p, hasPeriod := strings.Cut(strings.TrimSpace(s), " ")
+	if q == "" || strings.Contains(p, " ") {
+		check(fmt.Errorf("malformed cpu.max: %q", s))
+	}
 	if q == "max" {
 		quota = -1 * time.Microsecond
 	} else {
 		quota = time.Duration(parseInt(q)) * time.Microsecond
 	}
-	period = time.Duration(parseInt(p)) * time.Microsecond
+	period = 100 * time.Millisecond
+	if hasPeriod {
+		period = time.Duration(parseInt(p)) * time.Microsecond
+	}
 	return quota, period
 }
 
-// weightToShares converts a cgroup v2 cpu.weight (1-10000) to the equivalent
-// cgroup v1 cpu.shares (2-262144), using the inverse of the conversion runc and
-// the kubelet apply when writing cpu.weight.
+// weightToShares converts a cgroup v2 cpu.weight (1-10000, default 100) to an
+// approximate cgroup v1 cpu.shares (default 1024), so that the default weight
+// maps to the default shares. Container runtimes have used different
+// conversions over time, so the result is only meaningful relative to 1024.
 func weightToShares(weight int64) int64 {
 	if weight <= 0 {
 		return 0
 	}
-	return 2 + (weight-1)*262142/9999
+	return weight * 1024 / 100
 }

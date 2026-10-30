@@ -29,6 +29,18 @@ func TestParseCPUMax(t *testing.T) {
 	}{
 		{"200000 100000\n", 200 * time.Millisecond, 100 * time.Millisecond},
 		{"max 100000\n", -1 * time.Microsecond, 100 * time.Millisecond},
+		{"max", -1 * time.Microsecond, 100 * time.Millisecond},
+		{"50000 20000", 50 * time.Millisecond, 20 * time.Millisecond},
+	}
+	for _, in := range []string{"", "abc 100", "100 200 300"} {
+		func() {
+			defer func() {
+				if recover() == nil {
+					t.Errorf("parseCPUMax(%q) did not fail", in)
+				}
+			}()
+			parseCPUMax(in)
+		}()
 	}
 	for _, test := range tests {
 		if q, p := parseCPUMax(test.in); q != test.quota || p != test.period {
@@ -38,9 +50,16 @@ func TestParseCPUMax(t *testing.T) {
 }
 
 func TestWeightToShares(t *testing.T) {
-	for weight, shares := range map[int64]int64{0: 0, 1: 2, 40: 1024, 10000: 262144} {
+	for weight, shares := range map[int64]int64{0: 0, 1: 10, 100: 1024, 10000: 102400} {
 		if got := weightToShares(weight); got != shares {
 			t.Errorf("weightToShares(%d) = %d, want %d", weight, got, shares)
 		}
+	}
+}
+
+func BenchmarkParseCPUMax(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		parseCPUMax("150000 100000\n")
 	}
 }
