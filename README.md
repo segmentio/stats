@@ -203,10 +203,13 @@ http.Handle("/metrics", prometheus.DefaultHandler)
 
 `Handler` has no `NewHandler` constructor; `DefaultHandler` is a ready-to-use zero-config
 instance. Construct your own `&prometheus.Handler{}` literal instead if you need to set
-`TrimPrefix`, `MetricTimeout`, or `Buckets`.
+`TrimPrefix`, `MetricTimeout`, `ZeroPeriod`, or `Buckets`.
 
 Counters are published with a `_total` suffix, and the handler leaves timestamps
-off so the scraper assigns scrape time.
+off so the scraper assigns scrape time. A new counter or histogram series is
+published as 0 for `ZeroPeriod` (2 minutes by default) before its value, so that
+`increase()` and `rate()` count its first increments; keep it at least twice
+your scrape interval.
 
 Histograms need bucket boundaries. Register them with `Engine.SetBuckets`, which
 takes the same name you pass to `Observe` and derives the registry key from the

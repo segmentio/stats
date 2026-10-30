@@ -44,6 +44,21 @@ type Handler struct {
 	// The default is to use a 2 minutes metric timeout.
 	MetricTimeout time.Duration
 
+	// ZeroPeriod defines how long a new counter or histogram series is
+	// exposed with a value of zero before its real value. This includes a
+	// series created again after MetricTimeout expired it.
+	//
+	// increase() and rate() never count a series' first sample, so a counter
+	// whose first scraped value is 3 loses those 3. Starting at zero makes the
+	// first sample 0. Set it to at least twice the scrape interval of every
+	// scraper of this handler; counts are delayed by up to this long, not lost.
+	// Gauges are unaffected.
+	//
+	// The default is 2 minutes, twice the common 60s scrape interval, so that
+	// a late scrape or a target moving between collectors still lands in the
+	// window. A negative value disables it.
+	ZeroPeriod time.Duration
+
 	// Buckets is the registry of histogram buckets used by the handler,
 	// If nil, stats.Buckets is used instead.
 	//
@@ -57,6 +72,7 @@ type Handler struct {
 // HandleMeasures satisfies the stats.Handler interface.
 func (h *Handler) HandleMeasures(mtime time.Time, measures ...stats.Measure) {
 	cache := handleMetricPool.Get().(*handleMetricCache)
+	zeroPeriod := h.zeroPeriod()
 
 	for _, m := range measures {
 		scope := h.trimPrefix(m.Name)
@@ -103,14 +119,18 @@ func (h *Handler) HandleMeasures(mtime time.Time, measures ...stats.Measure) {
 				}
 			}
 
-			h.metrics.update(metric{
+			point := metric{
 				mtype:  mtype,
 				scope:  scope,
 				name:   f.Name,
 				value:  valueOf(f.Value),
 				time:   mtime,
 				labels: cache.labels,
-			}, buckets)
+			}
+			if mtype == counter || mtype == histogram {
+				point.zeroPeriod = zeroPeriod
+			}
+			h.metrics.update(point, buckets)
 		}
 
 		for i := range cache.labels {
@@ -124,7 +144,7 @@ func (h *Handler) HandleMeasures(mtime time.Time, measures ...stats.Measure) {
 	// having memory leaks if the program has generated metrics for a pair of
 	// metric name and labels that won't be seen again.
 	if (h.opcount.Add(1) % 10000) == 0 {
-		h.metrics.cleanup(time.Now().Add(-h.timeout()))
+		h.metrics.cleanup(now().Add(-h.timeout()))
 	}
 }
 
@@ -136,9 +156,20 @@ func (h *Handler) trimPrefix(s string) string {
 	return s
 }
 
+// now is the wall clock that ZeroPeriod and MetricTimeout are measured on,
+// replaced by tests that step through time.
+var now = time.Now
+
 func (h *Handler) timeout() time.Duration {
 	if timeout := h.MetricTimeout; timeout != 0 {
 		return timeout
+	}
+	return 2 * time.Minute
+}
+
+func (h *Handler) zeroPeriod() time.Duration {
+	if period := h.ZeroPeriod; period != 0 {
+		return period
 	}
 	return 2 * time.Minute
 }
@@ -190,7 +221,7 @@ func (h *Handler) WriteStats(w io.Writer) {
 	// the entire scrape fails.
 	declared := make(map[metricKey]struct{})
 
-	metrics := h.metrics.collect(make([]metric, 0, 10000))
+	metrics := h.metrics.collect(make([]metric, 0, 10000), now())
 	sort.Sort(byNameAndLabels(metrics))
 
 	for i, m := range metrics {

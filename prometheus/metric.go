@@ -51,6 +51,10 @@ type metric struct {
 	value  float64
 	time   time.Time
 	labels labels
+
+	// Input path only: how long a state created by this update publishes zero
+	// before its real value. See Handler.ZeroPeriod.
+	zeroPeriod time.Duration
 }
 
 func (m metric) key() metricKey {
@@ -110,15 +114,16 @@ func (store *metricStore) lookup(mtype metricType, key metricKey, help string) *
 
 func (store *metricStore) update(metric metric, buckets []stats.Value) {
 	entry := store.lookup(metric.mtype, metric.key(), metric.help)
-	state := entry.lookup(metric.labels)
+	state := entry.lookup(metric.labels, metric.zeroPeriod)
 	state.update(metric.mtype, metric.value, metric.time, buckets)
 }
 
-func (store *metricStore) collect(metrics []metric) []metric {
+// collect appends the current value of every state, as of now.
+func (store *metricStore) collect(metrics []metric, now time.Time) []metric {
 	store.mutex.RLock()
 
 	for key, entry := range store.entries {
-		metrics = entry.collect(metrics, store.exposedName(key, entry))
+		metrics = entry.collect(metrics, store.exposedName(key, entry), now)
 	}
 
 	store.mutex.RUnlock()
@@ -226,7 +231,11 @@ func hasTotalSuffix(name string) bool {
 	return string(b) == "total" || strings.HasSuffix(string(b), "_total")
 }
 
-func (entry *metricEntry) lookup(labels labels) *metricState {
+// lookup returns the state for labels, creating it if there is none. A state
+// created here publishes zero for zeroPeriod, measured on the wall clock rather
+// than on the measure's time: engine-reported version metrics carry a zero
+// time, and ReportAt takes any time the caller likes.
+func (entry *metricEntry) lookup(labels labels, zeroPeriod time.Duration) *metricState {
 	key := labels.hash()
 
 	entry.mutex.RLock()
@@ -238,6 +247,9 @@ func (entry *metricEntry) lookup(labels labels) *metricState {
 
 		if state = entry.states.find(key, labels); state == nil {
 			state = newMetricState(labels)
+			if zeroPeriod > 0 {
+				state.zeroUntil = now().Add(zeroPeriod)
+			}
 			entry.states.put(key, state)
 		}
 
@@ -247,13 +259,13 @@ func (entry *metricEntry) lookup(labels labels) *metricState {
 	return state
 }
 
-func (entry *metricEntry) collect(metrics []metric, name string) []metric {
+func (entry *metricEntry) collect(metrics []metric, name string, now time.Time) []metric {
 	entry.mutex.RLock()
 
 	if len(entry.states) != 0 {
 		for _, states := range entry.states {
 			for _, state := range states {
-				metrics = state.collect(metrics, entry, name)
+				metrics = state.collect(metrics, entry, name, now)
 			}
 		}
 	}
@@ -276,7 +288,12 @@ func (entry *metricEntry) cleanup(exp time.Time, empty func()) {
 
 			// We expire all entries that have been last updated before exp,
 			// they don't get copied back into the state slice.
-			if exp.Before(state.time) {
+			//
+			// A state still publishing zero, or that stopped doing so less
+			// than a timeout ago, is kept regardless: its real value has to
+			// be exposed for as long as any other state's would be, or a
+			// scrape may never see it.
+			if exp.Before(state.time) || exp.Before(state.zeroUntil) {
 				states[i] = state
 				i++
 			}
@@ -311,6 +328,18 @@ type metricState struct {
 	sum     float64
 	count   uint64
 	time    time.Time
+
+	// Until this time the state publishes zero rather than its value.
+	//
+	// Prometheus' increase() and rate() count the change between samples of a
+	// series, never its first sample. A counter that first appears at 3 has
+	// lost those 3, and one that expires on MetricTimeout and comes back at 1
+	// reads as no change at all. Sparse, high-cardinality series do this
+	// constantly. Starting every series at 0 for longer than a scrape
+	// interval makes the first scraped sample 0, so the whole value is
+	// counted as change. Measured in time rather than per scrape, so that
+	// every scraper of the endpoint sees the zero.
+	zeroUntil time.Time
 }
 
 func newMetricState(labels labels) *metricState {
@@ -345,8 +374,18 @@ func (state *metricState) update(mtype metricType, value float64, time time.Time
 	state.mutex.Unlock()
 }
 
-func (state *metricState) collect(metrics []metric, entry *metricEntry, name string) []metric {
+func (state *metricState) collect(metrics []metric, entry *metricEntry, name string, now time.Time) []metric {
 	state.mutex.Lock()
+
+	// Every value below passes through this, which publishes the series with
+	// all of its labels and buckets but none of its counts.
+	zero := now.Before(state.zeroUntil)
+	value := func(v float64) float64 {
+		if zero {
+			return 0
+		}
+		return v
+	}
 
 	// metric.time is deliberately not set here. appendMetric no longer writes
 	// a timestamp, so nothing on the output path reads it; the field stays on
@@ -359,7 +398,7 @@ func (state *metricState) collect(metrics []metric, entry *metricEntry, name str
 			scope:  entry.scope,
 			name:   name,
 			help:   entry.help,
-			value:  state.value,
+			value:  value(state.value),
 			labels: state.labels,
 		})
 
@@ -375,7 +414,7 @@ func (state *metricState) collect(metrics []metric, entry *metricEntry, name str
 				scope:  entry.scope,
 				name:   entry.bucket,
 				help:   entry.help,
-				value:  float64(cumulativeCount),
+				value:  value(float64(cumulativeCount)),
 				labels: bucket.labels,
 			})
 		}
@@ -385,7 +424,7 @@ func (state *metricState) collect(metrics []metric, entry *metricEntry, name str
 				scope:  entry.scope,
 				name:   entry.sum,
 				help:   entry.help,
-				value:  state.sum,
+				value:  value(state.sum),
 				labels: state.labels,
 			},
 			metric{
@@ -393,7 +432,7 @@ func (state *metricState) collect(metrics []metric, entry *metricEntry, name str
 				scope:  entry.scope,
 				name:   entry.count,
 				help:   entry.help,
-				value:  float64(state.count),
+				value:  value(float64(state.count)),
 				labels: state.labels,
 			},
 		)
