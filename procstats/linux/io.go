@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -24,7 +25,7 @@ func readMicrosecondFile(path string) time.Duration {
 }
 
 func readIntFile(path string) int64 {
-	return parseInt(strings.TrimSpace(readFile(path)))
+	return parseInt(strings.TrimSpace(readSmallFile(path)))
 }
 
 func parseInt(s string) int64 {
@@ -40,3 +41,10 @@ func procPath(who any, what string) string {
 func cgroupPath(dir, cgroup, file string) string {
 	return filepath.Join("/sys/fs/cgroup", dir, cgroup, file)
 }
+
+// isCGroupV2 reports whether /sys/fs/cgroup is the cgroup v2 unified hierarchy.
+// The hierarchy cannot change while the process runs, so it is checked once.
+var isCGroupV2 = sync.OnceValue(func() bool {
+	_, err := os.Stat("/sys/fs/cgroup/cgroup.controllers")
+	return err == nil
+})

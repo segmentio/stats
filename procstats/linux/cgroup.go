@@ -1,6 +1,7 @@
 package linux
 
 import (
+	"fmt"
 	"strings"
 	"time"
 )
@@ -30,6 +31,18 @@ func (pcg ProcCGroup) Lookup(name string) (cgroup CGroup, ok bool) {
 	return cgroup, ok
 }
 
+// Unified returns the cgroup v2 (unified hierarchy) entry, which
+// /proc/<pid>/cgroup reports as "0::<path>", and a bool indicating whether or
+// not it was found.
+func (pcg ProcCGroup) Unified() (cgroup CGroup, ok bool) {
+	for _, cg := range pcg {
+		if cg.ID == 0 && cg.Name == "" {
+			return cg, true
+		}
+	}
+	return CGroup{}, false
+}
+
 // ReadProcCGroup takes an int argument representing a PID
 // and returns a ProcCGroup and error, if any is encountered.
 func ReadProcCGroup(pid int) (proc ProcCGroup, err error) {
@@ -49,6 +62,11 @@ func parseProcCGroup(s string) (proc ProcCGroup) {
 	forEachLine(s, func(line string) {
 		id, line := split(line, ':')
 		name, path := split(line, ':')
+
+		if id == "0" && name == "" { // cgroup v2 unified hierarchy
+			proc = append(proc, CGroup{ID: 0, Name: "", Path: path})
+			return
+		}
 
 		for len(name) != 0 {
 			var next string
@@ -90,13 +108,60 @@ func ReadCPUShares(cgroup string) (shares int64, err error) {
 }
 
 func readCPUPeriod(cgroup string) time.Duration {
+	if isCGroupV2() {
+		_, period := readCPUMax(cgroup)
+		return period
+	}
 	return readMicrosecondFile(cgroupPath("cpu", cgroup, "cpu.cfs_period_us"))
 }
 
 func readCPUQuota(cgroup string) time.Duration {
+	if isCGroupV2() {
+		quota, _ := readCPUMax(cgroup)
+		return quota
+	}
 	return readMicrosecondFile(cgroupPath("cpu", cgroup, "cpu.cfs_quota_us"))
 }
 
 func readCPUShares(cgroup string) int64 {
+	if isCGroupV2() {
+		return weightToShares(readIntFile(cgroupPath("", cgroup, "cpu.weight")))
+	}
 	return readIntFile(cgroupPath("cpu", cgroup, "cpu.shares"))
+}
+
+func readCPUMax(cgroup string) (quota, period time.Duration) {
+	return parseCPUMax(readSmallFile(cgroupPath("", cgroup, "cpu.max")))
+}
+
+// parseCPUMax parses the cgroup v2 cpu.max format, "<quota> [<period>]", where
+// quota is "max" when unlimited and period defaults to 100ms. An unlimited
+// quota is reported as -1µs to match what cgroup v1 reports in
+// cpu.cfs_quota_us.
+func parseCPUMax(s string) (quota, period time.Duration) {
+	q, p, hasPeriod := strings.Cut(strings.TrimSpace(s), " ")
+	if q == "" || strings.Contains(p, " ") {
+		check(fmt.Errorf("malformed cpu.max: %q", s))
+	}
+	if q == "max" {
+		quota = -1 * time.Microsecond
+	} else {
+		quota = time.Duration(parseInt(q)) * time.Microsecond
+	}
+	period = 100 * time.Millisecond
+	if hasPeriod {
+		period = time.Duration(parseInt(p)) * time.Microsecond
+	}
+	return quota, period
+}
+
+// weightToShares converts a cgroup v2 cpu.weight (1-10000, default 100) to an
+// approximate cgroup v1 cpu.shares (default 1024), so that the default weight
+// maps to the default shares. Container runtimes have used different
+// conversions over time, so the result is only meaningful relative to 1024.
+func weightToShares(weight int64) int64 {
+	if weight <= 0 {
+		return 0
+	}
+	return weight * 1024 / 100
 }
