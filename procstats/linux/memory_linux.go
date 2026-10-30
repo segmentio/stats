@@ -24,6 +24,12 @@ func readCGroupMemoryLimit(pid int) (limit uint64) {
 }
 
 func readProcCGroupMemoryLimit(cgroups ProcCGroup) (limit uint64) {
+	if isCGroupV2() {
+		if unified, ok := cgroups.Unified(); ok {
+			limit = readUnifiedCGroupMemoryLimit(unified)
+		}
+		return limit
+	}
 	if memory, ok := cgroups.Lookup("memory"); ok {
 		limit = readMemoryCGroupMemoryLimit(memory)
 	}
@@ -34,6 +40,20 @@ func readMemoryCGroupMemoryLimit(cgroup CGroup) (limit uint64) {
 	limit = unlimitedMemoryLimit // default value if something doesn't work
 
 	if b, err := os.ReadFile(readMemoryCGroupMemoryLimitFilePath(cgroup.Path)); err == nil {
+		if v, err := strconv.ParseUint(strings.TrimSpace(string(b)), 10, 64); err == nil {
+			limit = v
+		}
+	}
+
+	return limit
+}
+
+// readUnifiedCGroupMemoryLimit reads memory.max, which holds "max" when the
+// cgroup has no limit.
+func readUnifiedCGroupMemoryLimit(cgroup CGroup) (limit uint64) {
+	limit = unlimitedMemoryLimit
+
+	if b, err := os.ReadFile(filepath.Join("/sys/fs/cgroup", cgroup.Path, "memory.max")); err == nil {
 		if v, err := strconv.ParseUint(strings.TrimSpace(string(b)), 10, 64); err == nil {
 			limit = v
 		}

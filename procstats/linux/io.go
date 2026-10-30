@@ -40,3 +40,9 @@ func procPath(who any, what string) string {
 func cgroupPath(dir, cgroup, file string) string {
 	return filepath.Join("/sys/fs/cgroup", dir, cgroup, file)
 }
+
+// isCGroupV2 reports whether /sys/fs/cgroup is the cgroup v2 unified hierarchy.
+func isCGroupV2() bool {
+	_, err := os.Stat("/sys/fs/cgroup/cgroup.controllers")
+	return err == nil
+}

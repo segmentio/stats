@@ -105,8 +105,14 @@ func collectProcInfo(pid int) (info ProcInfo, err error) {
 		selfCGroups, _ := linux.ReadProcCGroup(os.Getpid())
 		procCGroups, _ := linux.ReadProcCGroup(pid)
 
-		selfCPU, _ := selfCGroups.Lookup("cpu,cpuacct")
-		procCPU, _ := procCGroups.Lookup("cpu,cpuacct")
+		selfCPU, ok := selfCGroups.Lookup("cpu,cpuacct")
+		if !ok { // cgroup v2
+			selfCPU, _ = selfCGroups.Unified()
+		}
+		procCPU, ok := procCGroups.Lookup("cpu,cpuacct")
+		if !ok { // cgroup v2
+			procCPU, _ = procCGroups.Unified()
+		}
 
 		var (
 			cpuPeriod time.Duration
