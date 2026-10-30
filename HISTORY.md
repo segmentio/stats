@@ -1,5 +1,28 @@
 # History
 
+### v5.12.0
+
+**`procstats` now reads CPU and memory limits on cgroup v2.** It only knew the
+cgroup v1 files (`cpu.cfs_quota_us`, `cpu.cfs_period_us`, `cpu.shares`,
+`memory.limit_in_bytes`) and dropped the `0::/path` line that v2 writes to
+`/proc/<pid>/cgroup`. On a v2 host or pod the reads failed silently: quota,
+period and shares came back as 0, so CPU percent was computed against
+`1/NumCPU` instead of the pod's limit, and the memory limit was reported as 0.
+
+On v2, `procstats` now reads the quota and period from `cpu.max`, shares from
+`cpu.weight` (scaled so the v2 default of 100 maps to the v1 default of 1024),
+and the memory limit from `memory.max`. v1 and hybrid hosts read the same files
+as before.
+
+Also changed:
+
+- When no memory cgroup is found, the memory limit falls back to total system
+  memory instead of 0. This applies on v1 too.
+- `linux.ProcCGroup.Unified` is new and returns the v2 entry.
+  `linux.ParseProcCGroup` and `linux.ReadProcCGroup` now include that entry
+  (ID 0, empty name), so on hybrid hosts they return one more element than
+  before. `Lookup` is unaffected.
+
 ### v5.11.1
 
 **A call-time tag that overrides an engine tag no longer sends a tag twice.**
