@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -265,5 +266,59 @@ func TestProtobufMatchesTextNames(t *testing.T) {
 				t.Errorf("protobuf series %s not in text output:\n%s", series, text.String())
 			}
 		}
+	}
+}
+
+// benchmarkHandler returns a handler holding n series: counters with three
+// labels, and one histogram series for every ten of them.
+func benchmarkHandler(n int) *Handler {
+	handler := &Handler{}
+	now := time.Now()
+	for i := range n {
+		tags := []stats.Tag{
+			stats.T("method", "GET"),
+			stats.T("status_code", strconv.Itoa(200+i%5)),
+			stats.T("url", "/v1/workspaces/"+strconv.Itoa(i)),
+		}
+		handler.HandleMeasures(now, stats.Measure{
+			Name:   "http",
+			Fields: []stats.Field{stats.MakeField("requests", 1, stats.Counter)},
+			Tags:   tags,
+		})
+		if i%10 == 0 {
+			handler.HandleMeasures(now, stats.Measure{
+				Name:   "http",
+				Fields: []stats.Field{stats.MakeField("duration", 0.1, stats.Histogram)},
+				Tags:   tags,
+			})
+		}
+	}
+	return handler
+}
+
+// BenchmarkCollect is the text path's time under the store lock.
+func BenchmarkCollect(b *testing.B) {
+	handler := benchmarkHandler(100000)
+	b.ReportAllocs()
+	for b.Loop() {
+		handler.metrics.collect(make([]metric, 0, 10000))
+	}
+}
+
+// BenchmarkFamilies is the whole protobuf build.
+func BenchmarkFamilies(b *testing.B) {
+	handler := benchmarkHandler(100000)
+	b.ReportAllocs()
+	for b.Loop() {
+		handler.metrics.families()
+	}
+}
+
+// BenchmarkProtoEntries is the protobuf path's time under the store lock.
+func BenchmarkProtoEntries(b *testing.B) {
+	handler := benchmarkHandler(100000)
+	b.ReportAllocs()
+	for b.Loop() {
+		handler.metrics.protoEntries()
 	}
 }
