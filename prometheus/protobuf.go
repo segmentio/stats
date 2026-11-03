@@ -74,7 +74,10 @@ func acceptsProtobuf(accept string) bool {
 // counted by increase() instead of being taken as its baseline.
 //
 // Names and labels are rendered exactly as WriteStats renders them, so
-// switching format does not change any series.
+// switching format does not change any series on Prometheus 3.x. Histogram
+// bounds are the exception on 2.x: the scraper formats UpperBound itself, as
+// le="1.0" where the text format writes le="1", and only 3.x normalizes the
+// text value to match.
 func (h *Handler) writeProtobuf(w io.Writer) error {
 	for _, mf := range h.metrics.families() {
 		if _, err := protodelim.MarshalTo(w, mf); err != nil {

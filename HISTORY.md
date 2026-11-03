@@ -17,16 +17,20 @@ encoding=delimited`). A scraper with created-timestamp zero ingestion enabled
 `start_timestamp_zero_ingestion`) writes a zero at that time, so the first
 update is counted.
 
-Protobuf is served only to a scraper that ranks it above every text type in
+Protobuf is served only to a scraper that ranks it above the text format in
 its `Accept` header. That is a scraper whose scrape protocols put
 `PrometheusProto` first, or a Prometheus with native histograms or
 created-timestamp zero ingestion on, which puts it first by default: such a
 Prometheus switches to protobuf when the application upgrades, with no change
 to its configuration. Every other scraper keeps getting the text format,
-unchanged. Both formats
-render the same metric and label names, so a scraper that switches format
-keeps writing to the same series. Sample timestamps are still left to the
-scraper. Gauges carry no created timestamp.
+unchanged. Sample timestamps are still left to the scraper. Gauges carry no
+created timestamp.
+
+Both formats render the same metric and label names, so a Prometheus 3.x
+scraper that switches format keeps writing to the same series. On Prometheus
+2.x, histogram buckets with integer bounds start new series: the scraper
+formats the bound of a protobuf bucket as `le="1.0"`, while the text format
+writes `le="1"`, and only 3.x normalizes the text value to match.
 
 The module now depends on `github.com/prometheus/client_model`.
 
