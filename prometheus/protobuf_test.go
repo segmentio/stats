@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -41,6 +42,31 @@ func TestAcceptsProtobuf(t *testing.T) {
 			name:   "scraper defaults",
 			accept: "application/openmetrics-text;version=1.0.0;q=0.5,application/openmetrics-text;version=0.0.1;q=0.4,text/plain;version=0.0.4;q=0.3,*/*;q=0.2",
 			expect: false,
+		},
+		{
+			// Prometheus' acceptHeader output for DefaultScrapeProtocols. Its
+			// weights start at one above the number of protocols it knows, so
+			// they shift between releases: q=0.8 on main, q=0.7 on 3.0.
+			name: "prometheus 3.x defaults",
+			accept: "application/openmetrics-text;version=1.0.0;escaping=allow-utf-8;q=0.8,application/openmetrics-text;version=0.0.1;q=0.7," +
+				"text/plain;version=1.0.0;escaping=allow-utf-8;q=0.6,text/plain;version=0.0.4;q=0.5,*/*;q=0.4",
+			expect: false,
+		},
+		{
+			// DefaultProtoFirstScrapeProtocols, used with scrape_native_histograms
+			// or created-timestamp zero ingestion.
+			name: "prometheus 3.x proto first",
+			accept: "application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited;q=0.8," +
+				"application/openmetrics-text;version=1.0.0;escaping=allow-utf-8;q=0.7,application/openmetrics-text;version=0.0.1;q=0.6," +
+				"text/plain;version=1.0.0;escaping=allow-utf-8;q=0.5,text/plain;version=0.0.4;q=0.4,*/*;q=0.3",
+			expect: true,
+		},
+		{
+			name: "prometheus 3.0 proto first",
+			accept: "application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited;q=0.7," +
+				"application/openmetrics-text;version=1.0.0;escaping=allow-utf-8;q=0.6,application/openmetrics-text;version=0.0.1;q=0.5," +
+				"text/plain;version=1.0.0;escaping=allow-utf-8;q=0.4,text/plain;version=0.0.4;q=0.3,*/*;q=0.2",
+			expect: true,
 		},
 		{
 			name:   "protobuf ranked below text",
@@ -309,6 +335,53 @@ func TestHistogramInfBucket(t *testing.T) {
 	if t.Failed() {
 		t.Log("text output:\n" + text.String())
 	}
+}
+
+// TestProtobufConcurrentScrape scrapes while measures arrive and series
+// expire, for the race detector to check the copy taken under the locks.
+func TestProtobufConcurrentScrape(t *testing.T) {
+	handler := &Handler{}
+	start := time.Now()
+	stop := make(chan struct{})
+	var wg sync.WaitGroup
+
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		for i := 0; ; i++ {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			now := start.Add(time.Duration(i) * time.Millisecond)
+			tags := []stats.Tag{stats.T("id", strconv.Itoa(i%50))}
+			handler.HandleMeasures(now,
+				stats.Measure{Fields: []stats.Field{stats.MakeField("c", 1, stats.Counter)}, Tags: tags},
+				stats.Measure{Fields: []stats.Field{stats.MakeField("g", float64(i), stats.Gauge)}, Tags: tags},
+				stats.Measure{Fields: []stats.Field{stats.MakeField("h", 0.1, stats.Histogram)}, Tags: tags},
+			)
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for i := 0; ; i++ {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			handler.metrics.cleanup(start.Add(time.Duration(i) * time.Millisecond))
+		}
+	}()
+
+	for range 50 {
+		if err := handler.writeProtobuf(io.Discard); err != nil {
+			t.Error(err)
+		}
+	}
+	close(stop)
+	wg.Wait()
 }
 
 // TestProtobufMatchesText checks that a scraper ingests the same series from
