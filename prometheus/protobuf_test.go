@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -240,33 +241,161 @@ func TestCreatedTimestampAfterTimeout(t *testing.T) {
 	}
 }
 
-// TestProtobufMatchesTextNames checks that the protobuf exposition renders
-// family and label names the way the text format does, so a scraper that
-// switches format keeps writing to the same series.
-func TestProtobufMatchesTextNames(t *testing.T) {
+// TestProtobufMatchesText checks that a scraper ingests the same series from
+// the protobuf exposition as from the text format: the same names, label sets
+// and values, so a scraper that switches format keeps writing to the same
+// series.
+//
+// le is compared as a number. The scraper formats a protobuf bound itself, as
+// le="1.0" where the text format writes le="1", and Prometheus 3.x normalizes
+// the text value to the same form.
+func TestProtobufMatchesText(t *testing.T) {
 	now := time.Date(2017, 6, 4, 22, 12, 0, 0, time.UTC)
 
-	handler := &Handler{}
+	handler := &Handler{
+		Buckets: map[stats.Key][]stats.Value{
+			{Measure: "http.server", Field: "duration"}: {
+				stats.ValueOf(0.25),
+				stats.ValueOf(1),
+				stats.ValueOf(5),
+			},
+		},
+	}
+	tags := []stats.Tag{stats.T("method", "GET"), stats.T("status.code", "200")}
 	handler.HandleMeasures(now,
-		stats.Measure{Name: "http.server", Fields: []stats.Field{stats.MakeField("requests.total", 1, stats.Counter)}, Tags: []stats.Tag{stats.T("status.code", "200")}},
+		stats.Measure{Name: "http.server", Fields: []stats.Field{stats.MakeField("requests.total", 3, stats.Counter)}, Tags: tags},
+		stats.Measure{Name: "http.server", Fields: []stats.Field{stats.MakeField("requests.total", 1, stats.Counter)}, Tags: []stats.Tag{stats.T("method", "POST")}},
 		stats.Measure{Name: "http.server", Fields: []stats.Field{stats.MakeField("hits", 1, stats.Counter)}},
-		stats.Measure{Name: "http.server", Fields: []stats.Field{stats.MakeField("hits_total", 1, stats.Counter)}},
+		stats.Measure{Name: "http.server", Fields: []stats.Field{stats.MakeField("hits_total", 2, stats.Counter)}},
+		stats.Measure{Name: "http.server", Fields: []stats.Field{stats.MakeField("inflight", 7, stats.Gauge)}, Tags: tags},
+		stats.Measure{Name: "http.server", Fields: []stats.Field{stats.MakeField("duration", 0.1, stats.Histogram)}, Tags: tags},
+		stats.Measure{Name: "http.server", Fields: []stats.Field{stats.MakeField("duration", 2, stats.Histogram)}, Tags: tags},
+		stats.Measure{Name: "http.server", Fields: []stats.Field{stats.MakeField("duration", 10, stats.Histogram)}, Tags: tags},
 	)
 
 	var text strings.Builder
 	handler.WriteStats(&text)
+	fromText := textSeries(t, text.String())
+	fromProto := protoSeriesSet(scrapeProtobuf(t, handler, false))
 
-	for _, mf := range scrapeProtobuf(t, handler, false) {
-		for _, m := range mf.Metric {
-			series := mf.GetName()
-			if len(m.Label) != 0 {
-				series += "{" + m.Label[0].GetName() + "=\"" + m.Label[0].GetValue() + "\"}"
+	for series, value := range fromText {
+		if v, ok := fromProto[series]; !ok {
+			t.Errorf("text series %s missing from protobuf", series)
+		} else if v != value {
+			t.Errorf("series %s = %g in protobuf, %g in text", series, v, value)
+		}
+	}
+	for series := range fromProto {
+		if _, ok := fromText[series]; !ok {
+			t.Errorf("protobuf series %s missing from text", series)
+		}
+	}
+	if t.Failed() {
+		t.Log("text output:\n" + text.String())
+	}
+}
+
+// seriesKey renders a series as name{label="value",...} with the labels
+// sorted and le normalized, so the same series is the same string whichever
+// format it came from.
+func seriesKey(name string, labels map[string]string) string {
+	names := make([]string, 0, len(labels))
+	for n := range labels {
+		names = append(names, n)
+	}
+	slices.Sort(names)
+
+	var b strings.Builder
+	b.WriteString(name)
+	b.WriteByte('{')
+	for i, n := range names {
+		if i != 0 {
+			b.WriteByte(',')
+		}
+		v := labels[n]
+		if n == "le" {
+			if f, err := strconv.ParseFloat(v, 64); err == nil {
+				v = strconv.FormatFloat(f, 'g', -1, 64)
 			}
-			if !strings.Contains(text.String(), "\n"+series+" ") && !strings.HasPrefix(text.String(), series+" ") {
-				t.Errorf("protobuf series %s not in text output:\n%s", series, text.String())
+		}
+		b.WriteString(n + "=" + strconv.Quote(v))
+	}
+	b.WriteByte('}')
+	return b.String()
+}
+
+// textSeries parses the text exposition into its series and values.
+func textSeries(t *testing.T, text string) map[string]float64 {
+	t.Helper()
+	set := make(map[string]float64)
+
+	for line := range strings.SplitSeq(text, "\n") {
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		sep := strings.LastIndexByte(line, ' ')
+		value, err := strconv.ParseFloat(line[sep+1:], 64)
+		if err != nil {
+			t.Fatalf("bad value in %q: %v", line, err)
+		}
+		series := line[:sep]
+
+		name, labels := series, map[string]string{}
+		if i := strings.IndexByte(series, '{'); i >= 0 {
+			name = series[:i]
+			rest := strings.TrimSuffix(series[i+1:], "}")
+			for rest != "" {
+				eq := strings.IndexByte(rest, '=')
+				v, err := strconv.QuotedPrefix(rest[eq+1:])
+				if err != nil {
+					t.Fatalf("bad label in %q: %v", line, err)
+				}
+				labels[rest[:eq]], _ = strconv.Unquote(v)
+				rest = strings.TrimPrefix(rest[eq+1+len(v):], ",")
+			}
+		}
+		set[seriesKey(name, labels)] = value
+	}
+	return set
+}
+
+// protoSeriesSet expands decoded families into the series a scraper stores
+// for them: one per counter and gauge, and _bucket (with +Inf from
+// sample_count), _sum and _count per histogram.
+func protoSeriesSet(families []*dto.MetricFamily) map[string]float64 {
+	set := make(map[string]float64)
+
+	for _, mf := range families {
+		for _, m := range mf.Metric {
+			labels := func(extra ...string) map[string]string {
+				l := make(map[string]string, len(m.Label)+1)
+				for _, p := range m.Label {
+					l[p.GetName()] = p.GetValue()
+				}
+				if len(extra) == 2 {
+					l[extra[0]] = extra[1]
+				}
+				return l
+			}
+
+			switch mf.GetType() {
+			case dto.MetricType_COUNTER:
+				set[seriesKey(mf.GetName(), labels())] = m.GetCounter().GetValue()
+			case dto.MetricType_GAUGE:
+				set[seriesKey(mf.GetName(), labels())] = m.GetGauge().GetValue()
+			case dto.MetricType_HISTOGRAM:
+				h := m.GetHistogram()
+				for _, b := range h.Bucket {
+					le := strconv.FormatFloat(b.GetUpperBound(), 'g', -1, 64)
+					set[seriesKey(mf.GetName()+"_bucket", labels("le", le))] = float64(b.GetCumulativeCount())
+				}
+				set[seriesKey(mf.GetName()+"_bucket", labels("le", "+Inf"))] = float64(h.GetSampleCount())
+				set[seriesKey(mf.GetName()+"_sum", labels())] = h.GetSampleSum()
+				set[seriesKey(mf.GetName()+"_count", labels())] = float64(h.GetSampleCount())
 			}
 		}
 	}
+	return set
 }
 
 // benchmarkHandler returns a handler holding n series: counters with three
