@@ -18,8 +18,12 @@ encoding=delimited`). A scraper with created-timestamp zero ingestion enabled
 update is counted.
 
 Protobuf is served only to a scraper that ranks it above every text type in
-its `Accept` header, which Prometheus and Alloy do only when configured to.
-Every other scraper keeps getting the text format, unchanged. Both formats
+its `Accept` header. That is a scraper whose scrape protocols put
+`PrometheusProto` first, or a Prometheus with native histograms or
+created-timestamp zero ingestion on, which puts it first by default: such a
+Prometheus switches to protobuf when the application upgrades, with no change
+to its configuration. Every other scraper keeps getting the text format,
+unchanged. Both formats
 render the same metric and label names, so a scraper that switches format
 keeps writing to the same series. Sample timestamps are still left to the
 scraper. Gauges carry no created timestamp.

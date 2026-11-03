@@ -24,8 +24,10 @@ const protobufContentType = "application/vnd.google.protobuf; proto=io.prometheu
 //
 // Protobuf is served only when the scraper ranks it above every text type it
 // accepts. Prometheus and Alloy list their scrape protocols with descending q
-// values, and neither puts protobuf first unless configured to, so a scraper
-// on its defaults keeps receiving text. Equal q values keep header order.
+// values. A scraper puts protobuf first when its scrape protocols are set that
+// way, and Prometheus also does so by default when native histograms or
+// created-timestamp zero ingestion are on. Any other scraper keeps receiving
+// text. Equal q values keep header order.
 func acceptsProtobuf(accept string) bool {
 	best, isProto := 0.0, false
 
