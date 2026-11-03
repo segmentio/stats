@@ -654,7 +654,7 @@ func BenchmarkCollect(b *testing.B) {
 }
 
 // BenchmarkWriteProtobuf is the whole protobuf exposition, built and
-// marshalled. peak-heap-B is the most heap in use at any write, above what
+// marshaled. peak-heap-B is the most heap in use at any write, above what
 // it was before the call: the messages built but not yet written.
 func BenchmarkWriteProtobuf(b *testing.B) {
 	for _, families := range []int{2, 100} {
