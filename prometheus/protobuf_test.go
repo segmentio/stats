@@ -9,6 +9,7 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -106,6 +107,9 @@ func scrapeProtobuf(t *testing.T, handler *Handler, gzipped bool) []*dto.MetricF
 
 	if ct := res.Header.Get("Content-Type"); ct != protobufContentType {
 		t.Fatalf("Content-Type = %q, expected %q", ct, protobufContentType)
+	}
+	if vary := res.Header.Values("Vary"); !slices.Equal(vary, []string{"Accept", "Accept-Encoding"}) {
+		t.Errorf("Vary = %q, expected Accept and Accept-Encoding", vary)
 	}
 
 	body := io.Reader(res.Body)
@@ -538,6 +542,35 @@ func benchmarkHandler(n int) *Handler {
 	return handler
 }
 
+// benchmarkHandlerFamilies is benchmarkHandler with its counters spread
+// across families/2 names and its histograms across the other half.
+func benchmarkHandlerFamilies(n, families int) *Handler {
+	handler := &Handler{}
+	now := time.Now()
+	names := max(families/2, 1)
+	for i := range n {
+		tags := []stats.Tag{
+			stats.T("method", "GET"),
+			stats.T("status_code", strconv.Itoa(200+i%5)),
+			stats.T("url", "/v1/workspaces/"+strconv.Itoa(i)),
+		}
+		suffix := strconv.Itoa(i % names)
+		handler.HandleMeasures(now, stats.Measure{
+			Name:   "http",
+			Fields: []stats.Field{stats.MakeField("requests"+suffix, 1, stats.Counter)},
+			Tags:   tags,
+		})
+		if i%10 == 0 {
+			handler.HandleMeasures(now, stats.Measure{
+				Name:   "http",
+				Fields: []stats.Field{stats.MakeField("duration"+suffix, 0.1, stats.Histogram)},
+				Tags:   tags,
+			})
+		}
+	}
+	return handler
+}
+
 // BenchmarkCollect is the text path's time under the store lock.
 func BenchmarkCollect(b *testing.B) {
 	handler := benchmarkHandler(100000)
@@ -547,13 +580,48 @@ func BenchmarkCollect(b *testing.B) {
 	}
 }
 
-// BenchmarkFamilies is the whole protobuf build.
-func BenchmarkFamilies(b *testing.B) {
-	handler := benchmarkHandler(100000)
-	b.ReportAllocs()
-	for b.Loop() {
-		handler.metrics.families()
+// BenchmarkWriteProtobuf is the whole protobuf exposition, built and
+// marshalled. peak-heap-B is the most heap in use at any write, above what
+// it was before the call: the messages built but not yet written.
+func BenchmarkWriteProtobuf(b *testing.B) {
+	for _, families := range []int{2, 100} {
+		b.Run(strconv.Itoa(families)+"-families", func(b *testing.B) {
+			handler := benchmarkHandlerFamilies(100000, families)
+			w := &peakHeapWriter{}
+			b.ReportAllocs()
+			for b.Loop() {
+				b.StopTimer()
+				w.start()
+				b.StartTimer()
+				if err := handler.writeProtobuf(w); err != nil {
+					b.Fatal(err)
+				}
+			}
+			b.ReportMetric(float64(w.max), "peak-heap-B")
+		})
 	}
+}
+
+// peakHeapWriter discards what it is given and records the heap in use at
+// each write.
+type peakHeapWriter struct {
+	base, max uint64
+}
+
+func (w *peakHeapWriter) start() {
+	var m runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&m)
+	w.base = m.HeapAlloc
+}
+
+func (w *peakHeapWriter) Write(p []byte) (int, error) {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	if m.HeapAlloc > w.base && m.HeapAlloc-w.base > w.max {
+		w.max = m.HeapAlloc - w.base
+	}
+	return len(p), nil
 }
 
 // BenchmarkProtoEntries is the protobuf path's time under the store lock.

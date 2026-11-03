@@ -155,6 +155,11 @@ func (h *Handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	w := io.Writer(res)
 	protobuf := acceptsProtobuf(req.Header.Get("Accept"))
 
+	// The format follows Accept and the compression Accept-Encoding, so a
+	// cache must not serve one response in place of the other.
+	res.Header().Add("Vary", "Accept")
+	res.Header().Add("Vary", "Accept-Encoding")
+
 	// Text stays the default. Only the protobuf exposition carries created
 	// timestamps, and a scraper gets it only by asking for it first.
 	if protobuf {
@@ -170,6 +175,11 @@ func (h *Handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		w = zw
 	}
 
+	// Write errors, here and from WriteStats and the deferred gzip Close,
+	// are ignored: the only cause is the connection failing, and by then
+	// the status and part of the body have been sent, so there is nothing
+	// left to report the error with. The scraper sees a response that ends
+	// early and records a failed scrape.
 	if protobuf {
 		_ = h.writeProtobuf(w)
 		return

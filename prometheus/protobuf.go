@@ -78,9 +78,12 @@ func acceptsProtobuf(accept string) bool {
 // bounds are the exception on 2.x: the scraper formats UpperBound itself, as
 // le="1.0" where the text format writes le="1", and only 3.x normalizes the
 // text value to match.
+//
+// Each family's messages are built just before it is written and dropped
+// after, so only one family's worth is held at a time.
 func (h *Handler) writeProtobuf(w io.Writer) error {
-	for _, mf := range h.metrics.families() {
-		if _, err := protodelim.MarshalTo(w, mf); err != nil {
+	for _, f := range h.metrics.families() {
+		if _, err := protodelim.MarshalTo(w, f.message()); err != nil {
 			return err
 		}
 	}
@@ -93,9 +96,32 @@ type protoFamilyKey struct {
 }
 
 type protoFamily struct {
-	family *dto.MetricFamily
+	name   string
+	mtype  metricType
 	series []protoSeries
 	first  int // position of the family's first entry, for ordering
+}
+
+func (f *protoFamily) message() *dto.MetricFamily {
+	var mtype dto.MetricType
+	switch f.mtype {
+	case counter:
+		mtype = dto.MetricType_COUNTER
+	case gauge:
+		mtype = dto.MetricType_GAUGE
+	case histogram:
+		mtype = dto.MetricType_HISTOGRAM
+	}
+
+	mf := &dto.MetricFamily{
+		Name:   proto.String(f.name),
+		Type:   mtype.Enum(),
+		Metric: make([]*dto.Metric, len(f.series)),
+	}
+	for i := range f.series {
+		mf.Metric[i] = f.series[i].protoMetric(f.mtype)
+	}
+	return mf
 }
 
 // protoEntry is a store entry copied out under the locks, so that the
@@ -121,7 +147,9 @@ type protoBucket struct {
 	count uint64
 }
 
-func (store *metricStore) families() []*dto.MetricFamily {
+// families returns the families to publish in order, each with its series
+// sorted, without building their messages.
+func (store *metricStore) families() []*protoFamily {
 	byKey := make(map[protoFamilyKey]*protoFamily)
 
 	// Entries come out of a map, so they are put in the order WriteStats
@@ -140,16 +168,6 @@ func (store *metricStore) families() []*dto.MetricFamily {
 	})
 
 	for i, entry := range entries {
-		var mtype dto.MetricType
-		switch entry.mtype {
-		case counter:
-			mtype = dto.MetricType_COUNTER
-		case gauge:
-			mtype = dto.MetricType_GAUGE
-		case histogram:
-			mtype = dto.MetricType_HISTOGRAM
-		}
-
 		// Two entries can render to the same name, a.b and a_b for example.
 		// Their series are merged into one family, so the name is declared
 		// once.
@@ -158,14 +176,14 @@ func (store *metricStore) families() []*dto.MetricFamily {
 
 		f := byKey[fk]
 		if f == nil {
-			f = &protoFamily{family: &dto.MetricFamily{Name: proto.String(name), Type: mtype.Enum()}, first: i}
+			f = &protoFamily{name: name, mtype: entry.mtype, first: i}
 			byKey[fk] = f
 		}
 		f.series = append(f.series, entry.series...)
 	}
 
 	families := make([]*protoFamily, 0, len(byKey))
-	for fk, f := range byKey {
+	for _, f := range byKey {
 		if len(f.series) == 0 {
 			continue
 		}
@@ -180,10 +198,6 @@ func (store *metricStore) families() []*dto.MetricFamily {
 			}
 			return 0
 		})
-		f.family.Metric = make([]*dto.Metric, len(f.series))
-		for i := range f.series {
-			f.family.Metric[i] = f.series[i].protoMetric(fk.mtype)
-		}
 		families = append(families, f)
 	}
 
@@ -191,16 +205,11 @@ func (store *metricStore) families() []*dto.MetricFamily {
 	// are ordered by their first entry.
 	slices.SortFunc(families, func(a, b *protoFamily) int {
 		return cmp.Or(
-			cmp.Compare(a.family.GetName(), b.family.GetName()),
+			cmp.Compare(a.name, b.name),
 			cmp.Compare(a.first, b.first),
 		)
 	})
-
-	out := make([]*dto.MetricFamily, len(families))
-	for i, f := range families {
-		out[i] = f.family
-	}
-	return out
+	return families
 }
 
 // protoEntries copies out every series the protobuf exposition publishes.
