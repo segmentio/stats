@@ -1,5 +1,31 @@
 # History
 
+### v5.13.0
+
+**The `prometheus` handler can serve the protobuf exposition, with created
+timestamps.** `increase()` and `rate()` never count a counter's first sample:
+it is taken as the starting point. A series that starts at 5 and stays there
+shows an increase of 0, and a series that goes idle long enough for
+`MetricTimeout` to delete it loses its first update again when it comes back.
+
+The handler now records when each counter and histogram series started from
+zero (its first update, or its first update after `MetricTimeout` deleted it)
+and publishes it as `created_timestamp` in the protobuf exposition
+(`application/vnd.google.protobuf; proto=io.prometheus.client.MetricFamily;
+encoding=delimited`). A scraper with created-timestamp zero ingestion enabled
+(Prometheus `created-timestamp-zero-ingestion`, Alloy
+`start_timestamp_zero_ingestion`) writes a zero at that time, so the first
+update is counted.
+
+Protobuf is served only to a scraper that ranks it above every text type in
+its `Accept` header, which Prometheus and Alloy do only when configured to.
+Every other scraper keeps getting the text format, unchanged. Both formats
+render the same metric and label names, so a scraper that switches format
+keeps writing to the same series. Sample timestamps are still left to the
+scraper. Gauges carry no created timestamp.
+
+The module now depends on `github.com/prometheus/client_model`.
+
 ### v5.12.0
 
 **`procstats` now reads CPU and memory limits on cgroup v2.** It only knew the
