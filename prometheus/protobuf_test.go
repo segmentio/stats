@@ -43,6 +43,11 @@ func TestAcceptsProtobuf(t *testing.T) {
 			expect: false,
 		},
 		{
+			name:   "openmetrics above protobuf",
+			accept: "application/openmetrics-text;version=1.0.0;q=0.5,application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited;q=0.4,text/plain;version=0.0.4;q=0.3",
+			expect: true,
+		},
+		{
 			name:   "protobuf only",
 			accept: "application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited",
 			expect: true,

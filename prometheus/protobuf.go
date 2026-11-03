@@ -22,8 +22,9 @@ const protobufContentType = "application/vnd.google.protobuf; proto=io.prometheu
 // acceptsProtobuf reports whether the Accept header prefers the protobuf
 // exposition over the text format.
 //
-// Protobuf is served only when the scraper ranks it above every text type it
-// accepts. Prometheus and Alloy list their scrape protocols with descending q
+// Protobuf is served only when the scraper ranks it above the text format.
+// Those are the only two formats the handler serves, so other types, such as
+// OpenMetrics, are not ranked. Prometheus and Alloy list their scrape protocols with descending q
 // values. A scraper puts protobuf first when its scrape protocols are set that
 // way, and Prometheus also does so by default when native histograms or
 // created-timestamp zero ingestion are on. Any other scraper keeps receiving
