@@ -25,9 +25,9 @@ created-timestamp zero ingestion on, which puts it first by default: such a
 Prometheus switches to protobuf when the application upgrades, with no change
 to its configuration. Alloy puts it first by default only with
 `scrape_native_histograms`; `start_timestamp_zero_ingestion` alone does not
-change the order, so `scrape_protocols` has to list `PrometheusProto` first. Every other scraper keeps getting the text format.
-Sample timestamps are still left to the scraper. Gauges carry no created
-timestamp.
+change the order, so `scrape_protocols` has to list `PrometheusProto` first.
+Every other scraper keeps getting the text format. Sample timestamps are still
+left to the scraper. Gauges carry no created timestamp.
 
 Both formats render the same metric and label names, so a Prometheus 3.x
 scraper that switches format keeps writing to the same series. On Prometheus
