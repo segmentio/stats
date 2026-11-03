@@ -151,8 +151,8 @@ func (store *metricStore) families() []*dto.MetricFamily {
 		}
 
 		// Two entries can render to the same name, a.b and a_b for example.
-		// The text format declares the family once and lists both under it,
-		// so they are merged here too.
+		// Their series are merged into one family, so the name is declared
+		// once.
 		name := string(appendMetricScopedName(nil, entry.scope, entry.name))
 		fk := protoFamilyKey{name: name, mtype: entry.mtype}
 
