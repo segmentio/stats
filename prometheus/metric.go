@@ -388,6 +388,13 @@ func (state *metricState) collect(metrics []metric, entry *metricEntry, name str
 		var cumulativeCount uint64
 		for _, bucket := range state.buckets {
 			cumulativeCount += bucket.count
+			if math.IsInf(bucket.limit, 1) {
+				// le="+Inf" is _count, as the scraper derives it from a
+				// protobuf exposition. The bucket total can fall short of it:
+				// a NaN lands in no bucket, and a rebuild zeroes the buckets
+				// but not _count.
+				cumulativeCount = state.count
+			}
 			metrics = append(metrics, metric{
 				mtype:  entry.mtype,
 				scope:  entry.scope,

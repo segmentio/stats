@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"errors"
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -262,6 +263,47 @@ func TestCreatedTimestampZeroTime(t *testing.T) {
 	created := c.GetCreatedTimestamp().AsTime()
 	if c.GetValue() != 6 || created.Before(before) || created.After(after) {
 		t.Errorf("counter = %v, expected value 6 created between %s and %s", c, before, after)
+	}
+}
+
+// TestHistogramInfBucket checks that le="+Inf" is _count in both formats,
+// where the bucket total falls short of it: a NaN observation lands in no
+// bucket, and a rebuild zeroes the buckets but not _count.
+func TestHistogramInfBucket(t *testing.T) {
+	now := time.Date(2017, 6, 4, 22, 12, 0, 0, time.UTC)
+	key := stats.Key{Field: "H"}
+	observe := func(h *Handler, kind string, v float64) {
+		h.HandleMeasures(now, stats.Measure{
+			Fields: []stats.Field{stats.MakeField("H", v, stats.Histogram)},
+			Tags:   []stats.Tag{stats.T("kind", kind)},
+		})
+	}
+
+	handler := &Handler{Buckets: map[stats.Key][]stats.Value{key: {stats.ValueOf(1)}}}
+	observe(handler, "nan", 0.5)
+	observe(handler, "nan", 2)
+	observe(handler, "nan", math.NaN())
+	observe(handler, "rebuild", 0.5)
+	observe(handler, "rebuild", 2)
+	handler.Buckets[key] = []stats.Value{stats.ValueOf(1), stats.ValueOf(5)}
+	observe(handler, "rebuild", 0.5)
+
+	var text strings.Builder
+	handler.WriteStats(&text)
+	fromText := textSeries(t, text.String())
+	fromProto := protoSeriesSet(scrapeProtobuf(t, handler, false))
+
+	for kind, count := range map[string]float64{"nan": 3, "rebuild": 3} {
+		inf := seriesKey("H_bucket", map[string]string{"kind": kind, "le": "+Inf"})
+		if v := fromText[inf]; v != count {
+			t.Errorf("text %s = %g, expected %g", inf, v, count)
+		}
+		if v := fromProto[inf]; v != count {
+			t.Errorf("protobuf %s = %g, expected %g", inf, v, count)
+		}
+	}
+	if t.Failed() {
+		t.Log("text output:\n" + text.String())
 	}
 }
 
