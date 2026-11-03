@@ -325,7 +325,7 @@ func newMetricState(labels labels) *metricState {
 	}
 }
 
-func (state *metricState) update(mtype metricType, value float64, time time.Time, buckets []stats.Value) {
+func (state *metricState) update(mtype metricType, value float64, t time.Time, buckets []stats.Value) {
 	state.mutex.Lock()
 
 	switch mtype {
@@ -351,9 +351,15 @@ func (state *metricState) update(mtype metricType, value float64, time time.Time
 	}
 
 	if state.created.IsZero() {
-		state.created = time
+		// A zero created time means none has been set, so a measure with a
+		// zero time cannot set one: the next update would take its place,
+		// and the series would claim to start later than its first value.
+		if t.IsZero() {
+			t = time.Now()
+		}
+		state.created = t
 	}
-	state.time = time
+	state.time = t
 	state.mutex.Unlock()
 }
 

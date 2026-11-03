@@ -242,6 +242,29 @@ func TestCreatedTimestampAfterTimeout(t *testing.T) {
 	}
 }
 
+// TestCreatedTimestampZeroTime covers a first update with a zero time. A zero
+// created time means none is set, so the series has to take the time it was
+// first seen instead, or the next update would set created after the series
+// already held a value and the scraper would write a zero under it.
+func TestCreatedTimestampZeroTime(t *testing.T) {
+	handler := &Handler{}
+
+	before := time.Now()
+	handler.HandleMeasures(time.Time{}, stats.Measure{Fields: []stats.Field{stats.MakeField("A", 5, stats.Counter)}})
+	after := time.Now()
+	handler.HandleMeasures(after.Add(time.Minute), stats.Measure{Fields: []stats.Field{stats.MakeField("A", 1, stats.Counter)}})
+
+	families := scrapeProtobuf(t, handler, false)
+	if len(families) != 1 || len(families[0].Metric) != 1 {
+		t.Fatalf("unexpected families: %v", families)
+	}
+	c := families[0].Metric[0].GetCounter()
+	created := c.GetCreatedTimestamp().AsTime()
+	if c.GetValue() != 6 || created.Before(before) || created.After(after) {
+		t.Errorf("counter = %v, expected value 6 created between %s and %s", c, before, after)
+	}
+}
+
 // TestProtobufMatchesText checks that a scraper ingests the same series from
 // the protobuf exposition as from the text format: the same names, label sets
 // and values, so a scraper that switches format keeps writing to the same
