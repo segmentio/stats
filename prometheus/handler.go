@@ -153,7 +153,15 @@ func (h *Handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	}
 
 	w := io.Writer(res)
-	res.Header().Set("Content-Type", "text/plain; version=0.0.4")
+	protobuf := acceptsProtobuf(req.Header.Get("Accept"))
+
+	// Text stays the default. Only the protobuf exposition carries created
+	// timestamps, and a scraper gets it only by asking for it first.
+	if protobuf {
+		res.Header().Set("Content-Type", protobufContentType)
+	} else {
+		res.Header().Set("Content-Type", "text/plain; version=0.0.4")
+	}
 
 	if acceptEncoding(req.Header.Get("Accept-Encoding"), "gzip") {
 		res.Header().Set("Content-Encoding", "gzip")
@@ -162,6 +170,10 @@ func (h *Handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		w = zw
 	}
 
+	if protobuf {
+		_ = h.writeProtobuf(w)
+		return
+	}
 	h.WriteStats(w)
 }
 

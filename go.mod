@@ -4,6 +4,7 @@ go 1.26.0
 
 require (
 	github.com/mdlayher/taskstats v0.0.0-20241219020249-a291fa5f5a69
+	github.com/prometheus/client_model v0.6.2
 	github.com/segmentio/encoding v0.5.4
 	github.com/segmentio/fasthash v1.0.3
 	github.com/segmentio/vpcinfo v0.2.0

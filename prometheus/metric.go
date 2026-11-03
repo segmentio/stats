@@ -311,6 +311,12 @@ type metricState struct {
 	sum     float64
 	count   uint64
 	time    time.Time
+
+	// created is when the series started counting from zero, at its first
+	// update. The protobuf exposition publishes it so that a scraper can write a zero
+	// sample at that time, which lets increase() count the first value. A
+	// state re-created after MetricTimeout gets a new one.
+	created time.Time
 }
 
 func newMetricState(labels labels) *metricState {
@@ -334,6 +340,9 @@ func (state *metricState) update(mtype metricType, value float64, time time.Time
 		// entry than the registry slice. Comparing against len(buckets) here
 		// would rebuild — and zero the counts — on every observation.
 		if len(state.buckets) != len(buckets)+1 {
+			// A rebuild zeroes the bucket counts, but not _sum and _count.
+			// Moving the created time forward would make a scraper write a
+			// zero under a _count that kept counting, so it stays put.
 			state.buckets = makeMetricBuckets(buckets, state.labels)
 		}
 		state.buckets.update(value)
@@ -341,6 +350,9 @@ func (state *metricState) update(mtype metricType, value float64, time time.Time
 		state.count++
 	}
 
+	if state.created.IsZero() {
+		state.created = time
+	}
 	state.time = time
 	state.mutex.Unlock()
 }
