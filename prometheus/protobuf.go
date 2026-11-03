@@ -95,6 +95,7 @@ type protoFamilyKey struct {
 type protoFamily struct {
 	family *dto.MetricFamily
 	series []protoSeries
+	first  int // position of the family's first entry, for ordering
 }
 
 // protoEntry is a store entry copied out under the locks, so that the
@@ -123,7 +124,22 @@ type protoBucket struct {
 func (store *metricStore) families() []*dto.MetricFamily {
 	byKey := make(map[protoFamilyKey]*protoFamily)
 
-	for _, entry := range store.protoEntries() {
+	// Entries come out of a map, so they are put in the order WriteStats
+	// uses before anything depends on it. Where two entries render to the
+	// same name and labels, a scraper keeps the first sample and drops the
+	// other: an order that changed between scrapes would make the stored
+	// value alternate between two different series, and increase() would
+	// read every switch as a reset.
+	entries := store.protoEntries()
+	slices.SortFunc(entries, func(a, b protoEntry) int {
+		return cmp.Or(
+			cmp.Compare(a.scope, b.scope),
+			cmp.Compare(a.name, b.name),
+			cmp.Compare(a.mtype, b.mtype),
+		)
+	})
+
+	for i, entry := range entries {
 		var mtype dto.MetricType
 		switch entry.mtype {
 		case counter:
@@ -142,18 +158,20 @@ func (store *metricStore) families() []*dto.MetricFamily {
 
 		f := byKey[fk]
 		if f == nil {
-			f = &protoFamily{family: &dto.MetricFamily{Name: proto.String(name), Type: mtype.Enum()}}
+			f = &protoFamily{family: &dto.MetricFamily{Name: proto.String(name), Type: mtype.Enum()}, first: i}
 			byKey[fk] = f
 		}
 		f.series = append(f.series, entry.series...)
 	}
 
-	families := make([]*dto.MetricFamily, 0, len(byKey))
+	families := make([]*protoFamily, 0, len(byKey))
 	for fk, f := range byKey {
 		if len(f.series) == 0 {
 			continue
 		}
-		slices.SortFunc(f.series, func(a, b protoSeries) int {
+		// Stable, so that series with the same labels keep the order of the
+		// entries they came from.
+		slices.SortStableFunc(f.series, func(a, b protoSeries) int {
 			switch {
 			case a.labels.less(b.labels):
 				return -1
@@ -166,13 +184,23 @@ func (store *metricStore) families() []*dto.MetricFamily {
 		for i := range f.series {
 			f.family.Metric[i] = f.series[i].protoMetric(fk.mtype)
 		}
-		families = append(families, f.family)
+		families = append(families, f)
 	}
 
-	slices.SortFunc(families, func(a, b *dto.MetricFamily) int {
-		return cmp.Compare(a.GetName(), b.GetName())
+	// A counter and a gauge can render to the same name too; their families
+	// are ordered by their first entry.
+	slices.SortFunc(families, func(a, b *protoFamily) int {
+		return cmp.Or(
+			cmp.Compare(a.family.GetName(), b.family.GetName()),
+			cmp.Compare(a.first, b.first),
+		)
 	})
-	return families
+
+	out := make([]*dto.MetricFamily, len(families))
+	for i, f := range families {
+		out[i] = f.family
+	}
+	return out
 }
 
 // protoEntries copies out every series the protobuf exposition publishes.

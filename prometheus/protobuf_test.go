@@ -2,6 +2,7 @@ package prometheus
 
 import (
 	"bufio"
+	"bytes"
 	"compress/gzip"
 	"errors"
 	"io"
@@ -292,6 +293,53 @@ func TestProtobufMatchesText(t *testing.T) {
 	}
 	if t.Failed() {
 		t.Log("text output:\n" + text.String())
+	}
+}
+
+// TestProtobufCollisionOrder covers entries that render to the same name. A
+// scraper keeps the first of two samples with the same name and labels, so
+// the order has to be the same on every scrape, and the same as the text
+// format's, or the stored value alternates between the two series.
+func TestProtobufCollisionOrder(t *testing.T) {
+	now := time.Date(2017, 6, 4, 22, 12, 0, 0, time.UTC)
+
+	handler := &Handler{}
+	handler.HandleMeasures(now,
+		// Both render to a_b_total.
+		stats.Measure{Fields: []stats.Field{stats.MakeField("a.b", 1, stats.Counter)}},
+		stats.Measure{Fields: []stats.Field{stats.MakeField("a_b", 2, stats.Counter)}},
+		// A counter and a gauge that both render to c_d_total.
+		stats.Measure{Fields: []stats.Field{stats.MakeField("c_d", 3, stats.Counter)}},
+		stats.Measure{Fields: []stats.Field{stats.MakeField("c.d_total", 4, stats.Gauge)}},
+	)
+
+	var first bytes.Buffer
+	if err := handler.writeProtobuf(&first); err != nil {
+		t.Fatal(err)
+	}
+	for range 100 {
+		var b bytes.Buffer
+		if err := handler.writeProtobuf(&b); err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(b.Bytes(), first.Bytes()) {
+			t.Fatal("protobuf exposition changed between scrapes")
+		}
+	}
+
+	// The text format lists a.b first, and the c.d_total gauge before the
+	// c_d counter, so a scraper keeps the same samples from either format.
+	families := scrapeProtobuf(t, handler, false)
+	if len(families) != 3 {
+		t.Fatalf("found %d families, expected 3: %v", len(families), families)
+	}
+	if m := families[0].Metric; families[0].GetName() != "a_b_total" || len(m) != 2 ||
+		m[0].GetCounter().GetValue() != 1 || m[1].GetCounter().GetValue() != 2 {
+		t.Errorf("bad a_b_total family: %v", families[0])
+	}
+	if families[1].GetName() != "c_d_total" || families[1].GetType() != dto.MetricType_GAUGE ||
+		families[2].GetName() != "c_d_total" || families[2].GetType() != dto.MetricType_COUNTER {
+		t.Errorf("bad c_d_total families: %v %v", families[1], families[2])
 	}
 }
 
