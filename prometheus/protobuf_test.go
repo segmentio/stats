@@ -485,6 +485,47 @@ func TestProtobufCollisionOrder(t *testing.T) {
 	}
 }
 
+// TestHistogramCollisionOrder covers a gauge that renders to the same name
+// as one of a histogram's series. Both formats list the histogram first, so
+// a scraper keeps its y_count on every scrape, whichever format it reads.
+func TestHistogramCollisionOrder(t *testing.T) {
+	now := time.Date(2017, 6, 4, 22, 12, 0, 0, time.UTC)
+
+	handler := &Handler{}
+	handler.HandleMeasures(now,
+		stats.Measure{Fields: []stats.Field{stats.MakeField("y_count", 70, stats.Gauge)}},
+		stats.Measure{Fields: []stats.Field{stats.MakeField("y", 0.5, stats.Histogram)}},
+	)
+
+	var first bytes.Buffer
+	handler.WriteStats(&first)
+	for range 100 {
+		var b bytes.Buffer
+		handler.WriteStats(&b)
+		if !bytes.Equal(b.Bytes(), first.Bytes()) {
+			t.Fatalf("text exposition changed between scrapes:\n%s\nthen:\n%s", first.String(), b.String())
+		}
+	}
+
+	var firstCount string
+	for line := range strings.SplitSeq(first.String(), "\n") {
+		if strings.HasPrefix(line, "y_count ") {
+			firstCount = line
+			break
+		}
+	}
+	if firstCount != "y_count 1" {
+		t.Errorf("text lists %q first, expected the histogram's y_count 1:\n%s", firstCount, first.String())
+	}
+
+	families := scrapeProtobuf(t, handler, false)
+	if len(families) != 2 ||
+		families[0].GetName() != "y" || families[0].GetType() != dto.MetricType_HISTOGRAM ||
+		families[1].GetName() != "y_count" || families[1].GetType() != dto.MetricType_GAUGE {
+		t.Errorf("protobuf does not list the histogram first: %v", families)
+	}
+}
+
 // seriesKey renders a series as name{label="value",...} with the labels
 // sorted and le normalized, so the same series is the same string whichever
 // format it came from.

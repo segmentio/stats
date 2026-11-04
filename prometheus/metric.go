@@ -549,6 +549,13 @@ func (metrics byNameAndLabels) Swap(i, j int) {
 //
 // Comparing the two parts in turn rather than the joined "scope_name" avoids
 // building a string for every comparison in the sort.
+//
+// Two metrics can still tie on all three, a gauge "y_count" and the _count
+// series of a histogram "y" for example. A scraper keeps the first of the two
+// samples, and metrics come out of a map, so the tie is broken on the root
+// name and then the type: otherwise the kept value would alternate between
+// scrapes. The root name puts the histogram first, as the protobuf format
+// does.
 func (metrics byNameAndLabels) Less(i, j int) bool {
 	m1 := &metrics[i]
 	m2 := &metrics[j]
@@ -559,5 +566,14 @@ func (metrics byNameAndLabels) Less(i, j int) bool {
 	if m1.name != m2.name {
 		return m1.name < m2.name
 	}
-	return m1.labels.less(m2.labels)
+	if m1.labels.less(m2.labels) {
+		return true
+	}
+	if m2.labels.less(m1.labels) {
+		return false
+	}
+	if r1, r2 := m1.rootName(), m2.rootName(); r1 != r2 {
+		return r1 < r2
+	}
+	return m1.mtype < m2.mtype
 }

@@ -38,7 +38,11 @@ writes `le="1"`, and only 3.x normalizes the text value to match.
 The text format now writes a histogram's `le="+Inf"` bucket from `_count`
 rather than from the total of the other buckets. The two differed after a NaN
 observation, which lands in no bucket, or after a change to the registered
-buckets, which resets them but not `_count`. Responses now carry
+buckets, which resets them but not `_count`. Where a gauge and a histogram
+series render to the same name and labels (a gauge `y_count` next to a
+histogram `y`), the text format now always lists the histogram's first, as
+the protobuf format does; their order used to change between scrapes, so the
+value a scraper kept alternated between the two. Responses now carry
 `Vary: Accept, Accept-Encoding`.
 
 The module now depends on `github.com/prometheus/client_model`.

@@ -158,6 +158,14 @@ func (store *metricStore) families() []*protoFamily {
 	// other: an order that changed between scrapes would make the stored
 	// value alternate between two different series, and increase() would
 	// read every switch as a reset.
+	//
+	// One collision still keeps a different series than the text format
+	// does, though the same one on every scrape. A histogram sorts here under
+	// its root name, and in the text format each of its series sorts under
+	// its own: next to a histogram "x", a gauge "x.count" is listed after the
+	// histogram here and before its x_count in text, because '.' sorts before
+	// '_'. Matching it would mean reordering the text format for every
+	// metric.
 	entries := store.protoEntries()
 	slices.SortFunc(entries, func(a, b protoEntry) int {
 		return cmp.Or(
