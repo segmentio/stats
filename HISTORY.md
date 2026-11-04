@@ -1,5 +1,52 @@
 # History
 
+### v5.13.0
+
+**The `prometheus` handler can serve the protobuf exposition, with created
+timestamps.** `increase()` and `rate()` never count a counter's first sample:
+it is taken as the starting point. A series that starts at 5 and stays there
+shows an increase of 0, and a series that goes idle long enough for
+`MetricTimeout` to delete it loses its first update again when it comes back.
+
+The handler now records when each counter and histogram series started from
+zero (its first update, or its first update after `MetricTimeout` deleted it)
+and publishes it as `created_timestamp` in the protobuf exposition
+(`application/vnd.google.protobuf; proto=io.prometheus.client.MetricFamily;
+encoding=delimited`). Prometheus is renaming created timestamps to start
+timestamps; the wire field is the same. A scraper with created (start)
+timestamp zero ingestion enabled (Prometheus
+`created-timestamp-zero-ingestion`, Alloy `start_timestamp_zero_ingestion`)
+writes a zero at that time, so the first update is counted.
+
+Protobuf is served only to a scraper that ranks it above the text format in
+its `Accept` header. That is a scraper whose scrape protocols put
+`PrometheusProto` first, or a Prometheus with `scrape_native_histograms` or
+created-timestamp zero ingestion on, which puts it first by default: such a
+Prometheus switches to protobuf when the application upgrades, with no change
+to its configuration. Alloy puts it first by default only with
+`scrape_native_histograms`; `start_timestamp_zero_ingestion` alone does not
+change the order, so `scrape_protocols` has to list `PrometheusProto` first.
+Every other scraper keeps getting the text format. Sample timestamps are still
+left to the scraper. Gauges carry no created timestamp.
+
+Both formats render the same metric and label names, so a Prometheus 3.x
+scraper that switches format keeps writing to the same series. On Prometheus
+2.x, histogram buckets with integer bounds start new series: the scraper
+formats the bound of a protobuf bucket as `le="1.0"`, while the text format
+writes `le="1"`, and only 3.x normalizes the text value to match.
+
+The text format now writes a histogram's `le="+Inf"` bucket from `_count`
+rather than from the total of the other buckets. The two differed after a NaN
+observation, which lands in no bucket, or after a change to the registered
+buckets, which resets them but not `_count`. Where a gauge and a histogram
+series render to the same name and labels (a gauge `y_count` next to a
+histogram `y`), the text format now always lists the histogram's first, as
+the protobuf format does; their order used to change between scrapes, so the
+value a scraper kept alternated between the two. Responses now carry
+`Vary: Accept, Accept-Encoding`.
+
+The module now depends on `github.com/prometheus/client_model`.
+
 ### v5.12.0
 
 **`procstats` now reads CPU and memory limits on cgroup v2.** It only knew the
