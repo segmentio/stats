@@ -46,8 +46,9 @@ func TestAcceptsProtobuf(t *testing.T) {
 		{
 			// Prometheus' acceptHeader output for DefaultScrapeProtocols. Its
 			// weights start at one above the number of protocols it knows, so
-			// they shift between releases: q=0.8 on main, q=0.7 on 3.0.
-			name: "prometheus 3.x defaults",
+			// they shift between releases: q=0.6 on 3.0 to 3.14 (5 protocols),
+			// q=0.7 on 3.15 (6), and q=0.8 on main (7).
+			name: "prometheus main defaults",
 			accept: "application/openmetrics-text;version=1.0.0;escaping=allow-utf-8;q=0.8,application/openmetrics-text;version=0.0.1;q=0.7," +
 				"text/plain;version=1.0.0;escaping=allow-utf-8;q=0.6,text/plain;version=0.0.4;q=0.5,*/*;q=0.4",
 			expect: false,
@@ -55,17 +56,27 @@ func TestAcceptsProtobuf(t *testing.T) {
 		{
 			// DefaultProtoFirstScrapeProtocols, used with scrape_native_histograms
 			// or created-timestamp zero ingestion.
-			name: "prometheus 3.x proto first",
+			name: "prometheus main proto first",
 			accept: "application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited;q=0.8," +
 				"application/openmetrics-text;version=1.0.0;escaping=allow-utf-8;q=0.7,application/openmetrics-text;version=0.0.1;q=0.6," +
 				"text/plain;version=1.0.0;escaping=allow-utf-8;q=0.5,text/plain;version=0.0.4;q=0.4,*/*;q=0.3",
 			expect: true,
 		},
 		{
-			name: "prometheus 3.0 proto first",
+			name: "prometheus 3.15 proto first",
 			accept: "application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited;q=0.7," +
 				"application/openmetrics-text;version=1.0.0;escaping=allow-utf-8;q=0.6,application/openmetrics-text;version=0.0.1;q=0.5," +
 				"text/plain;version=1.0.0;escaping=allow-utf-8;q=0.4,text/plain;version=0.0.4;q=0.3,*/*;q=0.2",
+			expect: true,
+		},
+		{
+			// 3.0 to 3.3 append escaping=allow-utf-8 to every protocol under
+			// the default UTF-8 name validation, including protobuf, and twice
+			// to text 1.0.0, whose header already carries it.
+			name: "prometheus 3.0 proto first",
+			accept: "application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited;escaping=allow-utf-8;q=0.6," +
+				"application/openmetrics-text;version=1.0.0;escaping=allow-utf-8;q=0.5,application/openmetrics-text;version=0.0.1;escaping=allow-utf-8;q=0.4," +
+				"text/plain;version=1.0.0;escaping=allow-utf-8;escaping=allow-utf-8;q=0.3,text/plain;version=0.0.4;escaping=allow-utf-8;q=0.2,*/*;q=0.1",
 			expect: true,
 		},
 		{
