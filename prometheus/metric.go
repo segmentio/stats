@@ -354,10 +354,13 @@ func (state *metricState) update(mtype metricType, value float64, t time.Time, b
 		// A zero created time means none has been set, so a measure with a
 		// zero time cannot set one: the next update would take its place,
 		// and the series would claim to start later than its first value.
-		if t.IsZero() {
-			t = time.Now()
+		// state.time keeps the zero, so expiry treats this update like any
+		// other zero-time update.
+		created := t
+		if created.IsZero() {
+			created = time.Now()
 		}
-		state.created = t
+		state.created = created
 	}
 	state.time = t
 	state.mutex.Unlock()

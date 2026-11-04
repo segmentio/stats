@@ -296,6 +296,21 @@ func TestCreatedTimestampZeroTime(t *testing.T) {
 	}
 }
 
+// TestZeroTimeUpdateKeepsZeroTime checks that the created time fallback
+// leaves the update time alone: MetricTimeout expiry reads the update time,
+// so a zero-time first update has to expire like any other zero-time update.
+func TestZeroTimeUpdateKeepsZeroTime(t *testing.T) {
+	var state metricState
+	state.update(counter, 5, time.Time{}, nil)
+
+	if state.created.IsZero() {
+		t.Error("created time not set by a zero-time first update")
+	}
+	if !state.time.IsZero() {
+		t.Errorf("update time = %s, expected zero", state.time)
+	}
+}
+
 // TestHistogramInfBucket checks that le="+Inf" is _count in both formats,
 // where the bucket total falls short of it: a NaN observation lands in no
 // bucket, and a rebuild zeroes the buckets but not _count.
