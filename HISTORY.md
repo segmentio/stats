@@ -1,5 +1,13 @@
 # History
 
+### Unreleased
+
+**`prometheus.StartExporter` serves `/metrics` and tags the engine in one call.**
+It registers a `Handler` on the engine (the default engine unless `Engine` is
+set), adds an app name tag (`appName` unless `AppNameTag` is set), and serves the
+handler on `Addr` with a graceful `Shutdown`. Services that scrape through a
+collector no longer each carry their own copy of this setup.
+
 ### v5.11.1
 
 **A call-time tag that overrides an engine tag no longer sends a tag twice.**
