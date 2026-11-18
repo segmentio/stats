@@ -6,7 +6,10 @@
 It registers a `Handler` on the engine (the default engine unless `Engine` is
 set), adds an app name tag (`appName` unless `AppNameTag` is set), and serves the
 handler on `Addr` with a graceful `Shutdown`. Services that scrape through a
-collector no longer each carry their own copy of this setup.
+collector no longer each carry their own copy of this setup. `Done` and `Err`
+report a server that stops on its own, `WriteTimeout` and `IdleTimeout` default
+to 30s and 60s, and `Shutdown` closes connections still open when its context
+expires.
 
 ### v5.11.1
 

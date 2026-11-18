@@ -1,6 +1,7 @@
 package prometheus
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"net"
@@ -44,6 +45,14 @@ type ExporterConfig struct {
 
 	// ReadHeaderTimeout bounds reading request headers. The default is 10s.
 	ReadHeaderTimeout time.Duration
+
+	// WriteTimeout bounds writing a response, so a slow reader of /metrics
+	// cannot hold a connection open. The default is 30s.
+	WriteTimeout time.Duration
+
+	// IdleTimeout bounds how long an idle keep-alive connection is kept. The
+	// default is 60s.
+	IdleTimeout time.Duration
 }
 
 // Exporter is a running metrics server started by StartExporter.
@@ -51,20 +60,26 @@ type Exporter struct {
 	// Handler is the handler registered on the engine.
 	Handler *Handler
 
-	server *http.Server
-	addr   net.Addr
-	done   chan struct{}
-	err    error // set before done is closed
+	server   *http.Server
+	addr     net.Addr
+	listener net.Listener
+	done     chan struct{}
+	err      error // set before done is closed
 }
 
 // StartExporter serves the engine's metrics at /metrics on cfg.Addr, in
 // addition to any handler already registered on the engine, which keeps running
 // unchanged.
 //
-// It adds the app name tag to the engine's tags, so call it before creating any
-// engine derived from cfg.Engine (WithTags, WithPrefix) or the tag is not
-// inherited. It returns once the listener is bound, so a bad address is an error
-// here rather than a log line later.
+// It adds the app name tag to the engine's tags and registers the handler on the
+// engine. Neither write is synchronized with the engine's readers, so call it
+// before the engine is used from other goroutines, and before creating any engine
+// derived from cfg.Engine (WithTags, WithPrefix), which would not inherit the tag.
+// Calling it again on the same engine is safe: the tag is deduplicated by name.
+//
+// It returns once the listener is bound, so a bad address is an error here rather
+// than a log line later. If the server stops on its own later, Done is closed and
+// Err returns the cause.
 func StartExporter(cfg ExporterConfig) (*Exporter, error) {
 	if cfg.Addr == "" {
 		return nil, errors.New("prometheus: ExporterConfig.Addr is required")
@@ -88,10 +103,9 @@ func StartExporter(cfg ExporterConfig) (*Exporter, error) {
 		handler = &Handler{MetricTimeout: cfg.MetricTimeout}
 	}
 
-	readHeaderTimeout := cfg.ReadHeaderTimeout
-	if readHeaderTimeout == 0 {
-		readHeaderTimeout = 10 * time.Second
-	}
+	readHeaderTimeout := cmp.Or(cfg.ReadHeaderTimeout, 10*time.Second)
+	writeTimeout := cmp.Or(cfg.WriteTimeout, 30*time.Second)
+	idleTimeout := cmp.Or(cfg.IdleTimeout, 60*time.Second)
 
 	ln, err := net.Listen("tcp", cfg.Addr)
 	if err != nil {
@@ -103,9 +117,15 @@ func StartExporter(cfg ExporterConfig) (*Exporter, error) {
 
 	e := &Exporter{
 		Handler: handler,
-		server:  &http.Server{Handler: mux, ReadHeaderTimeout: readHeaderTimeout},
-		addr:    ln.Addr(),
-		done:    make(chan struct{}),
+		server: &http.Server{
+			Handler:           mux,
+			ReadHeaderTimeout: readHeaderTimeout,
+			WriteTimeout:      writeTimeout,
+			IdleTimeout:       idleTimeout,
+		},
+		addr:     ln.Addr(),
+		listener: ln,
+		done:     make(chan struct{}),
 	}
 
 	engine.Register(handler)
@@ -123,11 +143,29 @@ func StartExporter(cfg ExporterConfig) (*Exporter, error) {
 // Addr returns the address the server is listening on.
 func (e *Exporter) Addr() net.Addr { return e.addr }
 
-// Shutdown stops the server, waiting for in-flight scrapes until ctx is done. It
-// returns the error that stopped the server early, if any. The handler stays
-// registered on the engine.
+// Done is closed when the server has stopped, either through Shutdown or because
+// it failed.
+func (e *Exporter) Done() <-chan struct{} { return e.done }
+
+// Err returns the error that stopped the server, or nil if it was shut down
+// normally or is still running. It is only meaningful once Done is closed.
+func (e *Exporter) Err() error {
+	select {
+	case <-e.done:
+		return e.err
+	default:
+		return nil
+	}
+}
+
+// Shutdown stops the server, waiting for in-flight scrapes until ctx is done, then
+// closing any connection still open. It returns the error that stopped the server
+// early, if any. The handler stays registered on the engine.
 func (e *Exporter) Shutdown(ctx context.Context) error {
 	err := e.server.Shutdown(ctx)
+	if err != nil {
+		e.server.Close() // ctx expired with scrapes in flight: do not leave them open
+	}
 	<-e.done
 	if err == nil {
 		err = e.err
