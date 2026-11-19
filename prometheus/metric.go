@@ -311,6 +311,12 @@ type metricState struct {
 	sum     float64
 	count   uint64
 	time    time.Time
+
+	// created is when the series started counting from zero, at its first
+	// update. The protobuf exposition publishes it so that a scraper can write a zero
+	// sample at that time, which lets increase() count the first value. A
+	// state re-created after MetricTimeout gets a new one.
+	created time.Time
 }
 
 func newMetricState(labels labels) *metricState {
@@ -319,7 +325,7 @@ func newMetricState(labels labels) *metricState {
 	}
 }
 
-func (state *metricState) update(mtype metricType, value float64, time time.Time, buckets []stats.Value) {
+func (state *metricState) update(mtype metricType, value float64, t time.Time, buckets []stats.Value) {
 	state.mutex.Lock()
 
 	switch mtype {
@@ -334,6 +340,9 @@ func (state *metricState) update(mtype metricType, value float64, time time.Time
 		// entry than the registry slice. Comparing against len(buckets) here
 		// would rebuild — and zero the counts — on every observation.
 		if len(state.buckets) != len(buckets)+1 {
+			// A rebuild zeroes the bucket counts, but not _sum and _count.
+			// Moving the created time forward would make a scraper write a
+			// zero under a _count that kept counting, so it stays put.
 			state.buckets = makeMetricBuckets(buckets, state.labels)
 		}
 		state.buckets.update(value)
@@ -341,7 +350,19 @@ func (state *metricState) update(mtype metricType, value float64, time time.Time
 		state.count++
 	}
 
-	state.time = time
+	if state.created.IsZero() {
+		// A zero created time means none has been set, so a measure with a
+		// zero time cannot set one: the next update would take its place,
+		// and the series would claim to start later than its first value.
+		// state.time keeps the zero, so expiry treats this update like any
+		// other zero-time update.
+		created := t
+		if created.IsZero() {
+			created = time.Now()
+		}
+		state.created = created
+	}
+	state.time = t
 	state.mutex.Unlock()
 }
 
@@ -370,6 +391,13 @@ func (state *metricState) collect(metrics []metric, entry *metricEntry, name str
 		var cumulativeCount uint64
 		for _, bucket := range state.buckets {
 			cumulativeCount += bucket.count
+			if math.IsInf(bucket.limit, 1) {
+				// le="+Inf" is _count, as the scraper derives it from a
+				// protobuf exposition. The bucket total can fall short of it:
+				// a NaN lands in no bucket, and a rebuild zeroes the buckets
+				// but not _count.
+				cumulativeCount = state.count
+			}
 			metrics = append(metrics, metric{
 				mtype:  entry.mtype,
 				scope:  entry.scope,
@@ -524,6 +552,13 @@ func (metrics byNameAndLabels) Swap(i, j int) {
 //
 // Comparing the two parts in turn rather than the joined "scope_name" avoids
 // building a string for every comparison in the sort.
+//
+// Two metrics can still tie on all three, a gauge "y_count" and the _count
+// series of a histogram "y" for example. A scraper keeps the first of the two
+// samples, and metrics come out of a map, so the tie is broken on the root
+// name and then the type: otherwise the kept value would alternate between
+// scrapes. The root name puts the histogram first, as the protobuf format
+// does.
 func (metrics byNameAndLabels) Less(i, j int) bool {
 	m1 := &metrics[i]
 	m2 := &metrics[j]
@@ -534,5 +569,14 @@ func (metrics byNameAndLabels) Less(i, j int) bool {
 	if m1.name != m2.name {
 		return m1.name < m2.name
 	}
-	return m1.labels.less(m2.labels)
+	if m1.labels.less(m2.labels) {
+		return true
+	}
+	if m2.labels.less(m1.labels) {
+		return false
+	}
+	if r1, r2 := m1.rootName(), m2.rootName(); r1 != r2 {
+		return r1 < r2
+	}
+	return m1.mtype < m2.mtype
 }
