@@ -201,6 +201,22 @@ stats.Register(prometheus.DefaultHandler)
 http.Handle("/metrics", prometheus.DefaultHandler)
 ```
 
+To serve `/metrics` on its own port, and tag every series with the owning service
+so a collector can name it, `StartExporter` registers the handler and runs the
+server. It binds the listener before returning, so a bad address is an error:
+
+```go
+exp, err := prometheus.StartExporter(prometheus.ExporterConfig{
+    Addr:    ":9102",
+    AppName: "my-service", // adds appName="my-service" to the engine's tags
+})
+if err != nil { ... }
+defer exp.Shutdown(ctx)
+```
+
+Call it before deriving engines with `WithTags` or `WithPrefix`, which inherit the
+tags the engine has at that moment.
+
 `Handler` has no `NewHandler` constructor; `DefaultHandler` is a ready-to-use zero-config
 instance. Construct your own `&prometheus.Handler{}` literal instead if you need to set
 `TrimPrefix`, `MetricTimeout`, or `Buckets`.
